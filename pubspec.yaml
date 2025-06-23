@@ -1,0 +1,95 @@
+name: air_charters
+description: "AirCharters - Charter Beyond Borders. Book private jet charters and luxury air travel services globally."
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.6.1
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # UI and Styling
+  cupertino_icons: ^1.0.8
+  flutter_svg: ^2.2.0
+  google_fonts: ^6.1.0
+  
+  # State Management and Navigation
+  get: ^4.6.6
+  get_storage: ^2.1.1
+  provider: ^6.1.1
+  
+  # Icons
+  lucide_icons: ^0.257.0
+  
+  # Timer
+  stop_watch_timer: ^3.0.0
+  
+  # Image caching
+  cached_network_image: ^3.3.1
+  
+  # HTTP requests
+  http: ^1.1.2
+  
+  # Local storage
+  shared_preferences: ^2.2.2
+  
+  # Country picker
+  country_picker: ^2.0.26
+  
+  # Country flags with colors
+  country_flags: ^3.0.0
+
+  # Firebase
+  firebase_core: ^2.24.2
+  firebase_auth: ^4.15.3
+  cloud_firestore: ^4.13.6
+  
+  # JWT Token Management
+  jwt_decoder: ^2.0.1
+  
+  # Secure Storage
+  flutter_secure_storage: ^9.0.0
+  
+  # Connectivity
+  connectivity_plus: ^5.0.2
+  
+  # Loading States
+  shimmer: ^3.0.0
+
+  # JS Interop (Required for Firebase Web)
+  js: ^0.6.7
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+  flutter_launcher_icons: ^0.13.1
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/icons/
+    - assets/images/
+    - assets/logo/logo.png
+
+# Flutter Launcher Icons configuration
+flutter_launcher_icons:
+  android: "launcher_icon"
+  ios: true
+  image_path: "assets/logo/logo.png"
+  min_sdk_android: 21
+  web:
+    generate: true
+    image_path: "assets/logo/logo.png"
+  windows:
+    generate: true
+    image_path: "assets/logo/logo.png"
+  macos:
+    generate: true
+    image_path: "assets/logo/logo.png"
+
+# (Optional) You can define fonts here later if needed

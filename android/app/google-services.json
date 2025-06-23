@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "882137488801",
+    "project_id": "air-charters-app",
+    "storage_bucket": "air-charters-app.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:882137488801:android:bfe07853fa3cc7a559bfe0",
+        "android_client_info": {
+          "package_name": "com.cit.air_charters"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDkDNVfmn_XnaGVNOiK77CEJmvX7NoLyww"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
