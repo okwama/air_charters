@@ -1,13 +1,16 @@
 {
-    "name": "air_charters",
-    "short_name": "air_charters",
+    "name": "AirCharters - Premium Charter Services",
+    "short_name": "AirCharters",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#000000",
+    "theme_color": "#000000",
+    "description": "Charter Beyond Borders. Book private jet charters and luxury air travel services globally with AirCharters.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
+    "categories": ["travel", "business", "lifestyle"],
+    "scope": "/",
+    "lang": "en",
     "icons": [
         {
             "src": "icons/Icon-192.png",

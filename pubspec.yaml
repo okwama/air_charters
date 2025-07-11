@@ -27,7 +27,7 @@ dependencies:
   # Timer
   stop_watch_timer: ^3.0.0
   
-  # Image caching
+  # Image caching and optimization
   cached_network_image: ^3.3.1
   
   # HTTP requests
@@ -63,10 +63,25 @@ dev_dependencies:
 flutter:
   uses-material-design: true
 
+  # Optimized asset configuration
   assets:
     - assets/icons/
     - assets/images/
     - assets/logo/logo.png
+    - assets/logo/logo.svg
+    - assets/logo/Logo_white.svg
+
+  # Font optimization
+  fonts:
+    - family: Inter
+      fonts:
+        - asset: packages/google_fonts/fonts/Inter-Regular.ttf
+        - asset: packages/google_fonts/fonts/Inter-Medium.ttf
+          weight: 500
+        - asset: packages/google_fonts/fonts/Inter-SemiBold.ttf
+          weight: 600
+        - asset: packages/google_fonts/fonts/Inter-Bold.ttf
+          weight: 700
 
 # Flutter Launcher Icons configuration
 flutter_launcher_icons:
@@ -83,5 +98,3 @@ flutter_launcher_icons:
   macos:
     generate: true
     image_path: "assets/logo/logo.png"
-
-# (Optional) You can define fonts here later if needed

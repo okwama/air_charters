@@ -13,8 +13,16 @@ class AppTheme {
   static const Color textSecondaryColor = Color(0xFF666666); // Gray
   static const Color borderColor = Color(0xFFE5E5E5); // Light Gray
 
-  // Text Styles - All using Inter for consistency
-  static TextStyle get heading1 => GoogleFonts.inter(
+  // Cached TextTheme for better performance
+  static TextTheme? _cachedTextTheme;
+  
+  static TextTheme get _textTheme {
+    _cachedTextTheme ??= GoogleFonts.interTextTheme();
+    return _cachedTextTheme!;
+  }
+
+  // Text Styles - Optimized with cached theme
+  static TextStyle get heading1 => _textTheme.displayLarge!.copyWith(
         fontSize: 42,
         fontWeight: FontWeight.w700,
         color: textPrimaryColor,
@@ -22,42 +30,42 @@ class AppTheme {
         height: 1.2,
       );
 
-  static TextStyle get heading2 => GoogleFonts.inter(
+  static TextStyle get heading2 => _textTheme.headlineMedium!.copyWith(
         fontSize: 24,
         fontWeight: FontWeight.w600,
         color: textPrimaryColor,
         height: 1.3,
       );
 
-  static TextStyle get heading3 => GoogleFonts.inter(
+  static TextStyle get heading3 => _textTheme.headlineSmall!.copyWith(
         fontSize: 20,
         fontWeight: FontWeight.w600,
         color: textPrimaryColor,
         height: 1.4,
       );
 
-  static TextStyle get bodyLarge => GoogleFonts.inter(
+  static TextStyle get bodyLarge => _textTheme.bodyLarge!.copyWith(
         fontSize: 18,
         fontWeight: FontWeight.w400,
         color: textPrimaryColor,
         height: 1.5,
       );
 
-  static TextStyle get bodyMedium => GoogleFonts.inter(
+  static TextStyle get bodyMedium => _textTheme.bodyMedium!.copyWith(
         fontSize: 16,
         fontWeight: FontWeight.w400,
         color: textPrimaryColor,
         height: 1.5,
       );
 
-  static TextStyle get bodySmall => GoogleFonts.inter(
+  static TextStyle get bodySmall => _textTheme.bodySmall!.copyWith(
         fontSize: 14,
         fontWeight: FontWeight.w400,
         color: textSecondaryColor,
         height: 1.5,
       );
 
-  static TextStyle get caption => GoogleFonts.inter(
+  static TextStyle get caption => _textTheme.labelSmall!.copyWith(
         fontSize: 12,
         fontWeight: FontWeight.w500,
         color: textSecondaryColor,
