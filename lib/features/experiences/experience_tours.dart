@@ -5,7 +5,7 @@ import 'package:air_charters/features/experiences/tour_list.dart';
 import 'package:air_charters/features/experiences/tour_detail.dart';
 
 class ExperienceToursScreen extends StatefulWidget {
-  const ExperienceToursScreen({Key? key}) : super(key: key);
+  const ExperienceToursScreen({super.key});
 
   @override
   State<ExperienceToursScreen> createState() => _ExperienceToursScreenState();
@@ -246,12 +246,10 @@ class _ExperienceToursScreenState extends State<ExperienceToursScreen> {
             const SizedBox(height: 16),
 
             // Tour Categories
-            ..._tourCategories
-                .map((category) => _buildTourCategorySection(
-                      category['title'],
-                      category['deals'],
-                    ))
-                .toList(),
+            ..._tourCategories.map((category) => _buildTourCategorySection(
+                  category['title'],
+                  category['deals'],
+                )),
 
             const SizedBox(height: 24),
           ],

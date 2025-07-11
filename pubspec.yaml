@@ -42,11 +42,6 @@ dependencies:
   # Country flags with colors
   country_flags: ^3.0.0
 
-  # Firebase
-  firebase_core: ^2.24.2
-  firebase_auth: ^4.15.3
-  cloud_firestore: ^4.13.6
-  
   # JWT Token Management
   jwt_decoder: ^2.0.1
   
@@ -58,9 +53,6 @@ dependencies:
   
   # Loading States
   shimmer: ^3.0.0
-
-  # JS Interop (Required for Firebase Web)
-  js: ^0.6.7
 
 dev_dependencies:
   flutter_test:

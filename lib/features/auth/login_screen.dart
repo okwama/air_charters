@@ -101,12 +101,7 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  bool _isPhoneNumber(String input) {
-    // Check if input contains mostly digits and common phone number characters
-    final phoneRegex = RegExp(r'^[\d\s\-\+\(\)]+$');
-    return phoneRegex.hasMatch(input) &&
-        input.replaceAll(RegExp(r'[^\d]'), '').length >= 7;
-  }
+  // Removed unused method: _isPhoneNumber
 
   bool _isValidPhoneNumberFormat(String phoneNumber) {
     // Remove all non-digit characters
@@ -118,10 +113,7 @@ class _LoginScreenState extends State<LoginScreen> {
     return digitsOnly.length >= 7 && digitsOnly.length <= 12;
   }
 
-  bool _isValidEmail(String email) {
-    final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
-    return emailRegex.hasMatch(email);
-  }
+  // Removed unused method: _isValidEmail
 
   void _handleSignInWithPassword() async {
     final email = _phoneEmailController.text.trim();
@@ -132,18 +124,21 @@ class _LoginScreenState extends State<LoginScreen> {
       return;
     }
 
+    print('🔥 LOGIN SCREEN: Attempting to sign in with email: $email');
     dev.log(
       'Attempting to sign in with email: $email',
       name: 'LoginScreen',
     );
 
     try {
+      print('🔥 LOGIN SCREEN: Calling authProvider.signInWithEmail');
       await context.read<AuthProvider>().signInWithEmail(email, password);
 
       // Check if authentication was successful
-      final authProvider = context.read<AuthProvider>();
-      if (authProvider.isAuthenticated) {
-        if (mounted) {
+      if (mounted) {
+        final authProvider = context.read<AuthProvider>();
+        print('🔥 LOGIN SCREEN: Authentication completed, isAuthenticated: ${authProvider.isAuthenticated}');
+        if (authProvider.isAuthenticated) {
           // Show success message
           if (authProvider.successMessage != null) {
             showSuccessToast(context, authProvider.successMessage!);
@@ -152,9 +147,13 @@ class _LoginScreenState extends State<LoginScreen> {
           // Navigate to home screen
           Navigator.of(context)
               .pushNamedAndRemoveUntil('/home', (route) => false);
+        } else {
+          print('🔥 LOGIN SCREEN: Authentication failed - user not authenticated');
+          _showErrorSnackBar('Authentication failed. Please try again.');
         }
       }
     } catch (e) {
+      print('🔥 LOGIN SCREEN: Authentication error: $e');
       if (mounted) {
         _showErrorSnackBar(e.toString());
       }

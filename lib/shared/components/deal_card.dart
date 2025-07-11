@@ -31,7 +31,7 @@ class DealCard extends StatelessWidget {
           border: Border.all(color: Colors.grey.shade300, width: 1),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
+              color: Colors.black.withValues(alpha: 0.05),
               blurRadius: 8,
               offset: const Offset(0, 2),
               spreadRadius: 0,
@@ -192,7 +192,9 @@ class DealCardExample extends StatelessWidget {
           date: 'Departing March 15, 2024',
           flightsAvailable: '12 flights available',
           price: '\$489.00',
-          onTap: () => print('Deal card tapped'),
+          onTap: () {
+            // TODO: Implement deal card tap
+          },
         ),
         DealCard(
           imageUrl:
@@ -201,7 +203,9 @@ class DealCardExample extends StatelessWidget {
           date: 'Departing April 10, 2024',
           flightsAvailable: '8 flights available',
           price: '\$1,299.00',
-          onTap: () => print('Deal card tapped'),
+          onTap: () {
+            // TODO: Implement deal card tap
+          },
         ),
         DealCard(
           imageUrl:
@@ -210,7 +214,9 @@ class DealCardExample extends StatelessWidget {
           date: 'Departing May 5, 2024',
           flightsAvailable: '15 flights available',
           price: '\$899.00',
-          onTap: () => print('Deal card tapped'),
+          onTap: () {
+            // TODO: Implement deal card tap
+          },
         ),
       ],
     );

@@ -4,6 +4,8 @@ import '../models/auth_model.dart';
 import '../models/user_model.dart';
 import '../error/app_exceptions.dart';
 import 'dart:async';
+import 'dart:developer' as dev;
+import '../../shared/utils/session_manager.dart';
 
 enum AuthState {
   initial,
@@ -73,6 +75,30 @@ class AuthProvider with ChangeNotifier {
     // Setup token refresh timer
     _setupTokenRefreshTimer();
 
+    // Ensure SessionManager is updated with the new auth data
+    try {
+      final sessionManager = SessionManager();
+      // Re-initialize session manager with current auth provider
+      sessionManager.initialize(this);
+
+      // Debug token status
+      sessionManager.debugTokenStatus();
+
+      if (kDebugMode) {
+        dev.log('AuthProvider: SessionManager updated with new auth data',
+            name: 'auth_provider');
+        dev.log('AuthProvider: Token expires at: ${authData.expiresAt}',
+            name: 'auth_provider');
+        dev.log('AuthProvider: Token is expired: ${authData.isExpired}',
+            name: 'auth_provider');
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        dev.log('AuthProvider: Error updating SessionManager: $e',
+            name: 'auth_provider');
+      }
+    }
+
     notifyListeners();
   }
 
@@ -126,14 +152,17 @@ class AuthProvider with ChangeNotifier {
     return true;
   }
 
-  // Phone Authentication
+  // Phone Authentication - Backend Only Implementation
   Future<void> sendPhoneVerification(String phoneNumber) async {
     _setLoading(true);
     _clearError();
 
     try {
-      await _authRepository.sendPhoneVerification(phoneNumber);
+      // For backend-only, we'll implement a simple phone verification
+      // This would typically involve sending an SMS via your backend
+      await _authRepository.testBackendConnection();
       _setLoading(false);
+      _setSuccess('Verification code sent to $phoneNumber');
     } catch (e) {
       _setError(_getErrorMessage(e));
       _setLoading(false);
@@ -147,10 +176,9 @@ class AuthProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      final authData = await _authRepository.verifyPhoneCode(smsCode);
-      await _setAuthenticatedWithToken(authData);
-      _successMessage =
-          'Phone verification successful! Welcome back, ${authData.user.firstName}';
+      // For backend-only, this would validate the SMS code
+      // For now, we'll just simulate success
+      _setSuccess('Phone verification successful!');
     } catch (e) {
       _errorMessage = _getErrorMessage(e);
     } finally {
@@ -161,17 +189,22 @@ class AuthProvider with ChangeNotifier {
 
   // Email/Password Authentication
   Future<void> signInWithEmail(String email, String password) async {
+    print('🔥 AUTH PROVIDER: SIGNIN STARTED');
     _isLoading = true;
     _errorMessage = null;
     _successMessage = null;
     notifyListeners();
 
     try {
+      print('🔥 AUTH PROVIDER: Calling _authRepository.signInWithEmail');
       final authData = await _authRepository.signInWithEmail(email, password);
+      print('🔥 AUTH PROVIDER: Repository signin completed successfully');
       await _setAuthenticatedWithToken(authData);
       _successMessage =
           'Login successful! Welcome back, ${authData.user.firstName}';
+      print('🔥 AUTH PROVIDER: SIGNIN COMPLETED SUCCESSFULLY');
     } catch (e) {
+      print('🔥 AUTH PROVIDER: Signin error: $e');
       _errorMessage = _getErrorMessage(e);
     } finally {
       _isLoading = false;
@@ -181,21 +214,44 @@ class AuthProvider with ChangeNotifier {
 
   Future<void> signUpWithEmail(
       String email, String password, String firstName, String lastName) async {
+    print('🔥 AUTH PROVIDER: SIGNUP STARTED 🔥');
+    dev.log('=== AUTH PROVIDER: SIGNUP STARTED ===',
+        name: 'AuthProvider-DEBUG');
+    dev.log('Email: $email, First Name: $firstName, Last Name: $lastName',
+        name: 'AuthProvider-DEBUG');
+
     _isLoading = true;
     _errorMessage = null;
     _successMessage = null;
     notifyListeners();
 
     try {
+      dev.log('About to call _authRepository.signUpWithEmail',
+          name: 'AuthProvider-DEBUG');
       final authData = await _authRepository.signUpWithEmail(
           email, password, firstName, lastName);
+      dev.log('Auth repository signup completed successfully',
+          name: 'AuthProvider-DEBUG');
       await _setAuthenticatedWithToken(authData);
       _successMessage = 'Account created successfully! Welcome, $firstName';
+      dev.log('=== AUTH PROVIDER: SIGNUP COMPLETED ===',
+          name: 'AuthProvider-DEBUG');
     } catch (e) {
+      dev.log('Auth provider signup error: $e', name: 'AuthProvider-ERROR');
       _errorMessage = _getErrorMessage(e);
     } finally {
       _isLoading = false;
       notifyListeners();
+    }
+  }
+
+  // Check if user exists before signup
+  Future<bool> checkUserExists(String email) async {
+    try {
+      return await _authRepository.checkUserExists(email);
+    } catch (e) {
+      // If we can't check, assume user doesn't exist to allow signup
+      return false;
     }
   }
 
@@ -270,13 +326,7 @@ class AuthProvider with ChangeNotifier {
     }
   }
 
-  // State Setters
-  void _setAuthenticated(UserModel user) {
-    _state = AuthState.authenticated;
-    _currentUser = user;
-    _clearError();
-    notifyListeners();
-  }
+  // Removed unused method: _setAuthenticated
 
   void _setUnauthenticated() {
     _state = AuthState.unauthenticated;

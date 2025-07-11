@@ -80,7 +80,7 @@ class _ExperienceCardState extends State<ExperienceCard>
               boxShadow: [
                 BoxShadow(
                   blurRadius: 8,
-                  color: Colors.black.withOpacity(0.1),
+                  color: Colors.black.withValues(alpha: 0.1),
                   offset: const Offset(0.0, 2),
                 )
               ],

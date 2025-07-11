@@ -4,12 +4,15 @@ import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../models/auth_model.dart';
 import '../error/app_exceptions.dart';
+import '../../config/env/app_config.dart';
+import '../../shared/utils/session_manager.dart';
 import 'dart:developer' as dev;
+import 'package:flutter/foundation.dart' show kDebugMode;
 
 class ApiClient {
-  static const String _baseUrl =
-      'http://10.0.2.2:5000'; // Updated for local development
   static const FlutterSecureStorage _storage = FlutterSecureStorage();
+
+  String get _baseUrl => AppConfig.backendUrl;
 
   static final ApiClient _instance = ApiClient._internal();
   factory ApiClient() => _instance;
@@ -25,23 +28,51 @@ class ApiClient {
 
   Future<Map<String, String>> get _authHeaders async {
     final headers = Map<String, String>.from(_defaultHeaders);
-    final authData = await _getStoredAuth();
-    if (authData != null && !authData.isExpired) {
-      headers['Authorization'] = authData.authorizationHeader;
+
+    // Try to get auth header from SessionManager first
+    final sessionManager = SessionManager();
+    final authHeader = sessionManager.getAuthorizationHeader();
+
+    if (authHeader != null) {
+      headers['Authorization'] = authHeader;
+      if (kDebugMode) {
+        dev.log('ApiClient: Authorization header added from SessionManager',
+            name: 'api_client');
+      }
+    } else {
+      // Fallback to direct storage check
+      final authData = await _getStoredAuth();
+      if (authData != null && !authData.isExpired) {
+        headers['Authorization'] = authData.authorizationHeader;
+        if (kDebugMode) {
+          dev.log('ApiClient: Authorization header added from storage',
+              name: 'api_client');
+        }
+      } else {
+        if (kDebugMode) {
+          dev.log(
+              'ApiClient: No Authorization header added (authData null or expired)',
+              name: 'api_client');
+        }
+      }
     }
+
     return headers;
   }
 
   // GET Request
   Future<Map<String, dynamic>> get(String endpoint) async {
     try {
+      print('🔥 API: GET $endpoint');
       final headers = await _authHeaders;
       final response = await _client
           .get(Uri.parse('$_baseUrl$endpoint'), headers: headers)
           .timeout(const Duration(seconds: 30));
+      print('🔥 API: GET $endpoint - Status: ${response.statusCode}');
 
       return _handleResponse(response);
     } catch (e) {
+      print('🔥 API: GET $endpoint - Error: $e');
       throw _handleError(e);
     }
   }
@@ -141,11 +172,12 @@ class ApiClient {
 
   // Token Management
   Future<void> _storeAuth(AuthModel auth) async {
-    await _storage.write(key: 'auth_data', value: jsonEncode(auth.toJson()));
+    await _storage.write(
+        key: AppConfig.authStorageKey, value: jsonEncode(auth.toJson()));
   }
 
   Future<AuthModel?> _getStoredAuth() async {
-    final authJson = await _storage.read(key: 'auth_data');
+    final authJson = await _storage.read(key: AppConfig.authStorageKey);
     if (authJson != null) {
       try {
         return AuthModel.fromJson(jsonDecode(authJson));
@@ -158,7 +190,7 @@ class ApiClient {
   }
 
   Future<void> _clearStoredAuth() async {
-    await _storage.delete(key: 'auth_data');
+    await _storage.delete(key: AppConfig.authStorageKey);
   }
 
   // Public methods for auth management
@@ -210,41 +242,72 @@ class ApiClient {
     }
   }
 
-  // New method for backend authentication
-  Future<AuthModel> authenticateWithBackend(
-    String firebaseToken, {
-    String? firstName,
-    String? lastName,
-  }) async {
+  // Health check method to test backend connectivity
+  Future<bool> checkBackendHealth() async {
     try {
-      final body = <String, dynamic>{};
-      if (firstName != null) {
-        body['first_name'] = firstName;
-      }
-      if (lastName != null) {
-        body['last_name'] = lastName;
-      }
+      dev.log('Attempting backend health check to: $_baseUrl/api/health',
+          name: 'ApiClient-DEBUG');
+      final response = await _client
+          .get(Uri.parse('$_baseUrl/api/health'))
+          .timeout(const Duration(seconds: 10));
 
-      final uri = Uri.parse('$_baseUrl/api/auth/register');
-      dev.log('Sending auth request to backend: $uri', name: 'ApiClient');
-      dev.log('Request body: ${jsonEncode(body)}', name: 'ApiClient');
-
-      final response = await _client.post(
-        // The base URL for the API client needs to be updated for local development
-        uri,
-        headers: {
-          ..._defaultHeaders,
-          'Authorization': 'Bearer $firebaseToken',
-        },
-        body: jsonEncode(body),
-      );
-
-      final responseBody = _handleResponse(response);
-      dev.log('Backend auth response: $responseBody', name: 'ApiClient');
-      final authModel = AuthModel.fromBackendJson(responseBody);
-      await saveAuth(authModel);
-      return authModel;
+      dev.log('Backend health check status: ${response.statusCode}',
+          name: 'ApiClient');
+      dev.log('Backend health check response: ${response.body}',
+          name: 'ApiClient-DEBUG');
+      return response.statusCode == 200;
     } catch (e) {
+      dev.log('Backend health check failed: $e', name: 'ApiClient-ERROR');
+      dev.log('Error type: ${e.runtimeType}', name: 'ApiClient-ERROR');
+      return false;
+    }
+  }
+
+  // User Profile Methods
+  Future<Map<String, dynamic>> getUserProfile() async {
+    try {
+      print('🔥 API: getUserProfile');
+      dev.log('Fetching user profile...', name: 'ApiClient');
+      final result = await get('/api/users/profile');
+      print('🔥 API: getUserProfile - Success');
+      return result;
+    } catch (e) {
+      print('🔥 API: getUserProfile - Error: $e');
+      dev.log('Error fetching user profile: $e', name: 'ApiClient-ERROR');
+      throw _handleError(e);
+    }
+  }
+
+  Future<Map<String, dynamic>> updateUserProfile(
+      Map<String, dynamic> profileData) async {
+    try {
+      dev.log('Updating user profile with data: $profileData',
+          name: 'ApiClient');
+      return await put('/api/users/profile', profileData);
+    } catch (e) {
+      dev.log('Error updating user profile: $e', name: 'ApiClient-ERROR');
+      throw _handleError(e);
+    }
+  }
+
+  Future<Map<String, dynamic>> updateUserPreferences(
+      Map<String, dynamic> preferencesData) async {
+    try {
+      dev.log('Updating user preferences with data: $preferencesData',
+          name: 'ApiClient');
+      return await put('/api/users/preferences', preferencesData);
+    } catch (e) {
+      dev.log('Error updating user preferences: $e', name: 'ApiClient-ERROR');
+      throw _handleError(e);
+    }
+  }
+
+  Future<Map<String, dynamic>> getUserWallet() async {
+    try {
+      dev.log('Fetching user wallet information...', name: 'ApiClient');
+      return await get('/api/users/wallet');
+    } catch (e) {
+      dev.log('Error fetching user wallet: $e', name: 'ApiClient-ERROR');
       throw _handleError(e);
     }
   }

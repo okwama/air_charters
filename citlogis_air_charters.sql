@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: localhost:3306
--- Generation Time: Jun 23, 2025 at 01:11 PM
+-- Generation Time: Jul 10, 2025 at 04:32 PM
 -- Server version: 10.6.22-MariaDB-cll-lve
 -- PHP Version: 8.3.22
 
@@ -24,187 +24,239 @@ SET time_zone = "+00:00";
 -- --------------------------------------------------------
 
 --
--- Table structure for table `admin_users`
+-- Table structure for table `adminNotifications`
 --
 
-CREATE TABLE `admin_users` (
-  `id` varchar(255) NOT NULL,
-  `email` varchar(255) NOT NULL,
-  `first_name` varchar(100) DEFAULT NULL,
-  `last_name` varchar(100) DEFAULT NULL,
-  `role` enum('super_admin','admin','manager','support') NOT NULL,
-  `permissions` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`permissions`)),
-  `is_active` tinyint(1) DEFAULT 1,
-  `last_login` timestamp NULL DEFAULT NULL,
-  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
-  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+CREATE TABLE `adminNotifications` (
+  `id` int(11) NOT NULL,
+  `target` enum('superadmin','citAdmin','companyAdmin','agent') NOT NULL,
+  `title` varchar(255) NOT NULL,
+  `message` text NOT NULL,
+  `read` tinyint(1) DEFAULT 0,
+  `createdAt` datetime NOT NULL,
+  `updatedAt` datetime NOT NULL,
+  `userId` int(11) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci;
+
+--
+-- Dumping data for table `adminNotifications`
+--
+
+INSERT INTO `adminNotifications` (`id`, `target`, `title`, `message`, `read`, `createdAt`, `updatedAt`, `userId`) VALUES
+(27, 'citAdmin', 'Company approved', 'Company \"company b\" has been approved by Bob. ', 1, '2025-07-06 17:08:51', '2025-07-06 17:19:26', 2),
+(40, 'agent', 'Company approved', 'Company \"aib company\" you onboarded has been approved', 0, '2025-07-07 08:02:01', '2025-07-07 08:02:01', 3),
+(48, 'agent', 'Company submitted for review', 'jimmy, your charter company \"Flight abc\" has been submitted for review.', 1, '2025-07-08 10:58:01', '2025-07-09 09:44:38', 20),
+(50, 'agent', 'Company approved', 'Company \"Flight abc\" you onboarded has been approved', 1, '2025-07-08 10:59:48', '2025-07-09 09:44:37', 20),
+(51, 'companyAdmin', 'Company approved', 'Your company \"Flight abc\" has been approved', 1, '2025-07-08 10:59:48', '2025-07-08 11:02:43', 23),
+(52, 'agent', 'Company submitted for review', 'jimmy, your charter company \"AIB flight\" has been submitted for review.', 0, '2025-07-10 13:54:48', '2025-07-10 13:54:48', 20),
+(53, 'superadmin', 'New charter company awaiting review', 'Company \"AIB flight\" has been submitted by jimmy.', 0, '2025-07-10 13:54:48', '2025-07-10 13:54:48', NULL);
 
 -- --------------------------------------------------------
 
 --
--- Table structure for table `aircraft`
+-- Table structure for table `agent_details`
 --
 
-CREATE TABLE `aircraft` (
+CREATE TABLE `agent_details` (
   `id` int(11) NOT NULL,
-  `company_id` int(11) NOT NULL,
+  `adminId` int(11) NOT NULL,
+  `imageUrl` varchar(255) DEFAULT NULL,
+  `imagePublicIdUrl` varchar(255) DEFAULT NULL,
+  `licenseUrl` varchar(255) DEFAULT NULL,
+  `licensePublicIdUrl` varchar(255) DEFAULT NULL,
+  `agreementFormUrl` varchar(255) DEFAULT NULL,
+  `agreementFormPublicIdUrl` varchar(255) DEFAULT NULL,
+  `idPassportNumber` varchar(255) DEFAULT NULL,
+  `mobileNumber` varchar(255) DEFAULT NULL,
+  `aocNumber` varchar(255) DEFAULT NULL,
+  `companyName` varchar(255) DEFAULT NULL,
+  `country` varchar(255) DEFAULT NULL,
+  `createdAt` datetime NOT NULL,
+  `updatedAt` datetime NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci;
+
+--
+-- Dumping data for table `agent_details`
+--
+
+INSERT INTO `agent_details` (`id`, `adminId`, `imageUrl`, `imagePublicIdUrl`, `licenseUrl`, `licensePublicIdUrl`, `agreementFormUrl`, `agreementFormPublicIdUrl`, `idPassportNumber`, `mobileNumber`, `aocNumber`, `companyName`, `country`, `createdAt`, `updatedAt`) VALUES
+(4, 13, 'https://res.cloudinary.com/otienobryan/image/upload/v1751949896/charters_agents/ag_0bfcc53b-293e-44f6-9039-6b01e0f095f1/profile/dblxnd3x3aeadzovx9j1.png', 'charters_agents/ag_0bfcc53b-293e-44f6-9039-6b01e0f095f1/profile/dblxnd3x3aeadzovx9j1', 'https://res.cloudinary.com/otienobryan/image/upload/v1751949897/charters_agents/ag_0bfcc53b-293e-44f6-9039-6b01e0f095f1/license/jyajs91agov4kpkly7pn.pdf', 'charters_agents/ag_0bfcc53b-293e-44f6-9039-6b01e0f095f1/license/jyajs91agov4kpkly7pn', 'https://res.cloudinary.com/otienobryan/image/upload/v1751949898/charters_agents/ag_0bfcc53b-293e-44f6-9039-6b01e0f095f1/agreement/ekmvbp1wewe7upychttm.pdf', 'charters_agents/ag_0bfcc53b-293e-44f6-9039-6b01e0f095f1/agreement/ekmvbp1wewe7upychttm', '46464664', '0746466464', 'GDGGD46', 'Flight 54', 'Uganda', '2025-07-08 04:44:59', '2025-07-08 04:44:59'),
+(5, 20, 'https://res.cloudinary.com/otienobryan/image/upload/v1751966114/charters_agents/ag_67c4cdf9-fe40-4da2-a7a3-e819ed03a4c1/profile/wkgcny5ltg4jii6anofn.jpg', 'charters_agents/ag_67c4cdf9-fe40-4da2-a7a3-e819ed03a4c1/profile/wkgcny5ltg4jii6anofn', 'https://res.cloudinary.com/otienobryan/image/upload/v1751966115/charters_agents/ag_67c4cdf9-fe40-4da2-a7a3-e819ed03a4c1/license/u9gbptkaju7q8ry4mqfw.pdf', 'charters_agents/ag_67c4cdf9-fe40-4da2-a7a3-e819ed03a4c1/license/u9gbptkaju7q8ry4mqfw', 'https://res.cloudinary.com/otienobryan/image/upload/v1751966116/charters_agents/ag_67c4cdf9-fe40-4da2-a7a3-e819ed03a4c1/agreement/qvnnpkwuzg5rmelnnnsy.pdf', 'charters_agents/ag_67c4cdf9-fe40-4da2-a7a3-e819ed03a4c1/agreement/qvnnpkwuzg5rmelnnnsy', '44646464', '575757575', '46464et', 'flight54', 'Uganda', '2025-07-08 09:15:17', '2025-07-08 09:15:17');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `aircrafts`
+--
+
+CREATE TABLE `aircrafts` (
+  `id` int(11) NOT NULL,
+  `companyId` int(11) NOT NULL,
   `name` varchar(100) NOT NULL,
-  `registration_number` varchar(20) NOT NULL,
-  `type` enum('helicopter','fixed_wing','jet') NOT NULL,
+  `registrationNumber` varchar(20) NOT NULL,
+  `type` enum('helicopter','fixedWing','jet','glider','seaplane','ultralight','balloon','tiltrotor','gyroplane','airship') NOT NULL,
   `model` varchar(100) DEFAULT NULL,
   `manufacturer` varchar(100) DEFAULT NULL,
-  `year_manufactured` year(4) DEFAULT NULL,
+  `yearManufactured` int(11) DEFAULT NULL,
   `capacity` int(11) NOT NULL,
-  `base_hourly_rate` decimal(10,2) NOT NULL,
-  `repositioning_cost_per_km` decimal(8,2) DEFAULT NULL,
-  `image_urls` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`image_urls`)),
-  `image_public_ids` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`image_public_ids`)),
-  `seat_plan_url` text DEFAULT NULL,
-  `seat_plan_public_id` varchar(255) DEFAULT NULL,
-  `amenities` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`amenities`)),
-  `specifications` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`specifications`)),
-  `is_available` tinyint(1) DEFAULT 1,
-  `maintenance_status` enum('active','maintenance','retired') DEFAULT 'active',
-  `created_by` varchar(255) DEFAULT NULL,
-  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
-  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+  `isAvailable` tinyint(1) DEFAULT 1,
+  `maintenanceStatus` enum('operational','maintenance','out_of_service') DEFAULT 'operational',
+  `createdAt` datetime NOT NULL,
+  `updatedAt` datetime NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci;
+
+--
+-- Dumping data for table `aircrafts`
+--
+
+INSERT INTO `aircrafts` (`id`, `companyId`, `name`, `registrationNumber`, `type`, `model`, `manufacturer`, `yearManufactured`, `capacity`, `isAvailable`, `maintenanceStatus`, `createdAt`, `updatedAt`) VALUES
+(1, 9, 'Citation Mustang', '5Y-MST001', 'jet', '510', 'Cessna', 2017, 11, 1, 'operational', '2025-07-10 04:55:02', '2025-07-10 09:29:52'),
+(2, 9, 'Robinson R44 Raven II', '5Y-HEL001', 'helicopter', 'R44 Raven II', 'Robinson Helicopter Company', 2015, 9, 1, 'operational', '2025-07-10 08:23:25', '2025-07-10 09:29:10'),
+(3, 9, 'Cessna 208 Caravan', '5Y-FIX001', 'fixedWing', '208B Grand Caravan EX', 'Cessna', 2013, 13, 1, 'operational', '2025-07-10 08:27:04', '2025-07-10 09:29:39');
 
 -- --------------------------------------------------------
 
 --
--- Table structure for table `aircraft_availability`
+-- Table structure for table `aircraft_images`
 --
 
-CREATE TABLE `aircraft_availability` (
-  `id` varchar(255) NOT NULL,
-  `aircraft_id` int(11) NOT NULL,
-  `company_id` int(11) NOT NULL,
-  `booking_id` varchar(255) DEFAULT NULL,
-  `availability_type` enum('booked','maintenance','blocked','available') NOT NULL,
-  `start_datetime` datetime NOT NULL,
-  `end_datetime` datetime NOT NULL,
-  `departure_location_id` int(11) DEFAULT NULL,
-  `arrival_location_id` int(11) DEFAULT NULL,
-  `repositioning_required` tinyint(1) DEFAULT 0,
-  `repositioning_cost` decimal(10,2) DEFAULT NULL,
-  `notes` text DEFAULT NULL,
-  `created_by` varchar(255) DEFAULT NULL,
-  `booking_reference` varchar(100) DEFAULT NULL,
-  `is_recurring` tinyint(1) DEFAULT 0,
-  `recurrence_pattern` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`recurrence_pattern`)),
-  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
-  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci;
-
--- --------------------------------------------------------
-
---
--- Table structure for table `bookings`
---
-
-CREATE TABLE `bookings` (
-  `id` varchar(255) NOT NULL,
-  `user_id` varchar(255) NOT NULL,
-  `company_id` int(11) NOT NULL,
-  `aircraft_id` int(11) NOT NULL,
-  `deal_id` varchar(255) DEFAULT NULL,
-  `booking_type` enum('charter','deal','custom') NOT NULL,
-  `service_type` enum('executive','sightseeing','tours','emergency','cargo') NOT NULL,
-  `departure_location_id` int(11) NOT NULL,
-  `arrival_location_id` int(11) NOT NULL,
-  `departure_date` datetime NOT NULL,
-  `return_date` datetime DEFAULT NULL,
-  `is_round_trip` tinyint(1) DEFAULT 0,
-  `passenger_count` int(11) NOT NULL,
-  `base_amount` decimal(10,2) NOT NULL,
-  `tax_amount` decimal(10,2) DEFAULT 0.00,
-  `platform_commission` decimal(10,2) NOT NULL,
-  `company_earnings` decimal(10,2) NOT NULL,
-  `total_amount` decimal(10,2) NOT NULL,
-  `special_requests` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`special_requests`)),
-  `booking_status` enum('pending','confirmed','cancelled','completed') DEFAULT 'pending',
-  `payment_status` enum('pending','paid','failed','refunded') DEFAULT 'pending',
-  `confirmation_code` varchar(50) DEFAULT NULL,
-  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
-  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci;
-
--- --------------------------------------------------------
-
---
--- Table structure for table `booking_history`
---
-
-CREATE TABLE `booking_history` (
-  `id` varchar(255) NOT NULL,
-  `original_booking_id` varchar(255) NOT NULL,
-  `user_id` varchar(255) NOT NULL,
-  `aircraft_id` int(11) NOT NULL,
-  `completion_date` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
-  `total_amount` decimal(10,2) NOT NULL,
-  `rating` int(11) DEFAULT NULL CHECK (`rating` >= 1 and `rating` <= 5),
-  `review` text DEFAULT NULL,
-  `archived_data` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`archived_data`)),
-  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci;
-
--- --------------------------------------------------------
-
---
--- Table structure for table `companies`
---
-
-CREATE TABLE `companies` (
+CREATE TABLE `aircraft_images` (
   `id` int(11) NOT NULL,
-  `company_name` varchar(255) NOT NULL,
-  `company_code` varchar(10) NOT NULL,
-  `business_license` varchar(255) DEFAULT NULL,
-  `email` varchar(255) NOT NULL,
-  `phone_number` varchar(20) DEFAULT NULL,
-  `website_url` varchar(255) DEFAULT NULL,
-  `logo_url` text DEFAULT NULL,
-  `logo_public_id` varchar(255) DEFAULT NULL,
-  `address` text DEFAULT NULL,
-  `city` varchar(100) DEFAULT NULL,
-  `country` varchar(100) DEFAULT NULL,
-  `postal_code` varchar(20) DEFAULT NULL,
-  `company_type` enum('airline','charter','broker') NOT NULL,
-  `subscription_plan` enum('basic','premium','enterprise') DEFAULT 'basic',
-  `commission_rate` decimal(5,2) DEFAULT 5.00,
-  `is_active` tinyint(1) DEFAULT 1,
-  `is_verified` tinyint(1) DEFAULT 0,
-  `payment_details` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`payment_details`)),
-  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
-  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+  `aircraftId` int(11) NOT NULL,
+  `category` varchar(50) NOT NULL,
+  `url` text NOT NULL,
+  `publicId` varchar(255) NOT NULL,
+  `createdAt` datetime NOT NULL,
+  `updatedAt` datetime NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci;
+
+--
+-- Dumping data for table `aircraft_images`
+--
+
+INSERT INTO `aircraft_images` (`id`, `aircraftId`, `category`, `url`, `publicId`, `createdAt`, `updatedAt`) VALUES
+(1, 1, 'exterior', 'https://res.cloudinary.com/otienobryan/image/upload/v1752123297/aircrafts/ac_44f57c7c-7412-41e5-8bea-55cfe9977269/exterior/cojlt2bxrbmpom5fwl7k.webp', 'aircrafts/ac_44f57c7c-7412-41e5-8bea-55cfe9977269/exterior/cojlt2bxrbmpom5fwl7k', '2025-07-10 04:55:02', '2025-07-10 04:55:02'),
+(2, 1, 'interior', 'https://res.cloudinary.com/otienobryan/image/upload/v1752123299/aircrafts/ac_44f57c7c-7412-41e5-8bea-55cfe9977269/interior/zsbvcr1bzrlroocdgu7a.webp', 'aircrafts/ac_44f57c7c-7412-41e5-8bea-55cfe9977269/interior/zsbvcr1bzrlroocdgu7a', '2025-07-10 04:55:02', '2025-07-10 04:55:02'),
+(3, 1, 'cockpit', 'https://res.cloudinary.com/otienobryan/image/upload/v1752123300/aircrafts/ac_44f57c7c-7412-41e5-8bea-55cfe9977269/cockpit/dr0i6rq8hcnjrqzqmrni.jpg', 'aircrafts/ac_44f57c7c-7412-41e5-8bea-55cfe9977269/cockpit/dr0i6rq8hcnjrqzqmrni', '2025-07-10 04:55:02', '2025-07-10 04:55:02'),
+(4, 1, 'seating', 'https://res.cloudinary.com/otienobryan/image/upload/v1752123301/aircrafts/ac_44f57c7c-7412-41e5-8bea-55cfe9977269/seating/itdwbgtmussibtgfbdtr.webp', 'aircrafts/ac_44f57c7c-7412-41e5-8bea-55cfe9977269/seating/itdwbgtmussibtgfbdtr', '2025-07-10 04:55:02', '2025-07-10 04:55:02'),
+(5, 2, 'exterior', 'https://res.cloudinary.com/otienobryan/image/upload/v1752156932/aircrafts/ac_f8ef8e88-5c6b-4690-8642-0cee097b6f75/exterior/stqajhzqpjygw9jknkak.webp', 'aircrafts/ac_f8ef8e88-5c6b-4690-8642-0cee097b6f75/exterior/stqajhzqpjygw9jknkak', '2025-07-10 08:23:25', '2025-07-10 14:15:33'),
+(6, 2, 'interior', 'https://res.cloudinary.com/otienobryan/image/upload/v1752135802/aircrafts/ac_5f3d877b-8f91-4d97-9c14-205257dc54fa/interior/g4kzcutqqhzxbdiawlnt.webp', 'aircrafts/ac_5f3d877b-8f91-4d97-9c14-205257dc54fa/interior/g4kzcutqqhzxbdiawlnt', '2025-07-10 08:23:25', '2025-07-10 08:23:25'),
+(7, 2, 'cockpit', 'https://res.cloudinary.com/otienobryan/image/upload/v1752135803/aircrafts/ac_5f3d877b-8f91-4d97-9c14-205257dc54fa/cockpit/wrqqlxsjoyj8fbswmf5u.webp', 'aircrafts/ac_5f3d877b-8f91-4d97-9c14-205257dc54fa/cockpit/wrqqlxsjoyj8fbswmf5u', '2025-07-10 08:23:25', '2025-07-10 08:23:25'),
+(8, 2, 'seating', 'https://res.cloudinary.com/otienobryan/image/upload/v1752135804/aircrafts/ac_5f3d877b-8f91-4d97-9c14-205257dc54fa/seating/uhfve2v6h6mxd4icsvho.webp', 'aircrafts/ac_5f3d877b-8f91-4d97-9c14-205257dc54fa/seating/uhfve2v6h6mxd4icsvho', '2025-07-10 08:23:25', '2025-07-10 08:23:25'),
+(9, 3, 'exterior', 'https://res.cloudinary.com/otienobryan/image/upload/v1752136020/aircrafts/ac_b5db5cb0-82b2-4e64-b51a-806863d24c19/exterior/mtxaws74dp4mijodadil.webp', 'aircrafts/ac_b5db5cb0-82b2-4e64-b51a-806863d24c19/exterior/mtxaws74dp4mijodadil', '2025-07-10 08:27:04', '2025-07-10 08:27:04'),
+(10, 3, 'interior', 'https://res.cloudinary.com/otienobryan/image/upload/v1752136021/aircrafts/ac_b5db5cb0-82b2-4e64-b51a-806863d24c19/interior/ur5ucaj8ncxxhmj01ysw.webp', 'aircrafts/ac_b5db5cb0-82b2-4e64-b51a-806863d24c19/interior/ur5ucaj8ncxxhmj01ysw', '2025-07-10 08:27:04', '2025-07-10 08:27:04'),
+(11, 3, 'cockpit', 'https://res.cloudinary.com/otienobryan/image/upload/v1752136022/aircrafts/ac_b5db5cb0-82b2-4e64-b51a-806863d24c19/cockpit/i5nuyllgto5ryjjaeklx.webp', 'aircrafts/ac_b5db5cb0-82b2-4e64-b51a-806863d24c19/cockpit/i5nuyllgto5ryjjaeklx', '2025-07-10 08:27:04', '2025-07-10 08:27:04'),
+(12, 3, 'seating', 'https://res.cloudinary.com/otienobryan/image/upload/v1752136023/aircrafts/ac_b5db5cb0-82b2-4e64-b51a-806863d24c19/seating/n3at2jycybkcxixwdmza.webp', 'aircrafts/ac_b5db5cb0-82b2-4e64-b51a-806863d24c19/seating/n3at2jycybkcxixwdmza', '2025-07-10 08:27:04', '2025-07-10 08:27:04');
 
 -- --------------------------------------------------------
 
 --
--- Table structure for table `company_payouts`
+-- Table structure for table `charters_admins`
 --
 
-CREATE TABLE `company_payouts` (
-  `id` varchar(255) NOT NULL,
-  `company_id` int(11) NOT NULL,
-  `payout_period_start` date NOT NULL,
-  `payout_period_end` date NOT NULL,
-  `total_bookings` int(11) NOT NULL,
-  `gross_revenue` decimal(12,2) NOT NULL,
-  `platform_commission` decimal(12,2) NOT NULL,
-  `net_payout` decimal(12,2) NOT NULL,
-  `currency` varchar(3) DEFAULT 'USD',
-  `payout_status` enum('pending','processing','completed','failed') DEFAULT 'pending',
-  `payout_method` enum('bank_transfer','paypal','stripe') NOT NULL,
-  `payout_reference` varchar(255) DEFAULT NULL,
-  `payout_date` timestamp NULL DEFAULT NULL,
-  `booking_ids` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`booking_ids`)),
-  `processed_by` varchar(255) DEFAULT NULL,
-  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
-  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+CREATE TABLE `charters_admins` (
+  `id` int(11) NOT NULL,
+  `firstName` varchar(255) NOT NULL,
+  `middleName` varchar(255) DEFAULT NULL,
+  `lastName` varchar(255) NOT NULL,
+  `email` varchar(255) NOT NULL,
+  `password` varchar(255) NOT NULL,
+  `isDefaultPassword` tinyint(1) NOT NULL DEFAULT 1,
+  `role` enum('citAdmin','superadmin','companyAdmin','agent') DEFAULT 'citAdmin',
+  `companyId` int(11) DEFAULT NULL,
+  `agentDetailsId` int(11) DEFAULT NULL,
+  `status` enum('active','inactive') DEFAULT 'active',
+  `createdAt` datetime NOT NULL,
+  `updatedAt` datetime NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci;
+
+--
+-- Dumping data for table `charters_admins`
+--
+
+INSERT INTO `charters_admins` (`id`, `firstName`, `middleName`, `lastName`, `email`, `password`, `isDefaultPassword`, `role`, `companyId`, `agentDetailsId`, `status`, `createdAt`, `updatedAt`) VALUES
+(1, 'Bob', NULL, 'Super', 'bob.superadmin@example.com', '$2b$10$vva6in6Pz0bOBfm/THPZpOjX0zsFMWoKijd0HqAN2o4qlPVydS6R.', 0, 'superadmin', NULL, NULL, 'active', '2025-07-04 06:43:47', '2025-07-08 10:56:49'),
+(2, 'Alice', NULL, 'Cit', 'alice.citadmin@example.com', '$2b$10$EQTQK1/8Kz3i7PexSlp2reoZ4awTcRl3XrDZHtIdhmAxVGz6GAPfW', 1, 'citAdmin', NULL, NULL, 'inactive', '2025-07-04 06:49:19', '2025-07-04 06:49:19'),
+(3, 'Dave', NULL, 'Agent', 'dave.agent@example.com', '$2b$10$Fmd5QbY.0DA1g3nwnSLt2u0l3D4j0U5fkkIfITk3tLoIsttHNbs/y', 1, 'agent', NULL, NULL, 'active', '2025-07-04 06:49:39', '2025-07-04 06:49:39'),
+(4, 'Carol', NULL, 'Comp', 'carol.companyadmin@example.com', '$2b$10$MiPP08n6luE8/z5KEW0Jbu3fxzFuvuK9DaZP7j7rVQFtRm85o/uga', 1, 'companyAdmin', NULL, NULL, 'active', '2025-07-04 06:56:00', '2025-07-04 06:56:00'),
+(13, 'Benny', '', 'Okwama', 'bennjiokwama@gmail.com', '$2b$10$Xn32xJfa3B9GJ2yDKpThSunJvn7GRHKK.yr.zCNe.jHM9fU3fKxP.', 1, 'agent', NULL, 4, 'active', '2025-07-08 04:44:59', '2025-07-08 04:44:59'),
+(20, 'jimmy', '', 'gitere', 'gitere.dev@gmail.com', '$2b$10$2e38kJA3ZtvndVN4cm7t2eB5xxa8h8PDfVtLTJ7bOO9dJd4lzpCKG', 0, 'agent', NULL, 5, 'active', '2025-07-08 09:15:17', '2025-07-08 10:46:14'),
+(23, 'Jimmy', NULL, 'Kalu', 'giterejames10@gmail.com', '$2b$10$xazAYZeDUYCRuG8eD2W4l.oqT7yR0FAeugPQWMRNzxKCZGnltb0GC', 0, 'companyAdmin', 9, NULL, 'active', '2025-07-08 10:59:48', '2025-07-08 11:01:26');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `charters_companies`
+--
+
+CREATE TABLE `charters_companies` (
+  `id` int(11) NOT NULL,
+  `companyName` varchar(255) NOT NULL,
+  `email` varchar(255) NOT NULL,
+  `contactPersonFirstName` varchar(255) NOT NULL,
+  `contactPersonLastName` varchar(255) NOT NULL,
+  `mobileNumber` varchar(255) NOT NULL,
+  `logo` varchar(255) DEFAULT NULL,
+  `country` varchar(255) NOT NULL,
+  `licenseNumber` varchar(255) NOT NULL,
+  `license` varchar(255) DEFAULT NULL,
+  `licensePublicId` varchar(255) DEFAULT NULL,
+  `logoPublicId` varchar(255) DEFAULT NULL,
+  `onboardedBy` varchar(255) NOT NULL,
+  `adminId` int(11) NOT NULL,
+  `status` enum('pendingReview','active','inactive','rejected','draft') NOT NULL DEFAULT 'draft',
+  `agreementForm` varchar(255) DEFAULT NULL,
+  `agreementFormPublicId` varchar(255) DEFAULT NULL,
+  `approvedBy` varchar(255) DEFAULT NULL,
+  `approvedAt` datetime DEFAULT NULL,
+  `reviewRemarks` text DEFAULT NULL,
+  `createdAt` datetime NOT NULL,
+  `updatedAt` datetime NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci;
+
+--
+-- Dumping data for table `charters_companies`
+--
+
+INSERT INTO `charters_companies` (`id`, `companyName`, `email`, `contactPersonFirstName`, `contactPersonLastName`, `mobileNumber`, `logo`, `country`, `licenseNumber`, `license`, `licensePublicId`, `logoPublicId`, `onboardedBy`, `adminId`, `status`, `agreementForm`, `agreementFormPublicId`, `approvedBy`, `approvedAt`, `reviewRemarks`, `createdAt`, `updatedAt`) VALUES
+(5, 'aib', 'aib@gmail.com', 'Alice', 'Kamau', '+254723456789', 'https://res.cloudinary.com/otienobryan/image/upload/v1751798157/charters_logos/sh7ytvzvaze7t9zsnljm.jpg', 'Kenya', 'GDGD4646', NULL, NULL, 'charters_logos/sh7ytvzvaze7t9zsnljm', 'Alice Cit', 19, 'draft', 'https://res.cloudinary.com/otienobryan/raw/upload/v1751808498/charters_documents/aib/aib_agreementForm.pdf', 'charters_documents/aib/aib_agreementForm.pdf', NULL, NULL, NULL, '2025-07-06 10:35:56', '2025-07-08 08:35:00'),
+(6, 'company 1', 'company1@gmail.com', 'David', 'Omondi', '+256734567890', 'https://res.cloudinary.com/otienobryan/image/upload/v1751811095/charters_logos/bqeydvhkjiykfnfmwxyj.jpg', 'Uganda', 'DGDG384', NULL, NULL, 'charters_logos/bqeydvhkjiykfnfmwxyj', 'Dave Agent', 3, 'active', 'https://res.cloudinary.com/otienobryan/raw/upload/v1751811152/charters_documents/company_1/company_1_agreementForm.pdf', 'charters_documents/company_1/company_1_agreementForm.pdf', 'Bob Super', '2025-07-06 17:04:48', 'Successfully approved', '2025-07-06 14:11:33', '2025-07-06 17:04:48'),
+(7, 'company b', 'companyb@gmail.com', 'Emily', 'Atieno', '+256745678901', 'https://res.cloudinary.com/otienobryan/image/upload/v1751813467/charters_logos/blx9th2dlpfspzgqhfvg.jpg', 'Uganda', 'GHDDH', NULL, NULL, 'charters_logos/blx9th2dlpfspzgqhfvg', 'Alice Cit', 2, 'active', 'https://res.cloudinary.com/otienobryan/raw/upload/v1751813490/charters_documents/company_b/company_b_agreementForm.pdf', 'charters_documents/company_b/company_b_agreementForm.pdf', 'Bob Super', '2025-07-06 17:08:51', 'Successfully approved', '2025-07-06 14:51:06', '2025-07-06 17:08:51'),
+(9, 'Flight abc', 'giterejames10@gmail.com', 'Jimmy', 'Kalu', '48488484', 'https://res.cloudinary.com/otienobryan/image/upload/v1751967666/charters_logos/tr5hzvq6bs2o5kukucrq.webp', 'Uganda', '4747edhdh', 'https://res.cloudinary.com/otienobryan/raw/upload/v1751972277/charters_documents/flight_abc/flight_abc_license.pdf', 'charters_documents/flight_abc/flight_abc_license.pdf', 'charters_logos/tr5hzvq6bs2o5kukucrq', 'jimmy gitere', 20, 'active', 'https://res.cloudinary.com/otienobryan/raw/upload/v1751972264/charters_documents/flight_abc/flight_abc_agreementForm.pdf', 'charters_documents/flight_abc/flight_abc_agreementForm.pdf', 'Bob Super', '2025-07-08 10:59:48', 'Successfully approved', '2025-07-08 09:41:06', '2025-07-08 10:59:48'),
+(10, 'AIB flight', 'contact@jamesgiteredev.site', 'peter', 'tim', '071236474747', 'https://res.cloudinary.com/otienobryan/image/upload/v1752155651/charters_logos/g4nobg2jvxyrirmzdur7.jpg', 'Kenya', 'FHFHDHD57', NULL, NULL, 'charters_logos/g4nobg2jvxyrirmzdur7', 'jimmy gitere', 20, 'pendingReview', 'https://res.cloudinary.com/otienobryan/raw/upload/v1752155683/charters_documents/aib_flight/aib_flight_agreementForm.pdf', 'charters_documents/aib_flight/aib_flight_agreementForm.pdf', NULL, NULL, NULL, '2025-07-10 13:54:11', '2025-07-10 13:54:48');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `charter_deals`
+--
+
+CREATE TABLE `charter_deals` (
+  `id` int(11) NOT NULL,
+  `companyId` int(11) NOT NULL,
+  `fixedRouteId` int(11) NOT NULL,
+  `aircraftId` int(11) NOT NULL,
+  `date` date NOT NULL,
+  `time` time NOT NULL,
+  `pricePerSeat` decimal(10,2) DEFAULT NULL,
+  `discountPerSeat` int(11) DEFAULT 0,
+  `priceFullCharter` decimal(10,2) DEFAULT NULL,
+  `discountFullCharter` int(11) DEFAULT 0,
+  `availableSeats` int(11) NOT NULL,
+  `dealType` enum('privateCharter','jetSharing') NOT NULL DEFAULT 'privateCharter',
+  `createdAt` datetime NOT NULL,
+  `updatedAt` datetime NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci;
+
+--
+-- Dumping data for table `charter_deals`
+--
+
+INSERT INTO `charter_deals` (`id`, `companyId`, `fixedRouteId`, `aircraftId`, `date`, `time`, `pricePerSeat`, `discountPerSeat`, `priceFullCharter`, `discountFullCharter`, `availableSeats`, `dealType`, `createdAt`, `updatedAt`) VALUES
+(7, 9, 10, 1, '2025-07-11', '19:07:00', NULL, NULL, 3000.00, 5, 11, 'privateCharter', '2025-07-10 13:07:30', '2025-07-10 13:07:30'),
+(8, 9, 9, 1, '2025-07-18', '20:20:00', NULL, NULL, 12000.00, 5, 11, 'privateCharter', '2025-07-10 13:20:49', '2025-07-10 13:20:49'),
+(9, 9, 9, 2, '2025-07-23', '16:27:00', 50.00, 5, NULL, NULL, 9, 'jetSharing', '2025-07-10 13:25:09', '2025-07-10 13:25:09'),
+(10, 9, 8, 2, '2025-07-23', '19:35:00', 50.00, 5, NULL, NULL, 9, 'jetSharing', '2025-07-10 13:35:36', '2025-07-10 13:35:36');
 
 -- --------------------------------------------------------
 
@@ -231,141 +283,28 @@ CREATE TABLE `company_users` (
 -- --------------------------------------------------------
 
 --
--- Table structure for table `crew_members`
+-- Table structure for table `fixed_routes`
 --
 
-CREATE TABLE `crew_members` (
-  `id` varchar(255) NOT NULL,
-  `company_id` int(11) NOT NULL,
-  `employee_id` varchar(50) NOT NULL,
-  `first_name` varchar(100) NOT NULL,
-  `last_name` varchar(100) NOT NULL,
-  `email` varchar(255) DEFAULT NULL,
-  `phone_number` varchar(20) DEFAULT NULL,
-  `crew_type` enum('flight_attendant','co_pilot','engineer','security') NOT NULL,
-  `certifications` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`certifications`)),
-  `hourly_rate` decimal(10,2) NOT NULL,
-  `availability_status` enum('available','assigned','off_duty','on_leave') DEFAULT 'available',
-  `is_active` tinyint(1) DEFAULT 1,
-  `hire_date` date NOT NULL,
-  `created_by` varchar(255) DEFAULT NULL,
-  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
-  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci;
-
--- --------------------------------------------------------
-
---
--- Table structure for table `deals`
---
-
-CREATE TABLE `deals` (
-  `id` varchar(255) NOT NULL,
-  `company_id` int(11) NOT NULL,
-  `aircraft_id` int(11) NOT NULL,
-  `title` varchar(255) NOT NULL,
-  `description` text DEFAULT NULL,
-  `deal_type` enum('charter','package','promotion') NOT NULL,
-  `departure_location_id` int(11) NOT NULL,
-  `arrival_location_id` int(11) NOT NULL,
-  `departure_date` datetime DEFAULT NULL,
-  `return_date` datetime DEFAULT NULL,
-  `is_round_trip` tinyint(1) DEFAULT 0,
-  `original_price` decimal(10,2) NOT NULL,
-  `discounted_price` decimal(10,2) NOT NULL,
-  `discount_percentage` decimal(5,2) DEFAULT NULL,
-  `max_passengers` int(11) NOT NULL,
-  `available_seats` int(11) NOT NULL,
-  `deal_image_url` text DEFAULT NULL,
-  `deal_image_public_id` varchar(255) DEFAULT NULL,
-  `terms_conditions` text DEFAULT NULL,
-  `is_active` tinyint(1) DEFAULT 1,
-  `valid_from` datetime NOT NULL,
-  `valid_until` datetime NOT NULL,
-  `created_by` varchar(255) DEFAULT NULL,
-  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
-  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci;
-
--- --------------------------------------------------------
-
---
--- Table structure for table `leases`
---
-
-CREATE TABLE `leases` (
-  `id` varchar(255) NOT NULL,
-  `user_id` varchar(255) NOT NULL,
-  `aircraft_id` int(11) NOT NULL,
-  `lease_type` enum('wet_lease','dry_lease') NOT NULL,
-  `start_date` date NOT NULL,
-  `end_date` date NOT NULL,
-  `monthly_rate` decimal(12,2) NOT NULL,
-  `total_amount` decimal(12,2) NOT NULL,
-  `lease_status` enum('pending','active','expired','terminated') DEFAULT 'pending',
-  `documents` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`documents`)),
-  `document_public_ids` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`document_public_ids`)),
-  `digital_signature_url` text DEFAULT NULL,
-  `digital_signature_public_id` varchar(255) DEFAULT NULL,
-  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
-  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci;
-
--- --------------------------------------------------------
-
---
--- Table structure for table `locations`
---
-
-CREATE TABLE `locations` (
+CREATE TABLE `fixed_routes` (
   `id` int(11) NOT NULL,
-  `name` varchar(255) NOT NULL,
-  `iata_code` varchar(3) DEFAULT NULL,
-  `icao_code` varchar(4) DEFAULT NULL,
-  `city` varchar(100) NOT NULL,
-  `country` varchar(100) NOT NULL,
-  `latitude` decimal(10,8) DEFAULT NULL,
-  `longitude` decimal(11,8) DEFAULT NULL,
-  `timezone` varchar(50) DEFAULT NULL,
-  `is_active` tinyint(1) DEFAULT 1,
-  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
-  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+  `origin` varchar(50) NOT NULL,
+  `destination` varchar(50) NOT NULL,
+  `imageUrl` varchar(255) NOT NULL,
+  `imagePublicId` varchar(255) NOT NULL,
+  `createdAt` datetime NOT NULL,
+  `updatedAt` datetime NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci;
 
--- --------------------------------------------------------
-
 --
--- Table structure for table `loyalty_transactions`
+-- Dumping data for table `fixed_routes`
 --
 
-CREATE TABLE `loyalty_transactions` (
-  `id` varchar(255) NOT NULL,
-  `user_id` varchar(255) NOT NULL,
-  `transaction_type` enum('earned','redeemed','expired','bonus') NOT NULL,
-  `points` int(11) NOT NULL,
-  `booking_id` varchar(255) DEFAULT NULL,
-  `description` text DEFAULT NULL,
-  `expiry_date` date DEFAULT NULL,
-  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci;
-
--- --------------------------------------------------------
-
---
--- Table structure for table `notifications`
---
-
-CREATE TABLE `notifications` (
-  `id` varchar(255) NOT NULL,
-  `user_id` varchar(255) NOT NULL,
-  `title` varchar(255) NOT NULL,
-  `message` text NOT NULL,
-  `notification_type` enum('booking','payment','promotion','system') NOT NULL,
-  `is_read` tinyint(1) DEFAULT 0,
-  `sent_at` timestamp NOT NULL DEFAULT current_timestamp(),
-  `read_at` timestamp NULL DEFAULT NULL,
-  `fcm_token` varchar(255) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci;
+INSERT INTO `fixed_routes` (`id`, `origin`, `destination`, `imageUrl`, `imagePublicId`, `createdAt`, `updatedAt`) VALUES
+(8, 'Nairobi', 'Diani', 'https://res.cloudinary.com/otienobryan/image/upload/v1752152652/fixed_route_images/snmysta57f0r8zpgmfiy.jpg', 'fixed_route_images/snmysta57f0r8zpgmfiy', '2025-07-10 13:04:12', '2025-07-10 13:04:12'),
+(9, 'Nairobi', 'Mombasa', 'https://res.cloudinary.com/otienobryan/image/upload/v1752152680/fixed_route_images/qlndawmm9yagncbjohiz.jpg', 'fixed_route_images/qlndawmm9yagncbjohiz', '2025-07-10 13:04:40', '2025-07-10 13:04:40'),
+(10, 'Nairobi', 'Kisumu', 'https://res.cloudinary.com/otienobryan/image/upload/v1752152728/fixed_route_images/hsco6s8nn8qszlgjs0bj.jpg', 'fixed_route_images/hsco6s8nn8qszlgjs0bj', '2025-07-10 13:05:28', '2025-07-10 13:05:28'),
+(11, 'Kisumu', 'Nairobi', 'https://res.cloudinary.com/otienobryan/image/upload/v1752152756/fixed_route_images/earvgtnebhxdhydi6rc5.jpg', 'fixed_route_images/earvgtnebhxdhydi6rc5', '2025-07-10 13:05:55', '2025-07-10 13:05:55');
 
 -- --------------------------------------------------------
 
@@ -382,29 +321,6 @@ CREATE TABLE `passengers` (
   `nationality` varchar(100) DEFAULT NULL,
   `id_passport_number` varchar(100) DEFAULT NULL,
   `created_at` timestamp NOT NULL DEFAULT current_timestamp()
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci;
-
--- --------------------------------------------------------
-
---
--- Table structure for table `payments`
---
-
-CREATE TABLE `payments` (
-  `id` varchar(255) NOT NULL,
-  `booking_id` varchar(255) NOT NULL,
-  `user_id` varchar(255) NOT NULL,
-  `company_id` int(11) NOT NULL,
-  `payment_method` enum('card','mpesa','wallet') NOT NULL,
-  `total_amount` decimal(10,2) NOT NULL,
-  `platform_fee` decimal(10,2) NOT NULL,
-  `company_amount` decimal(10,2) NOT NULL,
-  `currency` varchar(3) DEFAULT 'USD',
-  `transaction_id` varchar(255) DEFAULT NULL,
-  `payment_status` enum('pending','completed','failed','refunded') DEFAULT 'pending',
-  `payment_gateway_response` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`payment_gateway_response`)),
-  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
-  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci;
 
 -- --------------------------------------------------------
@@ -474,112 +390,6 @@ CREATE TABLE `pilot_assignments` (
 -- --------------------------------------------------------
 
 --
--- Table structure for table `pilot_calendar_events`
---
-
-CREATE TABLE `pilot_calendar_events` (
-  `id` varchar(255) NOT NULL,
-  `pilot_id` varchar(255) NOT NULL,
-  `company_id` int(11) NOT NULL,
-  `assignment_id` varchar(255) DEFAULT NULL,
-  `booking_id` varchar(255) DEFAULT NULL,
-  `event_type` enum('flight','training','medical','vacation','maintenance','standby') NOT NULL,
-  `title` varchar(255) NOT NULL,
-  `description` text DEFAULT NULL,
-  `start_datetime` datetime NOT NULL,
-  `end_datetime` datetime NOT NULL,
-  `location` varchar(255) DEFAULT NULL,
-  `aircraft_registration` varchar(20) DEFAULT NULL,
-  `flight_route` varchar(255) DEFAULT NULL,
-  `duty_hours` decimal(4,2) DEFAULT NULL,
-  `flight_hours` decimal(4,2) DEFAULT NULL,
-  `event_status` enum('scheduled','confirmed','completed','cancelled') DEFAULT 'scheduled',
-  `reminder_minutes` int(11) DEFAULT 120,
-  `is_reminder_sent` tinyint(1) DEFAULT 0,
-  `notes` text DEFAULT NULL,
-  `created_by` varchar(255) DEFAULT NULL,
-  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
-  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci;
-
--- --------------------------------------------------------
-
---
--- Table structure for table `pilot_payments`
---
-
-CREATE TABLE `pilot_payments` (
-  `id` varchar(255) NOT NULL,
-  `pilot_id` varchar(255) NOT NULL,
-  `company_id` int(11) NOT NULL,
-  `assignment_id` varchar(255) DEFAULT NULL,
-  `payment_period_start` date NOT NULL,
-  `payment_period_end` date NOT NULL,
-  `base_hours` decimal(6,2) NOT NULL,
-  `overtime_hours` decimal(6,2) DEFAULT 0.00,
-  `base_pay` decimal(10,2) NOT NULL,
-  `overtime_pay` decimal(10,2) DEFAULT 0.00,
-  `bonus_amount` decimal(10,2) DEFAULT 0.00,
-  `deductions` decimal(10,2) DEFAULT 0.00,
-  `gross_pay` decimal(10,2) NOT NULL,
-  `tax_deductions` decimal(10,2) DEFAULT 0.00,
-  `net_pay` decimal(10,2) NOT NULL,
-  `currency` varchar(3) DEFAULT 'USD',
-  `payment_status` enum('pending','processed','paid','failed') DEFAULT 'pending',
-  `payment_method` enum('bank_transfer','check','cash') NOT NULL,
-  `payment_reference` varchar(255) DEFAULT NULL,
-  `payment_date` timestamp NULL DEFAULT NULL,
-  `payment_notes` text DEFAULT NULL,
-  `processed_by` varchar(255) DEFAULT NULL,
-  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
-  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci;
-
--- --------------------------------------------------------
-
---
--- Table structure for table `rates`
---
-
-CREATE TABLE `rates` (
-  `id` int(11) NOT NULL,
-  `company_id` int(11) NOT NULL,
-  `aircraft_id` int(11) NOT NULL,
-  `rate_type` enum('hourly','daily','charter','lease') NOT NULL,
-  `base_rate` decimal(10,2) NOT NULL,
-  `peak_rate` decimal(10,2) DEFAULT NULL,
-  `off_peak_rate` decimal(10,2) DEFAULT NULL,
-  `currency` varchar(3) DEFAULT 'USD',
-  `effective_from` date NOT NULL,
-  `effective_to` date DEFAULT NULL,
-  `is_active` tinyint(1) DEFAULT 1,
-  `created_by` varchar(255) DEFAULT NULL,
-  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
-  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci;
-
--- --------------------------------------------------------
-
---
--- Table structure for table `super_admins`
---
-
-CREATE TABLE `super_admins` (
-  `id` varchar(255) NOT NULL,
-  `email` varchar(255) NOT NULL,
-  `first_name` varchar(100) DEFAULT NULL,
-  `last_name` varchar(100) DEFAULT NULL,
-  `role` enum('super_admin','platform_admin','support_admin') NOT NULL,
-  `permissions` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`permissions`)),
-  `is_active` tinyint(1) DEFAULT 1,
-  `last_login` timestamp NULL DEFAULT NULL,
-  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
-  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci;
-
--- --------------------------------------------------------
-
---
 -- Table structure for table `users`
 --
 
@@ -592,14 +402,23 @@ CREATE TABLE `users` (
   `country_code` varchar(5) DEFAULT NULL,
   `profile_image_url` text DEFAULT NULL,
   `profile_image_public_id` varchar(255) DEFAULT NULL,
-  `loyalty_points` int(11) DEFAULT 0,
-  `wallet_balance` decimal(10,2) DEFAULT 0.00,
-  `is_active` tinyint(1) DEFAULT 1,
-  `email_verified` tinyint(1) DEFAULT 0,
-  `phone_verified` tinyint(1) DEFAULT 0,
-  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
-  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+  `loyalty_points` int(11) NOT NULL DEFAULT 0,
+  `wallet_balance` decimal(10,2) NOT NULL DEFAULT 0.00,
+  `is_active` tinyint(4) NOT NULL DEFAULT 1,
+  `email_verified` tinyint(4) NOT NULL DEFAULT 0,
+  `phone_verified` tinyint(4) NOT NULL DEFAULT 0,
+  `created_at` datetime(6) NOT NULL DEFAULT current_timestamp(6),
+  `updated_at` datetime(6) NOT NULL DEFAULT current_timestamp(6) ON UPDATE current_timestamp(6),
+  `password` varchar(255) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci;
+
+--
+-- Dumping data for table `users`
+--
+
+INSERT INTO `users` (`id`, `email`, `phone_number`, `first_name`, `last_name`, `country_code`, `profile_image_url`, `profile_image_public_id`, `loyalty_points`, `wallet_balance`, `is_active`, `email_verified`, `phone_verified`, `created_at`, `updated_at`, `password`) VALUES
+('user_1752093294468_5lug3jt2p', 'bennjiokwama@gmail.com', NULL, 'Benjamin', 'Okwama', NULL, NULL, NULL, 0, 0.00, 1, 0, 0, '2025-07-09 22:34:53.214162', '2025-07-09 22:34:53.214162', '$2b$10$YG/eQ.GQqLJVO6RMWfTNre5xdJYw83bLPfDVGnB6.igvAj9Mv03YG'),
+('user_1752097521091_cq7emunyt', 'test@example.com', '+1234567890', 'Jane', 'Smith', '+1', NULL, NULL, 0, 0.00, 1, 0, 0, '2025-07-09 23:45:19.955132', '2025-07-09 23:48:13.000000', '$2b$10$xoQehBjWpEra4v11su6nretZwxNySNq4NkUgG1bpNTmmq5n6qJTbC');
 
 -- --------------------------------------------------------
 
@@ -653,6 +472,23 @@ CREATE TABLE `user_documents` (
 -- --------------------------------------------------------
 
 --
+-- Table structure for table `user_preferences`
+--
+
+CREATE TABLE `user_preferences` (
+  `user_id` varchar(255) NOT NULL,
+  `language` varchar(50) DEFAULT NULL,
+  `currency` varchar(20) DEFAULT NULL,
+  `notifications` tinyint(4) NOT NULL DEFAULT 1,
+  `date_of_birth` date DEFAULT NULL,
+  `nationality` varchar(100) DEFAULT NULL,
+  `created_at` datetime(6) NOT NULL DEFAULT current_timestamp(6),
+  `updated_at` datetime(6) NOT NULL DEFAULT current_timestamp(6) ON UPDATE current_timestamp(6)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci;
+
+-- --------------------------------------------------------
+
+--
 -- Table structure for table `user_trip_history`
 --
 
@@ -691,76 +527,61 @@ CREATE TABLE `user_trip_history` (
 --
 
 --
--- Indexes for table `admin_users`
+-- Indexes for table `adminNotifications`
 --
-ALTER TABLE `admin_users`
+ALTER TABLE `adminNotifications`
   ADD PRIMARY KEY (`id`),
-  ADD UNIQUE KEY `email` (`email`);
+  ADD KEY `userId` (`userId`);
 
 --
--- Indexes for table `aircraft`
+-- Indexes for table `agent_details`
 --
-ALTER TABLE `aircraft`
+ALTER TABLE `agent_details`
   ADD PRIMARY KEY (`id`),
-  ADD UNIQUE KEY `registration_number` (`registration_number`),
-  ADD KEY `created_by` (`created_by`),
-  ADD KEY `idx_aircraft_company_id` (`company_id`),
-  ADD KEY `idx_aircraft_type` (`type`),
-  ADD KEY `idx_aircraft_available` (`is_available`);
+  ADD KEY `adminId` (`adminId`);
 
 --
--- Indexes for table `aircraft_availability`
+-- Indexes for table `aircrafts`
 --
-ALTER TABLE `aircraft_availability`
+ALTER TABLE `aircrafts`
   ADD PRIMARY KEY (`id`),
-  ADD KEY `booking_id` (`booking_id`),
-  ADD KEY `departure_location_id` (`departure_location_id`),
-  ADD KEY `arrival_location_id` (`arrival_location_id`),
-  ADD KEY `created_by` (`created_by`),
-  ADD KEY `idx_aircraft_availability_aircraft` (`aircraft_id`),
-  ADD KEY `idx_aircraft_availability_dates` (`start_datetime`,`end_datetime`),
-  ADD KEY `idx_aircraft_availability_type` (`availability_type`),
-  ADD KEY `idx_aircraft_availability_company` (`company_id`);
+  ADD UNIQUE KEY `registrationNumber` (`registrationNumber`),
+  ADD UNIQUE KEY `registrationNumber_2` (`registrationNumber`),
+  ADD UNIQUE KEY `registrationNumber_3` (`registrationNumber`),
+  ADD KEY `companyId` (`companyId`);
 
 --
--- Indexes for table `bookings`
+-- Indexes for table `aircraft_images`
 --
-ALTER TABLE `bookings`
+ALTER TABLE `aircraft_images`
   ADD PRIMARY KEY (`id`),
-  ADD UNIQUE KEY `confirmation_code` (`confirmation_code`),
-  ADD KEY `aircraft_id` (`aircraft_id`),
-  ADD KEY `deal_id` (`deal_id`),
-  ADD KEY `departure_location_id` (`departure_location_id`),
-  ADD KEY `arrival_location_id` (`arrival_location_id`),
-  ADD KEY `idx_bookings_user_id` (`user_id`),
-  ADD KEY `idx_bookings_company_id` (`company_id`),
-  ADD KEY `idx_bookings_departure_date` (`departure_date`),
-  ADD KEY `idx_bookings_status` (`booking_status`);
+  ADD KEY `aircraftId` (`aircraftId`);
 
 --
--- Indexes for table `booking_history`
+-- Indexes for table `charters_admins`
 --
-ALTER TABLE `booking_history`
+ALTER TABLE `charters_admins`
   ADD PRIMARY KEY (`id`),
-  ADD KEY `user_id` (`user_id`),
-  ADD KEY `aircraft_id` (`aircraft_id`);
-
---
--- Indexes for table `companies`
---
-ALTER TABLE `companies`
-  ADD PRIMARY KEY (`id`),
-  ADD UNIQUE KEY `company_code` (`company_code`),
   ADD UNIQUE KEY `email` (`email`),
-  ADD UNIQUE KEY `business_license` (`business_license`);
+  ADD UNIQUE KEY `email_2` (`email`),
+  ADD UNIQUE KEY `email_3` (`email`),
+  ADD UNIQUE KEY `email_4` (`email`),
+  ADD KEY `companyId` (`companyId`);
 
 --
--- Indexes for table `company_payouts`
+-- Indexes for table `charters_companies`
 --
-ALTER TABLE `company_payouts`
+ALTER TABLE `charters_companies`
+  ADD PRIMARY KEY (`id`);
+
+--
+-- Indexes for table `charter_deals`
+--
+ALTER TABLE `charter_deals`
   ADD PRIMARY KEY (`id`),
-  ADD KEY `company_id` (`company_id`),
-  ADD KEY `processed_by` (`processed_by`);
+  ADD KEY `companyId` (`companyId`),
+  ADD KEY `fixedRouteId` (`fixedRouteId`),
+  ADD KEY `aircraftId` (`aircraftId`);
 
 --
 -- Indexes for table `company_users`
@@ -771,60 +592,10 @@ ALTER TABLE `company_users`
   ADD KEY `company_id` (`company_id`);
 
 --
--- Indexes for table `crew_members`
+-- Indexes for table `fixed_routes`
 --
-ALTER TABLE `crew_members`
-  ADD PRIMARY KEY (`id`),
-  ADD UNIQUE KEY `unique_company_employee` (`company_id`,`employee_id`),
-  ADD KEY `created_by` (`created_by`),
-  ADD KEY `idx_crew_members_company` (`company_id`),
-  ADD KEY `idx_crew_members_type` (`crew_type`);
-
---
--- Indexes for table `deals`
---
-ALTER TABLE `deals`
-  ADD PRIMARY KEY (`id`),
-  ADD KEY `aircraft_id` (`aircraft_id`),
-  ADD KEY `departure_location_id` (`departure_location_id`),
-  ADD KEY `arrival_location_id` (`arrival_location_id`),
-  ADD KEY `created_by` (`created_by`),
-  ADD KEY `idx_deals_company_id` (`company_id`),
-  ADD KEY `idx_deals_valid_dates` (`valid_from`,`valid_until`);
-
---
--- Indexes for table `leases`
---
-ALTER TABLE `leases`
-  ADD PRIMARY KEY (`id`),
-  ADD KEY `user_id` (`user_id`),
-  ADD KEY `aircraft_id` (`aircraft_id`);
-
---
--- Indexes for table `locations`
---
-ALTER TABLE `locations`
-  ADD PRIMARY KEY (`id`),
-  ADD UNIQUE KEY `iata_code` (`iata_code`),
-  ADD UNIQUE KEY `icao_code` (`icao_code`),
-  ADD KEY `idx_locations_iata` (`iata_code`),
-  ADD KEY `idx_locations_city` (`city`);
-
---
--- Indexes for table `loyalty_transactions`
---
-ALTER TABLE `loyalty_transactions`
-  ADD PRIMARY KEY (`id`),
-  ADD KEY `user_id` (`user_id`),
-  ADD KEY `booking_id` (`booking_id`);
-
---
--- Indexes for table `notifications`
---
-ALTER TABLE `notifications`
-  ADD PRIMARY KEY (`id`),
-  ADD KEY `idx_notifications_user_id` (`user_id`),
-  ADD KEY `idx_notifications_read` (`is_read`);
+ALTER TABLE `fixed_routes`
+  ADD PRIMARY KEY (`id`);
 
 --
 -- Indexes for table `passengers`
@@ -832,17 +603,6 @@ ALTER TABLE `notifications`
 ALTER TABLE `passengers`
   ADD PRIMARY KEY (`id`),
   ADD KEY `booking_id` (`booking_id`);
-
---
--- Indexes for table `payments`
---
-ALTER TABLE `payments`
-  ADD PRIMARY KEY (`id`),
-  ADD UNIQUE KEY `transaction_id` (`transaction_id`),
-  ADD KEY `booking_id` (`booking_id`),
-  ADD KEY `idx_payments_user_id` (`user_id`),
-  ADD KEY `idx_payments_company_id` (`company_id`),
-  ADD KEY `idx_payments_status` (`payment_status`);
 
 --
 -- Indexes for table `pilots`
@@ -871,53 +631,12 @@ ALTER TABLE `pilot_assignments`
   ADD KEY `idx_pilot_assignments_duty_start` (`duty_start_time`);
 
 --
--- Indexes for table `pilot_calendar_events`
---
-ALTER TABLE `pilot_calendar_events`
-  ADD PRIMARY KEY (`id`),
-  ADD KEY `assignment_id` (`assignment_id`),
-  ADD KEY `booking_id` (`booking_id`),
-  ADD KEY `created_by` (`created_by`),
-  ADD KEY `idx_pilot_calendar_pilot_id` (`pilot_id`),
-  ADD KEY `idx_pilot_calendar_company_id` (`company_id`),
-  ADD KEY `idx_pilot_calendar_date` (`start_datetime`),
-  ADD KEY `idx_pilot_calendar_status` (`event_status`),
-  ADD KEY `idx_pilot_calendar_type` (`event_type`);
-
---
--- Indexes for table `pilot_payments`
---
-ALTER TABLE `pilot_payments`
-  ADD PRIMARY KEY (`id`),
-  ADD KEY `assignment_id` (`assignment_id`),
-  ADD KEY `processed_by` (`processed_by`),
-  ADD KEY `idx_pilot_payments_pilot` (`pilot_id`),
-  ADD KEY `idx_pilot_payments_company` (`company_id`),
-  ADD KEY `idx_pilot_payments_status` (`payment_status`);
-
---
--- Indexes for table `rates`
---
-ALTER TABLE `rates`
-  ADD PRIMARY KEY (`id`),
-  ADD KEY `company_id` (`company_id`),
-  ADD KEY `created_by` (`created_by`),
-  ADD KEY `idx_rates_aircraft` (`aircraft_id`);
-
---
--- Indexes for table `super_admins`
---
-ALTER TABLE `super_admins`
-  ADD PRIMARY KEY (`id`),
-  ADD UNIQUE KEY `email` (`email`);
-
---
 -- Indexes for table `users`
 --
 ALTER TABLE `users`
   ADD PRIMARY KEY (`id`),
-  ADD UNIQUE KEY `email` (`email`),
-  ADD UNIQUE KEY `phone_number` (`phone_number`);
+  ADD UNIQUE KEY `IDX_97672ac88f789774dd47f7c8be` (`email`),
+  ADD UNIQUE KEY `IDX_17d1817f241f10a3dbafb169fd` (`phone_number`);
 
 --
 -- Indexes for table `user_calendar_events`
@@ -939,6 +658,12 @@ ALTER TABLE `user_documents`
   ADD KEY `idx_user_documents_booking` (`booking_id`);
 
 --
+-- Indexes for table `user_preferences`
+--
+ALTER TABLE `user_preferences`
+  ADD PRIMARY KEY (`user_id`);
+
+--
 -- Indexes for table `user_trip_history`
 --
 ALTER TABLE `user_trip_history`
@@ -957,22 +682,52 @@ ALTER TABLE `user_trip_history`
 --
 
 --
--- AUTO_INCREMENT for table `aircraft`
+-- AUTO_INCREMENT for table `adminNotifications`
 --
-ALTER TABLE `aircraft`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+ALTER TABLE `adminNotifications`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=54;
 
 --
--- AUTO_INCREMENT for table `companies`
+-- AUTO_INCREMENT for table `agent_details`
 --
-ALTER TABLE `companies`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+ALTER TABLE `agent_details`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
 
 --
--- AUTO_INCREMENT for table `locations`
+-- AUTO_INCREMENT for table `aircrafts`
 --
-ALTER TABLE `locations`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+ALTER TABLE `aircrafts`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+
+--
+-- AUTO_INCREMENT for table `aircraft_images`
+--
+ALTER TABLE `aircraft_images`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=13;
+
+--
+-- AUTO_INCREMENT for table `charters_admins`
+--
+ALTER TABLE `charters_admins`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=24;
+
+--
+-- AUTO_INCREMENT for table `charters_companies`
+--
+ALTER TABLE `charters_companies`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=11;
+
+--
+-- AUTO_INCREMENT for table `charter_deals`
+--
+ALTER TABLE `charter_deals`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=11;
+
+--
+-- AUTO_INCREMENT for table `fixed_routes`
+--
+ALTER TABLE `fixed_routes`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=12;
 
 --
 -- AUTO_INCREMENT for table `passengers`
@@ -981,57 +736,46 @@ ALTER TABLE `passengers`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
--- AUTO_INCREMENT for table `rates`
---
-ALTER TABLE `rates`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
-
---
 -- Constraints for dumped tables
 --
 
 --
--- Constraints for table `aircraft`
+-- Constraints for table `adminNotifications`
 --
-ALTER TABLE `aircraft`
-  ADD CONSTRAINT `aircraft_ibfk_1` FOREIGN KEY (`company_id`) REFERENCES `companies` (`id`) ON DELETE CASCADE,
-  ADD CONSTRAINT `aircraft_ibfk_2` FOREIGN KEY (`created_by`) REFERENCES `company_users` (`id`) ON DELETE SET NULL;
+ALTER TABLE `adminNotifications`
+  ADD CONSTRAINT `adminNotifications_ibfk_1` FOREIGN KEY (`userId`) REFERENCES `charters_admins` (`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 --
--- Constraints for table `aircraft_availability`
+-- Constraints for table `agent_details`
 --
-ALTER TABLE `aircraft_availability`
-  ADD CONSTRAINT `aircraft_availability_ibfk_1` FOREIGN KEY (`aircraft_id`) REFERENCES `aircraft` (`id`) ON DELETE CASCADE,
-  ADD CONSTRAINT `aircraft_availability_ibfk_2` FOREIGN KEY (`company_id`) REFERENCES `companies` (`id`) ON DELETE CASCADE,
-  ADD CONSTRAINT `aircraft_availability_ibfk_3` FOREIGN KEY (`booking_id`) REFERENCES `bookings` (`id`) ON DELETE CASCADE,
-  ADD CONSTRAINT `aircraft_availability_ibfk_4` FOREIGN KEY (`departure_location_id`) REFERENCES `locations` (`id`) ON DELETE SET NULL,
-  ADD CONSTRAINT `aircraft_availability_ibfk_5` FOREIGN KEY (`arrival_location_id`) REFERENCES `locations` (`id`) ON DELETE SET NULL,
-  ADD CONSTRAINT `aircraft_availability_ibfk_6` FOREIGN KEY (`created_by`) REFERENCES `company_users` (`id`) ON DELETE SET NULL;
+ALTER TABLE `agent_details`
+  ADD CONSTRAINT `agent_details_ibfk_1` FOREIGN KEY (`adminId`) REFERENCES `charters_admins` (`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 --
--- Constraints for table `bookings`
+-- Constraints for table `aircrafts`
 --
-ALTER TABLE `bookings`
-  ADD CONSTRAINT `bookings_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
-  ADD CONSTRAINT `bookings_ibfk_2` FOREIGN KEY (`company_id`) REFERENCES `companies` (`id`),
-  ADD CONSTRAINT `bookings_ibfk_3` FOREIGN KEY (`aircraft_id`) REFERENCES `aircraft` (`id`),
-  ADD CONSTRAINT `bookings_ibfk_4` FOREIGN KEY (`deal_id`) REFERENCES `deals` (`id`) ON DELETE SET NULL,
-  ADD CONSTRAINT `bookings_ibfk_5` FOREIGN KEY (`departure_location_id`) REFERENCES `locations` (`id`),
-  ADD CONSTRAINT `bookings_ibfk_6` FOREIGN KEY (`arrival_location_id`) REFERENCES `locations` (`id`);
+ALTER TABLE `aircrafts`
+  ADD CONSTRAINT `aircrafts_ibfk_1` FOREIGN KEY (`companyId`) REFERENCES `charters_companies` (`id`) ON DELETE NO ACTION ON UPDATE CASCADE;
 
 --
--- Constraints for table `booking_history`
+-- Constraints for table `aircraft_images`
 --
-ALTER TABLE `booking_history`
-  ADD CONSTRAINT `booking_history_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`),
-  ADD CONSTRAINT `booking_history_ibfk_2` FOREIGN KEY (`aircraft_id`) REFERENCES `aircraft` (`id`);
+ALTER TABLE `aircraft_images`
+  ADD CONSTRAINT `aircraft_images_ibfk_1` FOREIGN KEY (`aircraftId`) REFERENCES `aircrafts` (`id`) ON DELETE NO ACTION ON UPDATE CASCADE;
 
 --
--- Constraints for table `company_payouts`
+-- Constraints for table `charters_admins`
 --
-ALTER TABLE `company_payouts`
-  ADD CONSTRAINT `company_payouts_ibfk_1` FOREIGN KEY (`company_id`) REFERENCES `companies` (`id`),
-  ADD CONSTRAINT `company_payouts_ibfk_2` FOREIGN KEY (`processed_by`) REFERENCES `super_admins` (`id`) ON DELETE SET NULL;
+ALTER TABLE `charters_admins`
+  ADD CONSTRAINT `charters_admins_ibfk_1` FOREIGN KEY (`companyId`) REFERENCES `charters_companies` (`id`) ON DELETE SET NULL ON UPDATE CASCADE;
+
+--
+-- Constraints for table `charter_deals`
+--
+ALTER TABLE `charter_deals`
+  ADD CONSTRAINT `charter_deals_ibfk_1` FOREIGN KEY (`companyId`) REFERENCES `charters_companies` (`id`) ON DELETE NO ACTION ON UPDATE CASCADE,
+  ADD CONSTRAINT `charter_deals_ibfk_2` FOREIGN KEY (`fixedRouteId`) REFERENCES `fixed_routes` (`id`) ON DELETE NO ACTION ON UPDATE CASCADE,
+  ADD CONSTRAINT `charter_deals_ibfk_3` FOREIGN KEY (`aircraftId`) REFERENCES `aircrafts` (`id`) ON DELETE NO ACTION ON UPDATE CASCADE;
 
 --
 -- Constraints for table `company_users`
@@ -1040,55 +784,10 @@ ALTER TABLE `company_users`
   ADD CONSTRAINT `company_users_ibfk_1` FOREIGN KEY (`company_id`) REFERENCES `companies` (`id`) ON DELETE CASCADE;
 
 --
--- Constraints for table `crew_members`
---
-ALTER TABLE `crew_members`
-  ADD CONSTRAINT `crew_members_ibfk_1` FOREIGN KEY (`company_id`) REFERENCES `companies` (`id`) ON DELETE CASCADE,
-  ADD CONSTRAINT `crew_members_ibfk_2` FOREIGN KEY (`created_by`) REFERENCES `company_users` (`id`) ON DELETE SET NULL;
-
---
--- Constraints for table `deals`
---
-ALTER TABLE `deals`
-  ADD CONSTRAINT `deals_ibfk_1` FOREIGN KEY (`company_id`) REFERENCES `companies` (`id`) ON DELETE CASCADE,
-  ADD CONSTRAINT `deals_ibfk_2` FOREIGN KEY (`aircraft_id`) REFERENCES `aircraft` (`id`) ON DELETE CASCADE,
-  ADD CONSTRAINT `deals_ibfk_3` FOREIGN KEY (`departure_location_id`) REFERENCES `locations` (`id`),
-  ADD CONSTRAINT `deals_ibfk_4` FOREIGN KEY (`arrival_location_id`) REFERENCES `locations` (`id`),
-  ADD CONSTRAINT `deals_ibfk_5` FOREIGN KEY (`created_by`) REFERENCES `company_users` (`id`) ON DELETE SET NULL;
-
---
--- Constraints for table `leases`
---
-ALTER TABLE `leases`
-  ADD CONSTRAINT `leases_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`),
-  ADD CONSTRAINT `leases_ibfk_2` FOREIGN KEY (`aircraft_id`) REFERENCES `aircraft` (`id`);
-
---
--- Constraints for table `loyalty_transactions`
---
-ALTER TABLE `loyalty_transactions`
-  ADD CONSTRAINT `loyalty_transactions_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
-  ADD CONSTRAINT `loyalty_transactions_ibfk_2` FOREIGN KEY (`booking_id`) REFERENCES `bookings` (`id`) ON DELETE SET NULL;
-
---
--- Constraints for table `notifications`
---
-ALTER TABLE `notifications`
-  ADD CONSTRAINT `notifications_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE;
-
---
 -- Constraints for table `passengers`
 --
 ALTER TABLE `passengers`
   ADD CONSTRAINT `passengers_ibfk_1` FOREIGN KEY (`booking_id`) REFERENCES `bookings` (`id`) ON DELETE CASCADE;
-
---
--- Constraints for table `payments`
---
-ALTER TABLE `payments`
-  ADD CONSTRAINT `payments_ibfk_1` FOREIGN KEY (`booking_id`) REFERENCES `bookings` (`id`),
-  ADD CONSTRAINT `payments_ibfk_2` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`),
-  ADD CONSTRAINT `payments_ibfk_3` FOREIGN KEY (`company_id`) REFERENCES `companies` (`id`);
 
 --
 -- Constraints for table `pilots`
@@ -1106,33 +805,6 @@ ALTER TABLE `pilot_assignments`
   ADD CONSTRAINT `pilot_assignments_ibfk_3` FOREIGN KEY (`pilot_id`) REFERENCES `pilots` (`id`) ON DELETE CASCADE,
   ADD CONSTRAINT `pilot_assignments_ibfk_4` FOREIGN KEY (`co_pilot_id`) REFERENCES `pilots` (`id`) ON DELETE CASCADE,
   ADD CONSTRAINT `pilot_assignments_ibfk_5` FOREIGN KEY (`assigned_by`) REFERENCES `company_users` (`id`) ON DELETE SET NULL;
-
---
--- Constraints for table `pilot_calendar_events`
---
-ALTER TABLE `pilot_calendar_events`
-  ADD CONSTRAINT `pilot_calendar_events_ibfk_1` FOREIGN KEY (`pilot_id`) REFERENCES `pilots` (`id`) ON DELETE CASCADE,
-  ADD CONSTRAINT `pilot_calendar_events_ibfk_2` FOREIGN KEY (`company_id`) REFERENCES `companies` (`id`) ON DELETE CASCADE,
-  ADD CONSTRAINT `pilot_calendar_events_ibfk_3` FOREIGN KEY (`assignment_id`) REFERENCES `pilot_assignments` (`id`) ON DELETE CASCADE,
-  ADD CONSTRAINT `pilot_calendar_events_ibfk_4` FOREIGN KEY (`booking_id`) REFERENCES `bookings` (`id`) ON DELETE CASCADE,
-  ADD CONSTRAINT `pilot_calendar_events_ibfk_5` FOREIGN KEY (`created_by`) REFERENCES `company_users` (`id`) ON DELETE SET NULL;
-
---
--- Constraints for table `pilot_payments`
---
-ALTER TABLE `pilot_payments`
-  ADD CONSTRAINT `pilot_payments_ibfk_1` FOREIGN KEY (`pilot_id`) REFERENCES `pilots` (`id`) ON DELETE CASCADE,
-  ADD CONSTRAINT `pilot_payments_ibfk_2` FOREIGN KEY (`company_id`) REFERENCES `companies` (`id`) ON DELETE CASCADE,
-  ADD CONSTRAINT `pilot_payments_ibfk_3` FOREIGN KEY (`assignment_id`) REFERENCES `pilot_assignments` (`id`) ON DELETE SET NULL,
-  ADD CONSTRAINT `pilot_payments_ibfk_4` FOREIGN KEY (`processed_by`) REFERENCES `company_users` (`id`) ON DELETE SET NULL;
-
---
--- Constraints for table `rates`
---
-ALTER TABLE `rates`
-  ADD CONSTRAINT `rates_ibfk_1` FOREIGN KEY (`company_id`) REFERENCES `companies` (`id`) ON DELETE CASCADE,
-  ADD CONSTRAINT `rates_ibfk_2` FOREIGN KEY (`aircraft_id`) REFERENCES `aircraft` (`id`) ON DELETE CASCADE,
-  ADD CONSTRAINT `rates_ibfk_3` FOREIGN KEY (`created_by`) REFERENCES `company_users` (`id`) ON DELETE SET NULL;
 
 --
 -- Constraints for table `user_calendar_events`

@@ -150,7 +150,7 @@ class _FlightSearchScreenState extends State<FlightSearchScreen> {
                   ),
                   if (location != null)
                     Text(
-                      '${location!.city}, ${location!.country}',
+                      '${location.city}, ${location.country}',
                       style: GoogleFonts.inter(
                         fontSize: 14,
                         color: Colors.grey[600],

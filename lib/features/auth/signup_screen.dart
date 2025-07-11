@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:air_charters/core/providers/auth_provider.dart';
 import 'package:air_charters/shared/widgets/success_toast.dart';
+import 'package:air_charters/core/network/api_client.dart';
 import 'dart:developer' as dev;
 
 class SignupScreen extends StatefulWidget {
@@ -29,6 +30,7 @@ class _SignupScreenState extends State<SignupScreen> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   bool _passwordVisibility = false;
+  final ApiClient _apiClient = ApiClient();
 
   @override
   void dispose() {
@@ -72,15 +74,21 @@ class _SignupScreenState extends State<SignupScreen> {
   }
 
   void _handleSignUpWithEmail() async {
+    print('🔥 SIGNUP SCREEN: _handleSignUpWithEmail CALLED 🔥');
+    dev.log('=== SIGNUP SCREEN: _handleSignUpWithEmail CALLED ===', name: 'SignupScreen-DEBUG');
+    
     final firstName = _firstNameController.text.trim();
     final lastName = _lastNameController.text.trim();
     final email = _emailController.text.trim();
     final password = _passwordController.text.trim();
 
+    dev.log('Form data: firstName=$firstName, lastName=$lastName, email=$email, password=${password.isNotEmpty ? "***" : "empty"}', name: 'SignupScreen-DEBUG');
+
     if (firstName.isEmpty ||
         lastName.isEmpty ||
         email.isEmpty ||
         password.isEmpty) {
+      dev.log('Form validation failed - empty fields detected', name: 'SignupScreen-WARNING');
       _showErrorSnackBar('Please fill in all fields');
       return;
     }
@@ -91,22 +99,36 @@ class _SignupScreenState extends State<SignupScreen> {
     );
 
     try {
-      await context
-          .read<AuthProvider>()
-          .signUpWithEmail(email, password, firstName, lastName);
-
+      // Check if user already exists
       final authProvider = context.read<AuthProvider>();
-      if (authProvider.isAuthenticated) {
-        if (mounted) {
+      final userExists = await authProvider.checkUserExists(email);
+
+      if (userExists) {
+        _showErrorSnackBar(
+            'An account with this email already exists. Please try logging in instead.');
+        return;
+      }
+
+      dev.log('About to call authProvider.signUpWithEmail', name: 'SignupScreen-DEBUG');
+      await authProvider.signUpWithEmail(email, password, firstName, lastName);
+      dev.log('authProvider.signUpWithEmail completed', name: 'SignupScreen-DEBUG');
+
+      if (mounted) {
+        dev.log('Checking if user is authenticated: ${authProvider.isAuthenticated}', name: 'SignupScreen-DEBUG');
+        if (authProvider.isAuthenticated) {
+          dev.log('User is authenticated, navigating to home', name: 'SignupScreen-DEBUG');
           if (authProvider.successMessage != null) {
             showSuccessToast(context, authProvider.successMessage!);
           }
           Navigator.of(context)
               .pushNamedAndRemoveUntil('/home', (route) => false);
+        } else {
+          dev.log('User is NOT authenticated after signup', name: 'SignupScreen-WARNING');
         }
       }
     } catch (e) {
       if (mounted) {
+        dev.log('Signup error: $e', name: 'SignupScreen-ERROR');
         _showErrorSnackBar(e.toString());
       }
     }
@@ -126,6 +148,46 @@ class _SignupScreenState extends State<SignupScreen> {
     setState(() {
       _isEmailMode = !_isEmailMode;
     });
+  }
+
+  void _testBackendConnection() async {
+    try {
+      dev.log('Testing backend connection from signup screen',
+          name: 'SignupScreen');
+      final isHealthy = await _apiClient.checkBackendHealth();
+      dev.log('Backend health check result: $isHealthy', name: 'SignupScreen');
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              isHealthy ? '✅ Backend is reachable!' : '❌ Backend not reachable',
+              style: GoogleFonts.inter(color: Colors.white),
+            ),
+            backgroundColor: isHealthy ? Colors.green : Colors.red,
+            behavior: SnackBarBehavior.floating,
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          ),
+        );
+      }
+    } catch (e) {
+      dev.log('Backend test error: $e', name: 'SignupScreen-ERROR');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              '❌ Backend test failed: $e',
+              style: GoogleFonts.inter(color: Colors.white),
+            ),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          ),
+        );
+      }
+    }
   }
 
   @override
@@ -165,6 +227,24 @@ class _SignupScreenState extends State<SignupScreen> {
                         _buildToggle(),
                         const SizedBox(height: 16),
 
+                        // Test Backend Button (temporary)
+                        Container(
+                          width: double.infinity,
+                          height: 40,
+                          child: ElevatedButton(
+                            onPressed: _testBackendConnection,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.orange,
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8)),
+                            ),
+                            child: Text('Test Backend Connection',
+                                style: GoogleFonts.inter(
+                                    fontSize: 12, fontWeight: FontWeight.w600, color: Colors.white)),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+
                         // Form
                         if (_isEmailMode)
                           _buildEmailForm(authProvider)
@@ -191,7 +271,7 @@ class _SignupScreenState extends State<SignupScreen> {
                   // Loading Overlay
                   if (authProvider.isLoading)
                     Container(
-                      color: Colors.black.withOpacity(0.3),
+                      color: Colors.black.withValues(alpha: 0.3),
                       child: const Center(
                           child:
                               CircularProgressIndicator(color: Colors.white)),
@@ -431,7 +511,7 @@ class _SignupScreenState extends State<SignupScreen> {
           padding: const EdgeInsets.symmetric(horizontal: 12),
           child: Text('OR',
               style: GoogleFonts.inter(
-                  color: const Color(0xFF888888), 
+                  color: const Color(0xFF888888),
                   fontWeight: FontWeight.w500,
                   fontSize: 13)),
         ),

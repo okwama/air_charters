@@ -6,10 +6,10 @@ class LocationsScreen extends StatefulWidget {
   final Function(LocationModel) onLocationSelected;
 
   const LocationsScreen({
-    Key? key,
+    super.key,
     required this.title,
     required this.onLocationSelected,
-  }) : super(key: key);
+  });
 
   @override
   State<LocationsScreen> createState() => _LocationsScreenState();
@@ -269,10 +269,10 @@ class LocationTile extends StatelessWidget {
   final VoidCallback onTap;
 
   const LocationTile({
-    Key? key,
+    super.key,
     required this.location,
     required this.onTap,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

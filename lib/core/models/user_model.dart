@@ -1,4 +1,4 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
+// Removed unused import: cloud_firestore
 
 class UserModel {
   final String id;
@@ -38,27 +38,36 @@ class UserModel {
     final json = (data is List && data.isNotEmpty) ? data.first : data;
     if (json is! Map<String, dynamic>) {
       throw ArgumentError(
-          'Invalid user json: expected Map or List containing Map');
+          'Invalid user json: expected Map or List containing Map, got ${json.runtimeType}. Data: $json');
     }
+
     try {
       return UserModel(
-        id: json['id'] as String,
+        id: json['id']?.toString() ?? 'unknown',
         email: json['email']?.toString(),
-        phoneNumber: json['phone_number']?.toString(),
-        firstName: json['first_name']?.toString(),
-        lastName: json['last_name']?.toString(),
-        countryCode: json['country_code']?.toString(),
-        profileImageUrl: json['profile_image_url']?.toString(),
-        loyaltyPoints: json['loyalty_points'] ?? 0,
-        walletBalance: (json['wallet_balance'] ?? 0.0).toDouble(),
-        isActive: json['is_active'] ?? true,
-        emailVerified: json['email_verified'] ?? false,
-        phoneVerified: json['phone_verified'] ?? false,
-        createdAt: json['created_at'] != null
-            ? DateTime.parse(json['created_at'].toString())
+        // Handle both snake_case and camelCase field names
+        phoneNumber:
+            json['phoneNumber']?.toString() ?? json['phone_number']?.toString(),
+        firstName:
+            json['firstName']?.toString() ?? json['first_name']?.toString(),
+        lastName: json['lastName']?.toString() ?? json['last_name']?.toString(),
+        countryCode:
+            json['countryCode']?.toString() ?? json['country_code']?.toString(),
+        profileImageUrl: json['profileImageUrl']?.toString() ??
+            json['profile_image_url']?.toString(),
+        loyaltyPoints: json['loyaltyPoints'] ?? json['loyalty_points'] ?? 0,
+        walletBalance:
+            (json['walletBalance'] ?? json['wallet_balance'] ?? 0.0).toDouble(),
+        isActive: json['isActive'] ?? json['is_active'] ?? true,
+        emailVerified: json['emailVerified'] ?? json['email_verified'] ?? false,
+        phoneVerified: json['phoneVerified'] ?? json['phone_verified'] ?? false,
+        createdAt: json['createdAt'] != null || json['created_at'] != null
+            ? DateTime.parse(
+                (json['createdAt'] ?? json['created_at']).toString())
             : DateTime.now(),
-        updatedAt: json['updated_at'] != null
-            ? DateTime.parse(json['updated_at'].toString())
+        updatedAt: json['updatedAt'] != null || json['updated_at'] != null
+            ? DateTime.parse(
+                (json['updatedAt'] ?? json['updated_at']).toString())
             : DateTime.now(),
       );
     } catch (e) {
@@ -66,9 +75,11 @@ class UserModel {
       return UserModel(
         id: json['id']?.toString() ?? 'unknown',
         email: json['email']?.toString(),
-        phoneNumber: json['phone_number']?.toString(),
-        firstName: json['first_name']?.toString(),
-        lastName: json['last_name']?.toString(),
+        phoneNumber:
+            json['phoneNumber']?.toString() ?? json['phone_number']?.toString(),
+        firstName:
+            json['firstName']?.toString() ?? json['first_name']?.toString(),
+        lastName: json['lastName']?.toString() ?? json['last_name']?.toString(),
         createdAt: DateTime.now(),
         updatedAt: DateTime.now(),
       );
@@ -88,7 +99,7 @@ class UserModel {
       'last_name': lastName,
       'country_code': countryCode,
       'profile_image_url': profileImageUrl,
-      // 'loyalty_points': loyaltyPoints,
+      'loyalty_points': loyaltyPoints,
       'wallet_balance': walletBalance,
       'is_active': isActive,
       'email_verified': emailVerified,

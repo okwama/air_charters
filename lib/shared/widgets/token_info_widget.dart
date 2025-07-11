@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../shared/utils/session_manager.dart';
+import 'dart:async';
 
 class TokenInfoWidget extends StatefulWidget {
-  const TokenInfoWidget({Key? key}) : super(key: key);
+  const TokenInfoWidget({super.key});
 
   @override
   State<TokenInfoWidget> createState() => _TokenInfoWidgetState();
@@ -11,12 +12,25 @@ class TokenInfoWidget extends StatefulWidget {
 
 class _TokenInfoWidgetState extends State<TokenInfoWidget> {
   Map<String, dynamic>? _sessionStatus;
-  bool _isExpanded = false;
+  final bool _isExpanded = false;
+  Timer? _refreshTimer;
 
   @override
   void initState() {
     super.initState();
     _loadSessionStatus();
+    // Refresh session status every 30 seconds
+    _refreshTimer = Timer.periodic(const Duration(seconds: 30), (timer) {
+      if (mounted) {
+        _loadSessionStatus();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _refreshTimer?.cancel();
+    super.dispose();
   }
 
   void _loadSessionStatus() {
@@ -42,6 +56,7 @@ class _TokenInfoWidgetState extends State<TokenInfoWidget> {
     return Card(
       margin: const EdgeInsets.all(16),
       child: ExpansionTile(
+        initiallyExpanded: false,
         title: Row(
           children: [
             Icon(
@@ -91,6 +106,7 @@ class _TokenInfoWidgetState extends State<TokenInfoWidget> {
                       Expanded(
                         child: ElevatedButton.icon(
                           onPressed: () async {
+                            _loadSessionStatus(); // Refresh immediately
                             final success =
                                 await SessionManager().forceTokenRefresh();
                             if (mounted) {
@@ -107,7 +123,7 @@ class _TokenInfoWidgetState extends State<TokenInfoWidget> {
                                       success ? Colors.green : Colors.red,
                                 ),
                               );
-                              _loadSessionStatus();
+                              _loadSessionStatus(); // Refresh again after token refresh
                             }
                           },
                           icon: const Icon(Icons.refresh, size: 16),
@@ -121,6 +137,16 @@ class _TokenInfoWidgetState extends State<TokenInfoWidget> {
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 12, vertical: 8),
                           ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      IconButton(
+                        onPressed: _loadSessionStatus,
+                        icon: const Icon(Icons.refresh, size: 16),
+                        tooltip: 'Refresh Status',
+                        style: IconButton.styleFrom(
+                          backgroundColor: Colors.grey.shade100,
+                          padding: const EdgeInsets.all(8),
                         ),
                       ),
                     ],

@@ -194,3 +194,76 @@
 - **Code Cleanup**: Fixed 46 linting issues including deprecated method usage
 - **Responsive Design**: Improved card layouts to work across different screen sizes
 - **Performance**: Better memory usage with optimized image loading and layout calculations 
+
+Here’s a **checklist to maintain your auth state in Flutter** from login to all other authenticated actions (viewing, fetching, sending, updating):
+
+---
+
+### ✅ **1. Securely Store Login Credentials / Token**
+
+* [ ] Use `shared_preferences`, `flutter_secure_storage`, or `hive` to save the token after login.
+* [ ] Store both `accessToken` and optionally `refreshToken`.
+
+---
+
+### ✅ **2. Create a Global Auth Provider / Controller**
+
+* [ ] Use `Provider`, `Riverpod`, `GetX`, or `Bloc` to manage the auth state.
+* [ ] Maintain a variable like `isLoggedIn`, `user`, or `authToken`.
+* [ ] Expose login, logout, and auto-login methods in the provider.
+
+---
+
+### ✅ **3. Persist Login State on App Start**
+
+* [ ] On app start (e.g., in `main()` or `initState`), check stored token.
+* [ ] If token exists, try to fetch user data or validate token.
+* [ ] Navigate to appropriate screen (Login or Home).
+
+---
+
+### ✅ **4. Automatically Attach Token to Requests**
+
+* [ ] Create a centralized HTTP client (e.g., using `Dio`, `http`, or `chopper`).
+* [ ] Intercept each request and add `Authorization: Bearer <token>` header.
+
+---
+
+### ✅ **5. Handle Token Expiry Gracefully**
+
+* [ ] Check if token is expired (optional).
+* [ ] Use a refresh token mechanism if available.
+* [ ] If unauthorized (401), log out user or refresh token.
+
+---
+
+### ✅ **6. Protect Authenticated Screens**
+
+* [ ] Wrap private pages with an auth guard (`FutureBuilder`, `GetMiddleware`, etc.).
+* [ ] Redirect to login page if user is not authenticated.
+
+---
+
+### ✅ **7. Update User State After Actions**
+
+* [ ] After profile updates, refetch or update the user data in the provider.
+* [ ] Keep UI synced with provider/controller values.
+
+---
+
+### ✅ **8. Implement a Logout Function**
+
+* [ ] Clear stored token and user data.
+* [ ] Update auth state (`isLoggedIn = false`).
+* [ ] Redirect to login or splash screen.
+
+---
+
+### ✅ **9. Monitor Internet and Session Errors**
+
+* [ ] Show appropriate messages when offline or on session timeout.
+* [ ] Retry failed requests with exponential backoff if needed.
+
+---
+
+Let me know if you want a sample with `GetX`, `Provider`, or `Riverpod`!

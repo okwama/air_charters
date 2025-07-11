@@ -144,7 +144,7 @@ class _LandingScreenState extends State<LandingScreen>
                   // Top Section with Logo and Tagline
                   Expanded(
                     flex: 4,
-                    child: Container(
+                    child: SizedBox(
                       width: double.infinity,
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,

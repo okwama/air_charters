@@ -5,6 +5,7 @@ import '../../shared/components/bottom_nav.dart';
 import '../../shared/widgets/token_info_widget.dart';
 import 'package:provider/provider.dart';
 import '../../core/providers/auth_provider.dart';
+import 'package:flutter/foundation.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -23,7 +24,11 @@ class SettingsScreen extends StatelessWidget {
             size: 25,
           ),
           onPressed: () {
-            Navigator.of(context).pop();
+            // Navigate to home screen and clear the stack
+            Navigator.of(context).pushNamedAndRemoveUntil(
+              '/home',
+              (route) => false,
+            );
           },
         ),
         title: Text(
@@ -82,88 +87,97 @@ class SettingsScreen extends StatelessWidget {
   }
 
   Widget _buildUserInfoSection(BuildContext context) {
-    return GestureDetector(
-      onTap: () {
-        Navigator.of(context).pushNamed('/profile');
+    return Consumer<AuthProvider>(
+      builder: (context, authProvider, child) {
+        final user = authProvider.currentUser;
+        final userName = user?.fullName ?? 'User';
+        final userEmail = user?.email ?? 'No email';
+        final userPhone = user?.phoneNumber ?? 'No phone';
+
+        return GestureDetector(
+          onTap: () {
+            Navigator.of(context).pushNamed('/profile');
+          },
+          child: Container(
+            margin: const EdgeInsets.symmetric(horizontal: 16),
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.grey.shade100, width: 0.5),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.03),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Row(
+              children: [
+                // Profile Avatar
+                Container(
+                  width: 60,
+                  height: 60,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade100,
+                    borderRadius: BorderRadius.circular(30),
+                    border: Border.all(color: Colors.grey.shade200, width: 2),
+                  ),
+                  child: Icon(
+                    LucideIcons.user,
+                    size: 30,
+                    color: Colors.grey.shade600,
+                  ),
+                ),
+
+                const SizedBox(width: 16),
+
+                // User Details
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        userName,
+                        style: GoogleFonts.outfit(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.black,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        userEmail,
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.grey.shade600,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        userPhone,
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.grey.shade600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                Icon(
+                  Icons.chevron_right_rounded,
+                  color: Colors.grey.shade400,
+                  size: 24,
+                ),
+              ],
+            ),
+          ),
+        );
       },
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 16),
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.grey.shade100, width: 0.5),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.03),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Row(
-          children: [
-            // Profile Avatar
-            Container(
-              width: 60,
-              height: 60,
-              decoration: BoxDecoration(
-                color: Colors.grey.shade100,
-                borderRadius: BorderRadius.circular(30),
-                border: Border.all(color: Colors.grey.shade200, width: 2),
-              ),
-              child: Icon(
-                LucideIcons.user,
-                size: 30,
-                color: Colors.grey.shade600,
-              ),
-            ),
-
-            const SizedBox(width: 16),
-
-            // User Details
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'John Doe',
-                    style: GoogleFonts.outfit(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.black,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'john.doe@example.com',
-                    style: GoogleFonts.plusJakartaSans(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                      color: Colors.grey.shade600,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    '+1 (555) 123-4567',
-                    style: GoogleFonts.plusJakartaSans(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                      color: Colors.grey.shade600,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            Icon(
-              Icons.chevron_right_rounded,
-              color: Colors.grey.shade400,
-              size: 24,
-            ),
-          ],
-        ),
-      ),
     );
   }
 
@@ -176,7 +190,7 @@ class SettingsScreen extends StatelessWidget {
         border: Border.all(color: Colors.grey.shade100, width: 0.5),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.03),
+            color: Colors.black.withValues(alpha: 0.03),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -187,38 +201,50 @@ class SettingsScreen extends StatelessWidget {
           _buildSettingsItem(
             icon: LucideIcons.heart,
             title: 'Favorite Routes',
-            onTap: () => print('Favorite Routes tapped'),
+            onTap: () {
+              // TODO: Implement favorite routes
+            },
             showDivider: true,
           ),
           _buildSettingsItem(
             icon: LucideIcons.helpCircle,
             title: 'FAQ',
-            onTap: () => print('FAQ tapped'),
+            onTap: () {
+              // TODO: Implement FAQ
+            },
             showDivider: true,
           ),
           _buildSettingsItem(
             icon: LucideIcons.scale,
             title: 'Legal',
-            onTap: () => print('Legal tapped'),
+            onTap: () {
+              // TODO: Implement legal
+            },
             showDivider: true,
           ),
           _buildSettingsItem(
             icon: LucideIcons.shield,
             title: 'Privacy',
-            onTap: () => print('Privacy tapped'),
+            onTap: () {
+              // TODO: Implement privacy
+            },
             showDivider: true,
           ),
           _buildSettingsItem(
             icon: LucideIcons.messageCircle,
             title: 'Contact Us',
-            onTap: () => print('Contact Us tapped'),
+            onTap: () {
+              // TODO: Implement contact us
+            },
             showDivider: true,
           ),
           _buildSettingsItem(
             icon: LucideIcons.dollarSign,
             title: 'Currency',
             subtitle: 'Canadian Dollar (CAD)',
-            onTap: () => print('Currency tapped'),
+            onTap: () {
+              // TODO: Implement currency selection
+            },
           ),
         ],
       ),
@@ -235,9 +261,53 @@ class SettingsScreen extends StatelessWidget {
             height: 52,
             child: OutlinedButton.icon(
               onPressed: () async {
-                await authProvider.signOut();
-                if (context.mounted) {
-                  Navigator.of(context).pushReplacementNamed('/landing');
+                // Show confirmation dialog
+                final confirmed = await showDialog<bool>(
+                  context: context,
+                  builder: (context) => AlertDialog(
+                    title: Text(
+                      'Sign Out?',
+                      style: GoogleFonts.outfit(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    content: Text(
+                      'Are you sure you want to sign out?',
+                      style: GoogleFonts.plusJakartaSans(),
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.of(context).pop(false),
+                        child: Text(
+                          'Cancel',
+                          style: GoogleFonts.outfit(
+                            color: Colors.grey.shade600,
+                          ),
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: () => Navigator.of(context).pop(true),
+                        child: Text(
+                          'Sign Out',
+                          style: GoogleFonts.outfit(
+                            color: Colors.red.shade600,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+
+                if (confirmed == true && context.mounted) {
+                  await authProvider.signOut();
+                  if (context.mounted) {
+                    // Navigate to landing screen and clear the stack
+                    Navigator.of(context).pushNamedAndRemoveUntil(
+                      '/landing',
+                      (route) => false,
+                    );
+                  }
                 }
               },
               icon: Icon(
@@ -347,7 +417,7 @@ class SettingsScreen extends StatelessWidget {
         border: Border.all(color: Colors.grey.shade100, width: 0.5),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.03),
+            color: Colors.black.withValues(alpha: 0.03),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -389,85 +459,126 @@ class SettingsScreen extends StatelessWidget {
                 const SizedBox(height: 16),
                 Consumer<AuthProvider>(
                   builder: (context, authProvider, child) {
-                    return SizedBox(
-                      width: double.infinity,
-                      height: 48,
-                      child: OutlinedButton.icon(
-                        onPressed: authProvider.isLoading
-                            ? null
-                            : () async {
-                                // Show confirmation dialog
-                                final confirmed = await showDialog<bool>(
-                                  context: context,
-                                  builder: (context) => AlertDialog(
-                                    title: Text(
-                                      'Clear All Data?',
-                                      style: GoogleFonts.outfit(
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                    content: Text(
-                                      'This will clear all stored data and sign you out. You\'ll need to sign in again.',
-                                      style: GoogleFonts.plusJakartaSans(),
-                                    ),
-                                    actions: [
-                                      TextButton(
-                                        onPressed: () =>
-                                            Navigator.of(context).pop(false),
-                                        child: Text(
-                                          'Cancel',
+                    return Column(
+                      children: [
+                        SizedBox(
+                          width: double.infinity,
+                          height: 48,
+                          child: OutlinedButton.icon(
+                            onPressed: authProvider.isLoading
+                                ? null
+                                : () async {
+                                    // Show confirmation dialog
+                                    final confirmed = await showDialog<bool>(
+                                      context: context,
+                                      builder: (context) => AlertDialog(
+                                        title: Text(
+                                          'Clear All Data?',
                                           style: GoogleFonts.outfit(
-                                            color: Colors.grey.shade600,
-                                          ),
-                                        ),
-                                      ),
-                                      TextButton(
-                                        onPressed: () =>
-                                            Navigator.of(context).pop(true),
-                                        child: Text(
-                                          'Clear Data',
-                                          style: GoogleFonts.outfit(
-                                            color: Colors.red.shade600,
                                             fontWeight: FontWeight.w600,
                                           ),
                                         ),
+                                        content: Text(
+                                          'This will clear all stored data and sign you out. You\'ll need to sign in again.',
+                                          style: GoogleFonts.plusJakartaSans(),
+                                        ),
+                                        actions: [
+                                          TextButton(
+                                            onPressed: () =>
+                                                Navigator.of(context)
+                                                    .pop(false),
+                                            child: Text(
+                                              'Cancel',
+                                              style: GoogleFonts.outfit(
+                                                color: Colors.grey.shade600,
+                                              ),
+                                            ),
+                                          ),
+                                          TextButton(
+                                            onPressed: () =>
+                                                Navigator.of(context).pop(true),
+                                            child: Text(
+                                              'Clear Data',
+                                              style: GoogleFonts.outfit(
+                                                color: Colors.red.shade600,
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
                                       ),
-                                    ],
-                                  ),
-                                );
+                                    );
 
-                                if (confirmed == true && context.mounted) {
-                                  await authProvider.clearAllDataAndRestart();
-                                  if (context.mounted) {
-                                    Navigator.of(context)
-                                        .pushReplacementNamed('/landing');
-                                  }
-                                }
+                                    if (confirmed == true && context.mounted) {
+                                      await authProvider
+                                          .clearAllDataAndRestart();
+                                      if (context.mounted) {
+                                        Navigator.of(context)
+                                            .pushReplacementNamed('/landing');
+                                      }
+                                    }
+                                  },
+                            icon: Icon(
+                              LucideIcons.refreshCw,
+                              size: 18,
+                              color: Colors.orange.shade600,
+                            ),
+                            label: Text(
+                              'Clear All Data & Restart',
+                              style: GoogleFonts.outfit(
+                                fontWeight: FontWeight.w600,
+                                color: Colors.orange.shade600,
+                                fontSize: 14,
+                              ),
+                            ),
+                            style: OutlinedButton.styleFrom(
+                              side: BorderSide(
+                                color: Colors.orange.shade200,
+                                width: 1,
+                              ),
+                              backgroundColor: Colors.orange.shade50,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        // Debug button (only show in debug mode)
+                        if (kDebugMode)
+                          SizedBox(
+                            width: double.infinity,
+                            height: 48,
+                            child: OutlinedButton.icon(
+                              onPressed: () {
+                                Navigator.of(context).pushNamed('/auth-debug');
                               },
-                        icon: Icon(
-                          LucideIcons.refreshCw,
-                          size: 18,
-                          color: Colors.orange.shade600,
-                        ),
-                        label: Text(
-                          'Clear All Data & Restart',
-                          style: GoogleFonts.outfit(
-                            fontWeight: FontWeight.w600,
-                            color: Colors.orange.shade600,
-                            fontSize: 14,
+                              icon: Icon(
+                                LucideIcons.bug,
+                                size: 18,
+                                color: Colors.blue.shade600,
+                              ),
+                              label: Text(
+                                'Auth Debug',
+                                style: GoogleFonts.outfit(
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.blue.shade600,
+                                  fontSize: 14,
+                                ),
+                              ),
+                              style: OutlinedButton.styleFrom(
+                                side: BorderSide(
+                                  color: Colors.blue.shade200,
+                                  width: 1,
+                                ),
+                                backgroundColor: Colors.blue.shade50,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                            ),
                           ),
-                        ),
-                        style: OutlinedButton.styleFrom(
-                          side: BorderSide(
-                            color: Colors.orange.shade200,
-                            width: 1,
-                          ),
-                          backgroundColor: Colors.orange.shade50,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                      ),
+                      ],
                     );
                   },
                 ),

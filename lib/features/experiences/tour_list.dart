@@ -7,10 +7,10 @@ class TourListScreen extends StatelessWidget {
   final List<Map<String, dynamic>> deals;
 
   const TourListScreen({
-    Key? key,
+    super.key,
     required this.category,
     required this.deals,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -61,7 +61,7 @@ class TourListScreen extends StatelessWidget {
                         onTap: () => _showDealDetail(context, deal),
                       ),
                     ))
-                .toList(),
+                ,
           ],
         ),
       ),

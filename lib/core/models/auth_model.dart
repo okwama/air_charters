@@ -1,5 +1,4 @@
 import 'user_model.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 
 class AuthModel {
   final String accessToken;
@@ -45,43 +44,30 @@ class AuthModel {
   }
 
   factory AuthModel.fromBackendJson(dynamic data) {
-    // If backend accidentally wraps response in a list, take the first element.
-    final json = (data is List && data.isNotEmpty) ? data.first : data;
+    try {
+      // If backend accidentally wraps response in a list, take the first element.
+      final json = (data is List && data.isNotEmpty) ? data.first : data;
 
-    if (json is! Map<String, dynamic>) {
+      if (json is! Map<String, dynamic>) {
+        throw ArgumentError(
+            'Invalid auth json: expected Map or List containing Map, got ${json.runtimeType}. Data: $json');
+      }
+
+      final expiresIn = json['expiresIn'] ?? 3600;
+      final expiresAt = DateTime.now().add(Duration(seconds: expiresIn));
+
+      return AuthModel(
+        accessToken: json['accessToken']?.toString() ?? '',
+        refreshToken: json['refreshToken']?.toString() ?? '',
+        tokenType: json['tokenType']?.toString() ?? 'Bearer',
+        expiresIn: expiresIn,
+        expiresAt: expiresAt,
+        user: UserModel.fromJson(json['user'] ?? {}),
+      );
+    } catch (e) {
       throw ArgumentError(
-          'Invalid auth json: expected Map or List containing Map');
+          'Failed to parse AuthModel from backend data: $e. Data: $data');
     }
-
-    // The backend token doesn't have an explicit expiry, so we manage it.
-    // We'll use the 'expiresIn' from the original Firebase logic (1 hour).
-    final expiresIn = 3600;
-    final expiresAt = DateTime.now().add(Duration(seconds: expiresIn));
-
-    return AuthModel(
-      accessToken: json['token']?.toString() ?? '',
-      // Backend doesn't provide a refresh token in this response,
-      // as we re-authenticate with the firebase token.
-      refreshToken: json['token']?.toString() ?? '',
-      tokenType: 'Bearer',
-      expiresIn: expiresIn,
-      expiresAt: expiresAt,
-      user: UserModel.fromJson(json['user'] ?? {}),
-    );
-  }
-
-  factory AuthModel.fromFirebase(IdTokenResult idTokenResult, UserModel user) {
-    final claims = idTokenResult.claims ?? {};
-    final expiresIn = (claims['exp'] as int) -
-        (claims['iat'] as int); // exp and iat are in seconds
-    return AuthModel(
-      accessToken: idTokenResult.token!,
-      refreshToken: '', // Firebase SDK handles refresh
-      tokenType: 'Bearer',
-      expiresIn: expiresIn,
-      expiresAt: idTokenResult.expirationTime!,
-      user: user,
-    );
   }
 
   Map<String, dynamic> toJson() {

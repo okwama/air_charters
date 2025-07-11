@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:cached_network_image/cached_network_image.dart';
+// Removed unused import: cached_network_image
 import 'payment/add_card.dart';
 
 class ReviewTripPage extends StatefulWidget {
@@ -33,7 +33,7 @@ class _ReviewTripPageState extends State<ReviewTripPage> {
   bool _onboardDining = false;
   bool _groundTransportation = false;
   bool _agreeToTerms = false;
-  int _passengersCount = 1;
+  final int _passengersCount = 1;
   String _selectedBillingRegion = 'United States';
   String _selectedPaymentMethod = 'Visa •••• 1234';
 
@@ -868,6 +868,12 @@ class _ReviewTripPageState extends State<ReviewTripPage> {
               ),
               TextButton(
                 onPressed: _showChangePaymentMethod,
+                style: TextButton.styleFrom(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
                 child: Text(
                   'Change',
                   style: GoogleFonts.inter(
@@ -876,12 +882,6 @@ class _ReviewTripPageState extends State<ReviewTripPage> {
                     color: Colors.black,
                     decoration: TextDecoration.underline,
                   ),
-                ),
-                style: TextButton.styleFrom(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  minimumSize: Size.zero,
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ),
               ),
             ],

@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_auth/firebase_auth.dart' hide AuthProvider;
 import 'package:air_charters/config/theme/app_theme.dart';
 import 'package:air_charters/core/providers/auth_provider.dart';
+import 'package:air_charters/core/providers/profile_provider.dart';
+import 'package:air_charters/core/providers/charter_deals_provider.dart';
 import 'package:air_charters/shared/utils/session_manager.dart';
 import 'package:air_charters/features/mytrips/trips.dart';
 import 'package:air_charters/features/splash/splash_screen.dart';
@@ -16,18 +16,13 @@ import 'package:air_charters/features/home/home_screen.dart';
 import 'package:air_charters/features/settings/settings.dart';
 import 'package:air_charters/features/profile/profile.dart';
 import 'package:air_charters/features/booking/booking_detail.dart';
-import 'package:air_charters/config/firebase/firebase_options.dart';
+import 'package:air_charters/test/auth_test_screen.dart';
+import 'package:air_charters/test_auth_debug.dart';
+import 'package:flutter/foundation.dart' show kDebugMode;
+import 'dart:developer' as dev;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
-  // Initialize Firebase
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
-
-  // Set default language for Firebase Auth
-  await FirebaseAuth.instance.setLanguageCode('en');
 
   runApp(const MyApp());
 }
@@ -40,6 +35,8 @@ class MyApp extends StatelessWidget {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => AuthProvider()),
+        ChangeNotifierProvider(create: (_) => ProfileProvider()),
+        ChangeNotifierProvider(create: (_) => CharterDealsProvider()),
       ],
       child: MaterialApp(
         title: 'Air Charters',
@@ -59,6 +56,8 @@ class MyApp extends StatelessWidget {
               ),
           '/trips': (context) => const TripsPage(),
           '/landing': (context) => const LandingScreen(),
+          '/auth-test': (context) => const AuthTestScreen(),
+          '/auth-debug': (context) => const AuthDebugScreen(),
         },
         debugShowCheckedModeBanner: false,
       ),
@@ -82,7 +81,18 @@ class _AuthWrapperState extends State<AuthWrapper> {
       final authProvider = context.read<AuthProvider>();
       authProvider.initialize().then((_) {
         // Initialize session manager after auth is initialized
-        SessionManager().initialize(authProvider);
+        final sessionManager = SessionManager();
+        sessionManager.initialize(authProvider);
+
+        // Add debug logging
+        if (kDebugMode) {
+          dev.log('Main: SessionManager initialized', name: 'main');
+          dev.log('Main: Auth state: ${authProvider.state}', name: 'main');
+          dev.log('Main: Is authenticated: ${authProvider.isAuthenticated}',
+              name: 'main');
+          dev.log('Main: Has valid token: ${authProvider.hasValidToken}',
+              name: 'main');
+        }
       });
     });
   }
