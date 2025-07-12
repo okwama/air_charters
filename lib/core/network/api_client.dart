@@ -263,6 +263,36 @@ class ApiClient {
     }
   }
 
+  // Authentication Methods
+  Future<AuthModel> authenticateWithBackend(String token) async {
+    try {
+      dev.log('Authenticating with backend using token...', name: 'ApiClient');
+      final response = await _client
+          .post(
+            Uri.parse('$_baseUrl/api/auth/verify'),
+            headers: _defaultHeaders,
+            body: jsonEncode({
+              'token': token,
+            }),
+          )
+          .timeout(const Duration(seconds: 30));
+
+      if (response.statusCode == 200) {
+        final body = jsonDecode(response.body);
+        final authModel = AuthModel.fromJson(body);
+        await _storeAuth(authModel);
+        dev.log('Authentication successful', name: 'ApiClient');
+        return authModel;
+      } else {
+        dev.log('Authentication failed with status: ${response.statusCode}', name: 'ApiClient-ERROR');
+        throw AuthException('Authentication failed. Invalid token.');
+      }
+    } catch (e) {
+      dev.log('Error during authentication: $e', name: 'ApiClient-ERROR');
+      throw _handleError(e);
+    }
+  }
+
   // User Profile Methods
   Future<Map<String, dynamic>> getUserProfile() async {
     try {
