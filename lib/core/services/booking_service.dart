@@ -43,7 +43,7 @@ class BookingService {
   }
 
   /// Get a specific booking by ID
-  Future<BookingModel> fetchBookingById(int bookingId) async {
+  Future<BookingModel> fetchBookingById(String bookingId) async {
     try {
       final response = await _apiClient.get('/api/bookings/$bookingId');
 
@@ -76,7 +76,7 @@ class BookingService {
   }
 
   /// Cancel a booking
-  Future<BookingModel> cancelBooking(int bookingId) async {
+  Future<BookingModel> cancelBooking(String bookingId) async {
     try {
       final response =
           await _apiClient.put('/api/bookings/$bookingId/cancel', {});
@@ -94,7 +94,7 @@ class BookingService {
 
   /// Update booking status (admin/system use)
   Future<BookingModel> updateBookingStatus(
-      int bookingId, BookingStatus status) async {
+      String bookingId, BookingStatus status) async {
     try {
       final response = await _apiClient.put('/api/bookings/$bookingId/status', {
         'status': status.name,
@@ -114,7 +114,7 @@ class BookingService {
 
   /// Update payment status
   Future<BookingModel> updatePaymentStatus(
-      int bookingId, PaymentStatus status) async {
+      String bookingId, PaymentStatus status) async {
     try {
       final response =
           await _apiClient.put('/api/bookings/$bookingId/payment-status', {

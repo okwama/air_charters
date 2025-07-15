@@ -5,7 +5,7 @@ import 'package:provider/provider.dart';
 import 'payment/add_card.dart';
 import 'booking_confirmation_page.dart';
 import '../../core/models/charter_deal_model.dart';
-import '../../core/models/booking_model.dart';
+import '../../core/models/booking_model.dart' show PaymentMethod;
 import '../../core/providers/passengers_provider.dart';
 import '../../core/providers/auth_provider.dart';
 import '../../core/controllers/booking_controller.dart';
@@ -1317,40 +1317,55 @@ class _ReviewTripPageState extends State<ReviewTripPage> {
         parsedDate = DateTime.now().add(const Duration(days: 1));
       }
 
-      // Create booking model
-      final booking = BookingModel(
-        departure: widget.departure,
-        destination: widget.destination,
-        departureDate: parsedDate,
-        departureTime: widget.time,
-        aircraft: widget.aircraft,
-        totalPassengers: passengers.length,
-        duration: widget.duration,
-        basePrice: basePrice,
-        totalPrice: totalPrice,
-        onboardDining: _onboardDining,
-        groundTransportation: _groundTransportation,
-        billingRegion: _selectedBillingRegion,
-        paymentMethod: _selectedPaymentMethod,
-        passengers: passengers,
-      );
+      // Parse duration string to int (assuming format like "2h 30m" or "2.5h")
+      int durationMinutes;
+      try {
+        if (widget.duration.contains('h') && widget.duration.contains('m')) {
+          // Format: "2h 30m"
+          final parts = widget.duration.split(' ');
+          final hours = int.parse(parts[0].replaceAll('h', ''));
+          final minutes = int.parse(parts[1].replaceAll('m', ''));
+          durationMinutes = hours * 60 + minutes;
+        } else if (widget.duration.contains('h')) {
+          // Format: "2.5h" or "2h"
+          final hours = double.parse(widget.duration.replaceAll('h', ''));
+          durationMinutes = (hours * 60).round();
+        } else {
+          // Assume it's already in minutes
+          durationMinutes = int.parse(widget.duration);
+        }
+      } catch (e) {
+        // Default to 120 minutes if parsing fails
+        durationMinutes = 120;
+      }
+
+      // Parse payment method
+      PaymentMethod? paymentMethod;
+      if (_selectedPaymentMethod.contains('Card')) {
+        paymentMethod = PaymentMethod.card;
+      } else if (_selectedPaymentMethod.contains('MPesa')) {
+        paymentMethod = PaymentMethod.mpesa;
+      } else if (_selectedPaymentMethod.contains('Wallet')) {
+        paymentMethod = PaymentMethod.wallet;
+      }
 
       // Create booking through controller
       final bookingController =
           Provider.of<BookingController>(context, listen: false);
       final result = await bookingController.createBookingWithPassengers(
+        companyId: 1, // TODO: Get from charter deal or user selection
+        aircraftId: 1, // TODO: Get from charter deal or user selection
         departure: widget.departure,
         destination: widget.destination,
         departureDate: parsedDate,
         departureTime: widget.time,
-        aircraft: widget.aircraft,
-        duration: widget.duration,
+        duration: durationMinutes,
         basePrice: basePrice,
         totalPrice: totalPrice,
         onboardDining: _onboardDining,
         groundTransportation: _groundTransportation,
         billingRegion: _selectedBillingRegion,
-        paymentMethod: _selectedPaymentMethod,
+        paymentMethod: paymentMethod,
       );
 
       // Close loading dialog
@@ -1372,7 +1387,8 @@ class _ReviewTripPageState extends State<ReviewTripPage> {
       } else {
         // Show error dialog
         if (mounted) {
-          _showErrorDialog(result.errorMessage ?? 'Failed to create booking. Please try again.');
+          _showErrorDialog(result.errorMessage ??
+              'Failed to create booking. Please try again.');
         }
       }
     } catch (e) {

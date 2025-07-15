@@ -22,20 +22,20 @@ class BookingController {
 
   /// Create a complete booking with passengers
   Future<BookingCreationResult> createBookingWithPassengers({
+    required int companyId,
+    required int aircraftId,
     required String departure,
     required String destination,
     required DateTime departureDate,
     required String departureTime,
-    required String aircraft,
-    required String duration,
+    required int duration,
     required double basePrice,
     required double totalPrice,
     required bool onboardDining,
     required bool groundTransportation,
     String? specialRequirements,
     String? billingRegion,
-    String? paymentMethod,
-    int? charterDealId,
+    PaymentMethod? paymentMethod,
   }) async {
     try {
       // Validate user is authenticated
@@ -52,12 +52,13 @@ class BookingController {
 
       // Create booking model with passenger data
       final booking = BookingModel(
+        userId: _authProvider.currentUser?.id ?? '',
+        companyId: companyId,
+        aircraftId: aircraftId,
         departure: departure,
         destination: destination,
         departureDate: departureDate,
         departureTime: departureTime,
-        aircraft: aircraft,
-        totalPassengers: _passengerProvider.passengerCount,
         duration: duration,
         basePrice: basePrice,
         totalPrice: totalPrice,
@@ -99,18 +100,27 @@ class BookingController {
 
   /// Validate booking data before creation
   BookingValidationResult validateBookingData({
+    required int companyId,
+    required int aircraftId,
     required String departure,
     required String destination,
     required DateTime departureDate,
     required String departureTime,
-    required String aircraft,
-    required String duration,
+    required int duration,
     required double basePrice,
     required double totalPrice,
   }) {
     final errors = <String>[];
 
     // Basic validation
+    if (companyId <= 0) {
+      errors.add('Company ID is required');
+    }
+
+    if (aircraftId <= 0) {
+      errors.add('Aircraft ID is required');
+    }
+
     if (departure.trim().isEmpty) {
       errors.add('Departure location is required');
     }
@@ -127,12 +137,8 @@ class BookingController {
       errors.add('Departure time is required');
     }
 
-    if (aircraft.trim().isEmpty) {
-      errors.add('Aircraft information is required');
-    }
-
-    if (duration.trim().isEmpty) {
-      errors.add('Flight duration is required');
+    if (duration <= 0) {
+      errors.add('Flight duration must be greater than 0');
     }
 
     if (basePrice <= 0) {
@@ -222,7 +228,4 @@ class BookingValidationResult {
     required this.isValid,
     required this.errors,
   });
-
-  String get firstError => errors.isNotEmpty ? errors.first : '';
-  String get allErrors => errors.join('\n');
 }

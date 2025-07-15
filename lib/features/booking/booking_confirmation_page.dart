@@ -112,7 +112,7 @@ class _BookingConfirmationPageState extends State<BookingConfirmationPage> {
             ),
           ),
           const SizedBox(height: 8),
-          if (widget.booking.bookingReference != null) ...[
+          if (widget.booking.referenceNumber != null) ...[
             Text(
               'Booking Reference',
               style: GoogleFonts.inter(
@@ -122,7 +122,7 @@ class _BookingConfirmationPageState extends State<BookingConfirmationPage> {
             ),
             const SizedBox(height: 4),
             Text(
-              widget.booking.bookingReference!,
+              widget.booking.referenceNumber!,
               style: GoogleFonts.inter(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
@@ -166,9 +166,10 @@ class _BookingConfirmationPageState extends State<BookingConfirmationPage> {
               '${widget.booking.departure} → ${widget.booking.destination}'),
           _buildDetailRow('Date', _formatDate(widget.booking.departureDate)),
           _buildDetailRow('Time', widget.booking.departureTime),
-          _buildDetailRow('Aircraft', widget.booking.aircraft),
-          _buildDetailRow('Duration', widget.booking.duration),
-          _buildDetailRow('Passengers', '${widget.booking.totalPassengers}'),
+          _buildDetailRow(
+              'Aircraft', 'Aircraft ID: ${widget.booking.aircraftId}'),
+          _buildDetailRow('Duration', '${widget.booking.duration} minutes'),
+          _buildDetailRow('Passengers', '${widget.booking.passengers.length}'),
           if (widget.booking.specialRequirements?.isNotEmpty == true)
             _buildDetailRow(
                 'Special Requirements', widget.booking.specialRequirements!),
@@ -525,7 +526,7 @@ class _BookingConfirmationPageState extends State<BookingConfirmationPage> {
 
       // Create payment
       final paymentResult = await _paymentService.createPayment(
-        bookingId: widget.booking.bookingReference ?? '',
+        bookingId: widget.booking.referenceNumber ?? '',
         paymentMethod: _selectedPaymentMethod,
         totalAmount: widget.booking.totalPrice,
         platformFee: platformFee,

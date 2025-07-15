@@ -42,14 +42,15 @@ class BookingProvider with ChangeNotifier {
     return _bookings.where((booking) {
       // Check if the booking is in the future or is confirmed/paid regardless of date
       final isFutureDate = booking.departureDate.isAfter(now);
-      final isConfirmedOrPaid = booking.bookingStatus == BookingStatus.confirmed ||
-                                booking.bookingStatus == BookingStatus.paid ||
-                                booking.paymentStatus == PaymentStatus.paid;
-      
-      return (isFutureDate || isConfirmedOrPaid) && 
-             booking.bookingStatus != BookingStatus.cancelled &&
-             booking.bookingStatus != BookingStatus.completed;
-    }).toList()..sort((a, b) => a.departureDate.compareTo(b.departureDate));
+      final isConfirmedOrPaid =
+          booking.bookingStatus == BookingStatus.confirmed ||
+              booking.paymentStatus == PaymentStatus.paid;
+
+      return (isFutureDate || isConfirmedOrPaid) &&
+          booking.bookingStatus != BookingStatus.cancelled &&
+          booking.bookingStatus != BookingStatus.completed;
+    }).toList()
+      ..sort((a, b) => a.departureDate.compareTo(b.departureDate));
   }
 
   // Get past bookings (completed or past dates)
@@ -58,11 +59,12 @@ class BookingProvider with ChangeNotifier {
     return _bookings.where((booking) {
       final isPastDate = booking.departureDate.isBefore(now);
       final isCompleted = booking.bookingStatus == BookingStatus.completed;
-      
-      return (isPastDate && booking.bookingStatus != BookingStatus.pending) || 
-             isCompleted ||
-             booking.bookingStatus == BookingStatus.cancelled;
-    }).toList()..sort((a, b) => b.departureDate.compareTo(a.departureDate));
+
+      return (isPastDate && booking.bookingStatus != BookingStatus.pending) ||
+          isCompleted ||
+          booking.bookingStatus == BookingStatus.cancelled;
+    }).toList()
+      ..sort((a, b) => b.departureDate.compareTo(a.departureDate));
   }
 
   // Clear error state
@@ -124,7 +126,7 @@ class BookingProvider with ChangeNotifier {
   }
 
   /// Load a specific booking by ID
-  Future<void> loadBookingById(int bookingId) async {
+  Future<void> loadBookingById(String bookingId) async {
     try {
       _state = BookingState.loading;
       _errorMessage = null;
@@ -158,6 +160,12 @@ class BookingProvider with ChangeNotifier {
       final booking = await _bookingService.fetchBookingByReference(reference);
       _currentBooking = booking;
 
+      // Update in list if exists
+      final index = _bookings.indexWhere((b) => b.referenceNumber == reference);
+      if (index >= 0) {
+        _bookings[index] = booking;
+      }
+
       _state = BookingState.loaded;
       notifyListeners();
     } catch (e) {
@@ -168,56 +176,23 @@ class BookingProvider with ChangeNotifier {
   }
 
   /// Cancel a booking
-  Future<bool> cancelBooking(int bookingId) async {
+  Future<bool> cancelBooking(String bookingId) async {
     try {
       _state = BookingState.updating;
       _errorMessage = null;
       notifyListeners();
 
-      final updatedBooking = await _bookingService.cancelBooking(bookingId);
+      final cancelledBooking = await _bookingService.cancelBooking(bookingId);
 
       // Update in list
       final index = _bookings.indexWhere((b) => b.id == bookingId);
       if (index >= 0) {
-        _bookings[index] = updatedBooking;
+        _bookings[index] = cancelledBooking;
       }
 
       // Update current booking if it's the same
       if (_currentBooking?.id == bookingId) {
-        _currentBooking = updatedBooking;
-      }
-
-      _state = BookingState.loaded;
-      notifyListeners();
-
-      return true;
-    } catch (e) {
-      _state = BookingState.error;
-      _errorMessage = _getErrorMessage(e);
-      notifyListeners();
-      return false;
-    }
-  }
-
-  /// Update booking status
-  Future<bool> updateBookingStatus(int bookingId, BookingStatus status) async {
-    try {
-      _state = BookingState.updating;
-      _errorMessage = null;
-      notifyListeners();
-
-      final updatedBooking =
-          await _bookingService.updateBookingStatus(bookingId, status);
-
-      // Update in list
-      final index = _bookings.indexWhere((b) => b.id == bookingId);
-      if (index >= 0) {
-        _bookings[index] = updatedBooking;
-      }
-
-      // Update current booking if it's the same
-      if (_currentBooking?.id == bookingId) {
-        _currentBooking = updatedBooking;
+        _currentBooking = cancelledBooking;
       }
 
       _state = BookingState.loaded;
@@ -233,7 +208,8 @@ class BookingProvider with ChangeNotifier {
   }
 
   /// Update payment status
-  Future<bool> updatePaymentStatus(int bookingId, PaymentStatus status) async {
+  Future<bool> updatePaymentStatus(
+      String bookingId, PaymentStatus status) async {
     try {
       _state = BookingState.updating;
       _errorMessage = null;
@@ -302,16 +278,14 @@ class BookingProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  /// Set current booking
-  void setCurrentBooking(BookingModel? booking) {
-    _currentBooking = booking;
-    notifyListeners();
-  }
-
+  /// Get error message from exception
   String _getErrorMessage(dynamic error) {
     if (error is AppException) {
       return error.message;
+    } else if (error is Exception) {
+      return error.toString().replaceFirst('Exception: ', '');
+    } else {
+      return error.toString();
     }
-    return 'An unexpected error occurred. Please try again.';
   }
 }

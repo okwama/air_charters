@@ -3,7 +3,6 @@ import 'passenger_model.dart';
 enum BookingStatus {
   pending,
   confirmed,
-  paid,
   cancelled,
   completed,
 }
@@ -15,16 +14,23 @@ enum PaymentStatus {
   refunded,
 }
 
+enum PaymentMethod {
+  card,
+  mpesa,
+  wallet,
+}
+
 class BookingModel {
-  final int? id;
-  final String? bookingReference;
+  final String? id;
+  final String? referenceNumber;
+  final String userId;
+  final int companyId;
+  final int aircraftId;
   final String departure;
   final String destination;
   final DateTime departureDate;
   final String departureTime;
-  final String aircraft;
-  final int totalPassengers;
-  final String duration;
+  final int duration;
   final double basePrice;
   final double totalPrice;
   final BookingStatus bookingStatus;
@@ -33,19 +39,21 @@ class BookingModel {
   final bool groundTransportation;
   final String? specialRequirements;
   final String? billingRegion;
-  final String? paymentMethod;
+  final PaymentMethod? paymentMethod;
   final List<PassengerModel> passengers;
   final DateTime? createdAt;
+  final DateTime? updatedAt;
 
   const BookingModel({
     this.id,
-    this.bookingReference,
+    this.referenceNumber,
+    required this.userId,
+    required this.companyId,
+    required this.aircraftId,
     required this.departure,
     required this.destination,
     required this.departureDate,
     required this.departureTime,
-    required this.aircraft,
-    required this.totalPassengers,
     required this.duration,
     required this.basePrice,
     required this.totalPrice,
@@ -58,28 +66,32 @@ class BookingModel {
     this.paymentMethod,
     this.passengers = const [],
     this.createdAt,
+    this.updatedAt,
   });
 
   factory BookingModel.fromJson(Map<String, dynamic> json) {
     return BookingModel(
-      id: json['id'] as int?,
-      bookingReference: json['bookingReference'] as String?,
-      departure: json['departure'] as String,
-      destination: json['destination'] as String,
-      departureDate: DateTime.parse(json['departureDate'] as String),
-      departureTime: json['departureTime'] as String,
-      aircraft: json['aircraft'] as String,
-      totalPassengers: json['totalPassengers'] as int,
-      duration: json['duration'] as String,
-      basePrice: double.tryParse(json['basePrice'].toString()) ?? 0.0,
-      totalPrice: double.tryParse(json['totalPrice'].toString()) ?? 0.0,
+      id: json['id'] as String?,
+      referenceNumber: json['referenceNumber'] as String?,
+      userId: json['userId'] as String? ?? '',
+      companyId: json['companyId'] as int? ?? 0,
+      aircraftId: json['aircraftId'] as int? ?? 0,
+      departure: json['departure'] as String? ?? '',
+      destination: json['destination'] as String? ?? '',
+      departureDate: json['departureDate'] != null
+          ? DateTime.parse(json['departureDate'] as String)
+          : DateTime.now(),
+      departureTime: json['departureTime'] as String? ?? '',
+      duration: json['duration'] as int? ?? 0,
+      basePrice: double.tryParse(json['basePrice']?.toString() ?? '0') ?? 0.0,
+      totalPrice: double.tryParse(json['totalPrice']?.toString() ?? '0') ?? 0.0,
       bookingStatus: _parseBookingStatus(json['bookingStatus'] as String?),
       paymentStatus: _parsePaymentStatus(json['paymentStatus'] as String?),
       onboardDining: json['onboardDining'] as bool? ?? false,
       groundTransportation: json['groundTransportation'] as bool? ?? false,
       specialRequirements: json['specialRequirements'] as String?,
       billingRegion: json['billingRegion'] as String?,
-      paymentMethod: json['paymentMethod'] as String?,
+      paymentMethod: _parsePaymentMethod(json['paymentMethod'] as String?),
       passengers: (json['passengers'] as List<dynamic>?)
               ?.map((p) => PassengerModel.fromJson(p as Map<String, dynamic>))
               .toList() ??
@@ -87,19 +99,23 @@ class BookingModel {
       createdAt: json['createdAt'] != null
           ? DateTime.parse(json['createdAt'] as String)
           : null,
+      updatedAt: json['updatedAt'] != null
+          ? DateTime.parse(json['updatedAt'] as String)
+          : null,
     );
   }
 
   Map<String, dynamic> toJson() {
     return {
       if (id != null) 'id': id,
-      if (bookingReference != null) 'bookingReference': bookingReference,
+      if (referenceNumber != null) 'referenceNumber': referenceNumber,
+      'userId': userId,
+      'companyId': companyId,
+      'aircraftId': aircraftId,
       'departure': departure,
       'destination': destination,
       'departureDate': departureDate.toIso8601String(),
       'departureTime': departureTime,
-      'aircraft': aircraft,
-      'totalPassengers': totalPassengers,
       'duration': duration,
       'basePrice': basePrice,
       'totalPrice': totalPrice,
@@ -107,45 +123,49 @@ class BookingModel {
       'paymentStatus': paymentStatus.name,
       'onboardDining': onboardDining,
       'groundTransportation': groundTransportation,
-      if (specialRequirements != null) 'specialRequirements': specialRequirements,
+      if (specialRequirements != null)
+        'specialRequirements': specialRequirements,
       if (billingRegion != null) 'billingRegion': billingRegion,
-      if (paymentMethod != null) 'paymentMethod': paymentMethod,
+      if (paymentMethod != null) 'paymentMethod': paymentMethod!.name,
       'passengers': passengers.map((p) => p.toCreateJson()).toList(),
       if (createdAt != null) 'createdAt': createdAt!.toIso8601String(),
+      if (updatedAt != null) 'updatedAt': updatedAt!.toIso8601String(),
     };
   }
 
   // Create JSON for booking creation (without backend-generated fields)
   Map<String, dynamic> toCreateJson() {
     return {
+      'companyId': companyId,
+      'aircraftId': aircraftId,
       'departure': departure,
       'destination': destination,
       'departureDate': departureDate.toIso8601String(),
       'departureTime': departureTime,
-      'aircraft': aircraft,
-      'totalPassengers': totalPassengers,
       'duration': duration,
       'basePrice': basePrice,
       'totalPrice': totalPrice,
       'onboardDining': onboardDining,
       'groundTransportation': groundTransportation,
-      if (specialRequirements != null) 'specialRequirements': specialRequirements,
+      if (specialRequirements != null)
+        'specialRequirements': specialRequirements,
       if (billingRegion != null) 'billingRegion': billingRegion,
-      if (paymentMethod != null) 'paymentMethod': paymentMethod,
+      if (paymentMethod != null) 'paymentMethod': paymentMethod!.name,
       'passengers': passengers.map((p) => p.toCreateJson()).toList(),
     };
   }
 
   BookingModel copyWith({
-    int? id,
-    String? bookingReference,
+    String? id,
+    String? referenceNumber,
+    String? userId,
+    int? companyId,
+    int? aircraftId,
     String? departure,
     String? destination,
     DateTime? departureDate,
     String? departureTime,
-    String? aircraft,
-    int? totalPassengers,
-    String? duration,
+    int? duration,
     double? basePrice,
     double? totalPrice,
     BookingStatus? bookingStatus,
@@ -154,19 +174,21 @@ class BookingModel {
     bool? groundTransportation,
     String? specialRequirements,
     String? billingRegion,
-    String? paymentMethod,
+    PaymentMethod? paymentMethod,
     List<PassengerModel>? passengers,
     DateTime? createdAt,
+    DateTime? updatedAt,
   }) {
     return BookingModel(
       id: id ?? this.id,
-      bookingReference: bookingReference ?? this.bookingReference,
+      referenceNumber: referenceNumber ?? this.referenceNumber,
+      userId: userId ?? this.userId,
+      companyId: companyId ?? this.companyId,
+      aircraftId: aircraftId ?? this.aircraftId,
       departure: departure ?? this.departure,
       destination: destination ?? this.destination,
       departureDate: departureDate ?? this.departureDate,
       departureTime: departureTime ?? this.departureTime,
-      aircraft: aircraft ?? this.aircraft,
-      totalPassengers: totalPassengers ?? this.totalPassengers,
       duration: duration ?? this.duration,
       basePrice: basePrice ?? this.basePrice,
       totalPrice: totalPrice ?? this.totalPrice,
@@ -179,33 +201,32 @@ class BookingModel {
       paymentMethod: paymentMethod ?? this.paymentMethod,
       passengers: passengers ?? this.passengers,
       createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
     );
   }
 
   // Helper methods
   String get formattedPrice => '\$${totalPrice.toFixed(2)}';
-  
-  String get formattedDate => '${departureDate.day}/${departureDate.month}/${departureDate.year}';
-  
-  bool get isConfirmed => 
-      bookingStatus == BookingStatus.confirmed || 
-      bookingStatus == BookingStatus.paid ||
+
+  String get formattedDate =>
+      '${departureDate.day}/${departureDate.month}/${departureDate.year}';
+
+  bool get isConfirmed =>
+      bookingStatus == BookingStatus.confirmed ||
       bookingStatus == BookingStatus.completed;
-      
+
   bool get isPaid => paymentStatus == PaymentStatus.paid;
-  
-  bool get canBeCancelled => 
-      bookingStatus == BookingStatus.pending || 
+
+  bool get canBeCancelled =>
+      bookingStatus == BookingStatus.pending ||
       bookingStatus == BookingStatus.confirmed;
-      
+
   String get statusDisplayText {
     switch (bookingStatus) {
       case BookingStatus.pending:
         return 'Pending';
       case BookingStatus.confirmed:
         return 'Confirmed';
-      case BookingStatus.paid:
-        return 'Paid';
       case BookingStatus.cancelled:
         return 'Cancelled';
       case BookingStatus.completed:
@@ -217,8 +238,6 @@ class BookingModel {
     switch (status?.toLowerCase()) {
       case 'confirmed':
         return BookingStatus.confirmed;
-      case 'paid':
-        return BookingStatus.paid;
       case 'cancelled':
         return BookingStatus.cancelled;
       case 'completed':
@@ -240,10 +259,23 @@ class BookingModel {
         return PaymentStatus.pending;
     }
   }
+
+  static PaymentMethod? _parsePaymentMethod(String? method) {
+    switch (method?.toLowerCase()) {
+      case 'card':
+        return PaymentMethod.card;
+      case 'mpesa':
+        return PaymentMethod.mpesa;
+      case 'wallet':
+        return PaymentMethod.wallet;
+      default:
+        return null;
+    }
+  }
 }
 
 extension DoubleExtension on double {
   String toFixed(int places) {
     return toStringAsFixed(places);
   }
-} 
+}
