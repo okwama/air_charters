@@ -26,13 +26,15 @@ class ProfileProvider extends ChangeNotifier {
   Future<void> fetchProfile() async {
     print('🔥 PROFILE: fetchProfile');
 
-    // Check if user is authenticated using SessionManager
-    final sessionManager = SessionManager();
-    final isAuthenticated = sessionManager.isSessionActive;
-    final sessionStatus = sessionManager.getSessionStatus();
+    // Use standardized authentication check
+    final isAuthenticated = _authProvider?.isAuthenticated == true &&
+        _authProvider?.hasValidToken == true;
 
-    print('🔥 PROFILE: SessionManager - isAuthenticated: $isAuthenticated');
-    print('🔥 PROFILE: SessionManager - sessionStatus: $sessionStatus');
+    print(
+        '🔥 PROFILE: AuthProvider - isAuthenticated: ${_authProvider?.isAuthenticated}');
+    print(
+        '🔥 PROFILE: AuthProvider - hasValidToken: ${_authProvider?.hasValidToken}');
+    print('🔥 PROFILE: Final isAuthenticated: $isAuthenticated');
 
     if (!isAuthenticated) {
       print('🔥 PROFILE: User not authenticated, skipping API call');
@@ -46,10 +48,10 @@ class ProfileProvider extends ChangeNotifier {
 
     try {
       // Debug: Check what token is being sent
-      final authHeader = sessionManager.getAuthorizationHeader();
-      if (authHeader != null && authHeader.isNotEmpty) {
-        print(
-            '🔥 PROFILE: Authorization header: ${authHeader.length > 20 ? authHeader.substring(0, 20) : authHeader}...');
+      final sessionManager = SessionManager();
+      final authHeader = await sessionManager.getAuthorizationHeader();
+      if (authHeader != null) {
+        print('🔥 PROFILE: Authorization header: $authHeader');
       } else {
         print('🔥 PROFILE: Authorization header: null or empty');
       }
@@ -69,13 +71,14 @@ class ProfileProvider extends ChangeNotifier {
         _profile = null;
         _preferences = null;
 
-        // Try to refresh the token
+        // Try to refresh the token using AuthProvider
         try {
           print('🔥 PROFILE: Attempting token refresh...');
-          final refreshed = await sessionManager.forceTokenRefresh();
-          print('🔥 PROFILE: Token refresh result: $refreshed');
+          await _authProvider?.refreshToken();
+          print('🔥 PROFILE: Token refresh completed');
 
-          if (refreshed) {
+          // Check if refresh was successful
+          if (_authProvider?.hasValidToken == true) {
             // Try fetching profile again with refreshed token
             print('🔥 PROFILE: Retrying profile fetch with refreshed token...');
             final data = await _apiClient.getUserProfile();
@@ -127,7 +130,8 @@ class ProfileProvider extends ChangeNotifier {
 
   // Check if profile can be fetched (user is authenticated)
   bool get canFetchProfile {
-    final sessionManager = SessionManager();
-    return sessionManager.isSessionActive;
+    // Use standardized AuthProvider check
+    return _authProvider?.isAuthenticated == true &&
+        _authProvider?.hasValidToken == true;
   }
 }

@@ -1,3 +1,6 @@
+import 'package:flutter/foundation.dart' show kDebugMode;
+import 'dart:developer' as dev;
+
 class CharterDealModel {
   final int id;
   final int companyId;
@@ -13,7 +16,7 @@ class CharterDealModel {
   final String dealType;
   final DateTime createdAt;
   final DateTime updatedAt;
-  
+
   // Related data from joins
   final String? companyName;
   final String? companyLogo;
@@ -50,30 +53,41 @@ class CharterDealModel {
   });
 
   factory CharterDealModel.fromJson(Map<String, dynamic> json) {
-    return CharterDealModel(
-      id: json['id'] as int,
-      companyId: json['companyId'] as int,
-      fixedRouteId: json['fixedRouteId'] as int,
-      aircraftId: json['aircraftId'] as int,
-      date: DateTime.parse(json['date'] as String),
-      time: json['time'] as String,
-      pricePerSeat: json['pricePerSeat']?.toDouble(),
-      discountPerSeat: json['discountPerSeat'] as int? ?? 0,
-      priceFullCharter: json['priceFullCharter']?.toDouble(),
-      discountFullCharter: json['discountFullCharter'] as int? ?? 0,
-      availableSeats: json['availableSeats'] as int,
-      dealType: json['dealType'] as String,
-      createdAt: DateTime.parse(json['createdAt'] as String),
-      updatedAt: DateTime.parse(json['updatedAt'] as String),
-      companyName: json['companyName'] as String?,
-      companyLogo: json['companyLogo'] as String?,
-      origin: json['origin'] as String?,
-      destination: json['destination'] as String?,
-      routeImageUrl: json['routeImageUrl'] as String?,
-      aircraftName: json['aircraftName'] as String?,
-      aircraftType: json['aircraftType'] as String?,
-      aircraftCapacity: json['aircraftCapacity'] as int?,
-    );
+    try {
+      return CharterDealModel(
+        id: json['id'] as int,
+        companyId: json['companyId'] as int,
+        fixedRouteId: json['fixedRouteId'] as int,
+        aircraftId: json['aircraftId'] as int,
+        date: DateTime.parse(json['date'] as String),
+        time: json['time'] as String,
+        pricePerSeat: json['pricePerSeat']?.toDouble(),
+        discountPerSeat: json['discountPerSeat'] as int? ?? 0,
+        priceFullCharter: json['priceFullCharter']?.toDouble(),
+        discountFullCharter: json['discountFullCharter'] as int? ?? 0,
+        availableSeats: json['availableSeats'] as int,
+        dealType: json['dealType'] as String,
+        createdAt: DateTime.parse(json['createdAt'] as String),
+        updatedAt: DateTime.parse(json['updatedAt'] as String),
+        companyName: json['companyName'] as String?,
+        companyLogo: json['companyLogo'] as String?,
+        origin: json['origin'] as String?,
+        destination: json['destination'] as String?,
+        routeImageUrl: json['routeImageUrl'] as String?,
+        aircraftName: json['aircraftName'] as String?,
+        aircraftType: json['aircraftType'] as String?,
+        aircraftCapacity: json['aircraftCapacity'] as int?,
+      );
+    } catch (e) {
+      // Log the error and the problematic JSON
+      if (kDebugMode) {
+        dev.log('CharterDealModel: Error parsing JSON: $e',
+            name: 'charter_deal_model');
+        dev.log('CharterDealModel: Problematic JSON: $json',
+            name: 'charter_deal_model');
+      }
+      rethrow;
+    }
   }
 
   Map<String, dynamic> toJson() {
@@ -115,7 +129,8 @@ class CharterDealModel {
       final discountedPrice = pricePerSeat! * (1 - discountPerSeat / 100);
       return '\$${discountedPrice.toStringAsFixed(0)}';
     } else if (priceFullCharter != null) {
-      final discountedPrice = priceFullCharter! * (1 - discountFullCharter / 100);
+      final discountedPrice =
+          priceFullCharter! * (1 - discountFullCharter / 100);
       return '\$${discountedPrice.toStringAsFixed(0)}';
     }
     return 'Contact for pricing';
@@ -124,7 +139,7 @@ class CharterDealModel {
   String get dateDisplay {
     final now = DateTime.now();
     final daysUntil = date.difference(now).inDays;
-    
+
     if (daysUntil == 0) {
       return 'Today';
     } else if (daysUntil == 1) {
@@ -145,8 +160,8 @@ class CharterDealModel {
   }
 
   String get imageUrl {
-    return routeImageUrl ?? 
-           'https://images.unsplash.com/photo-1436491865332-7a61a109cc05?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w0NTYyMDF8MHwxfHJhbmRvbXx8fHx8fHx8fDE3NTA1MDU3Nzd8&ixlib=rb-4.1.0&q=80&w=1080';
+    return routeImageUrl ??
+        'https://images.unsplash.com/photo-1436491865332-7a61a109cc05?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w0NTYyMDF8MHwxfHJhbmRvbXx8fHx8fHx8fDE3NTA1MDU3Nzd8&ixlib=rb-4.1.0&q=80&w=1080';
   }
 
   bool get hasDiscount {
@@ -202,4 +217,4 @@ class CharterDealModel {
       aircraftCapacity: aircraftCapacity ?? this.aircraftCapacity,
     );
   }
-} 
+}

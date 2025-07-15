@@ -48,11 +48,15 @@ class _SplashScreenState extends State<SplashScreen>
       curve: Curves.elasticOut,
     ));
 
-    // Start animations
-    _fadeController.forward();
-    Future.delayed(const Duration(milliseconds: 200), () {
-      _scaleController.forward();
-    });
+    // Start animations with proper mounted checks
+    if (mounted) {
+      _fadeController.forward();
+      Future.delayed(const Duration(milliseconds: 200), () {
+        if (mounted) {
+          _scaleController.forward();
+        }
+      });
+    }
 
     // Navigate to landing after 2.5 seconds
     Future.delayed(const Duration(milliseconds: 2500), () {

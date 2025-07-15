@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import '../models/charter_deal_model.dart';
 import '../services/charter_deals_service.dart';
 import '../error/app_exceptions.dart';
+import 'dart:developer' as dev;
 
 enum CharterDealsState {
   initial,
@@ -42,6 +43,18 @@ class CharterDealsProvider extends ChangeNotifier {
       _setState(CharterDealsState.loading);
       _errorMessage = null;
 
+      if (kDebugMode) {
+        dev.log('CharterDealsProvider: Loading deals...',
+            name: 'deals_provider');
+        dev.log('CharterDealsProvider: Search query: $searchQuery',
+            name: 'deals_provider');
+        dev.log('CharterDealsProvider: Deal type: $dealType',
+            name: 'deals_provider');
+
+        // Test API response first
+        await CharterDealsService.testApiResponse();
+      }
+
       final deals = await CharterDealsService.fetchCharterDeals(
         page: 1,
         limit: _pageSize,
@@ -52,14 +65,52 @@ class CharterDealsProvider extends ChangeNotifier {
         forceRefresh: forceRefresh,
       );
 
+      if (kDebugMode) {
+        dev.log('CharterDealsProvider: Fetched ${deals.length} deals',
+            name: 'deals_provider');
+        if (deals.isNotEmpty) {
+          dev.log(
+              'CharterDealsProvider: First deal: ${deals.first.routeDisplay}',
+              name: 'deals_provider');
+          dev.log(
+              'CharterDealsProvider: First deal price: ${deals.first.priceDisplay}',
+              name: 'deals_provider');
+        }
+      }
+
+      if (kDebugMode) {
+        dev.log(
+            'CharterDealsProvider: Assigning ${deals.length} deals to _deals',
+            name: 'deals_provider');
+        dev.log('CharterDealsProvider: Previous deals count: ${_deals.length}',
+            name: 'deals_provider');
+      }
+
       _deals = deals;
       _currentPage = 1;
       _hasMoreData = deals.length >= _pageSize;
+
+      if (kDebugMode) {
+        dev.log(
+            'CharterDealsProvider: After assignment - deals count: ${_deals.length}',
+            name: 'deals_provider');
+        dev.log('CharterDealsProvider: Setting state to loaded',
+            name: 'deals_provider');
+      }
+
       _setState(CharterDealsState.loaded);
     } on AppException catch (e) {
+      if (kDebugMode) {
+        dev.log('CharterDealsProvider: Error loading deals: ${e.message}',
+            name: 'deals_provider');
+      }
       _errorMessage = e.message;
       _setState(CharterDealsState.error);
     } catch (e) {
+      if (kDebugMode) {
+        dev.log('CharterDealsProvider: Unexpected error: $e',
+            name: 'deals_provider');
+      }
       _errorMessage = 'An unexpected error occurred';
       _setState(CharterDealsState.error);
     }
@@ -140,13 +191,13 @@ class CharterDealsProvider extends ChangeNotifier {
   /// Filter deals by search query
   List<CharterDealModel> filterDeals(String query) {
     if (query.isEmpty) return _deals;
-    
+
     final lowercaseQuery = query.toLowerCase();
     return _deals.where((deal) {
       return deal.origin?.toLowerCase().contains(lowercaseQuery) == true ||
-             deal.destination?.toLowerCase().contains(lowercaseQuery) == true ||
-             deal.companyName?.toLowerCase().contains(lowercaseQuery) == true ||
-             deal.aircraftName?.toLowerCase().contains(lowercaseQuery) == true;
+          deal.destination?.toLowerCase().contains(lowercaseQuery) == true ||
+          deal.companyName?.toLowerCase().contains(lowercaseQuery) == true ||
+          deal.aircraftName?.toLowerCase().contains(lowercaseQuery) == true;
     }).toList();
   }
 
@@ -207,7 +258,19 @@ class CharterDealsProvider extends ChangeNotifier {
   }
 
   void _setState(CharterDealsState newState) {
+    if (kDebugMode) {
+      dev.log('CharterDealsProvider: State change from $_state to $newState',
+          name: 'deals_provider');
+      dev.log('CharterDealsProvider: Current deals count: ${_deals.length}',
+          name: 'deals_provider');
+      dev.log('CharterDealsProvider: Has error: ${_errorMessage != null}',
+          name: 'deals_provider');
+      if (_errorMessage != null) {
+        dev.log('CharterDealsProvider: Error message: $_errorMessage',
+            name: 'deals_provider');
+      }
+    }
     _state = newState;
     notifyListeners();
   }
-} 
+}

@@ -24,11 +24,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget build(BuildContext context) {
     final profileProvider = Provider.of<ProfileProvider>(context);
     final authProvider = Provider.of<AuthProvider>(context);
-    final sessionManager = SessionManager();
 
-    // Check authentication status using SessionManager
-    final isAuthenticated = sessionManager.isSessionActive;
-    final sessionStatus = sessionManager.getSessionStatus();
+    // Use standardized authentication check from AuthProvider
+    final isAuthenticated =
+        authProvider.isAuthenticated && authProvider.hasValidToken;
+
+    if (kDebugMode) {
+      dev.log(
+          'ProfileScreen: AuthProvider.isAuthenticated: ${authProvider.isAuthenticated}',
+          name: 'profile_screen');
+      dev.log(
+          'ProfileScreen: AuthProvider.hasValidToken: ${authProvider.hasValidToken}',
+          name: 'profile_screen');
+      dev.log('ProfileScreen: Final isAuthenticated: $isAuthenticated',
+          name: 'profile_screen');
+    }
 
     // Fetch profile on first build, but check authentication first
     WidgetsBinding.instance.addPostFrameCallback((_) async {
@@ -82,8 +92,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
       );
     }
 
-    // Show login prompt if user is not authenticated
+    // Show login prompt if user is not authenticated OR if profile is null
     if (!isAuthenticated || profile == null) {
+      if (kDebugMode) {
+        dev.log(
+            'ProfileScreen: Showing login prompt - isAuthenticated: $isAuthenticated, profile: ${profile != null}',
+            name: 'profile_screen');
+      }
+
       return Scaffold(
         backgroundColor: Colors.white,
         appBar: AppBar(
@@ -179,10 +195,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
             IconButton(
               icon: const Icon(Icons.refresh, color: Colors.black),
               onPressed: () async {
-                sessionManager.debugTokenStatus();
+                // Refresh profile
+                await profileProvider.fetchProfile();
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
-                    content: Text('Session status refreshed'),
+                    content: Text('Profile refreshed'),
                     duration: Duration(seconds: 2),
                   ),
                 );
@@ -204,37 +221,33 @@ class _ProfileScreenState extends State<ProfileScreen> {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: sessionStatus['hasValidToken'] == true
-                      ? Colors.green.shade50
-                      : Colors.orange.shade50,
+                  color:
+                      isAuthenticated // Changed from sessionStatus['hasValidToken']
+                          ? Colors.green.shade50
+                          : Colors.orange.shade50,
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(
-                    color: sessionStatus['hasValidToken'] == true
-                        ? Colors.green.shade200
-                        : Colors.orange.shade200,
+                    color:
+                        isAuthenticated // Changed from sessionStatus['hasValidToken']
+                            ? Colors.green.shade200
+                            : Colors.orange.shade200,
                   ),
                 ),
                 child: Row(
                   children: [
                     Icon(
-                      sessionStatus['hasValidToken'] == true
-                          ? Icons.security
-                          : Icons.warning,
-                      color: sessionStatus['hasValidToken'] == true
-                          ? Colors.green
-                          : Colors.orange,
+                      isAuthenticated ? Icons.security : Icons.warning,
+                      color: isAuthenticated ? Colors.green : Colors.orange,
                       size: 16,
                     ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        sessionStatus['hasValidToken'] == true
-                            ? 'Session Active'
-                            : 'Session Issues',
+                        isAuthenticated ? 'Session Active' : 'Session Issues',
                         style: GoogleFonts.interTight(
                           fontSize: 12,
                           fontWeight: FontWeight.w500,
-                          color: sessionStatus['hasValidToken'] == true
+                          color: isAuthenticated
                               ? Colors.green.shade700
                               : Colors.orange.shade700,
                         ),
@@ -432,7 +445,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ProfileProvider provider,
       {bool isPreference = false}) {
     final controller = TextEditingController(text: currentValue);
-    final sessionManager = SessionManager();
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
 
     showDialog(
       context: context,
@@ -454,7 +467,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
             onPressed: () async {
               try {
                 // Check if session is still valid before making changes
-                if (!sessionManager.isSessionActive) {
+                if (!authProvider.isAuthenticated ||
+                    !authProvider.hasValidToken) {
                   if (kDebugMode) {
                     dev.log('ProfileScreen: Session expired during edit',
                         name: 'profile_screen');

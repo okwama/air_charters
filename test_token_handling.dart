@@ -22,7 +22,7 @@ void testTokenHandling() {
   print('Auth header without AuthProvider: $authHeader');
 
   // Test session status
-  final status = sessionManager.getSessionStatus();
+  final status = sessionManager.getStoredAuthData();
   print('Session status: $status');
 
   print('🧪 Token handling test completed');

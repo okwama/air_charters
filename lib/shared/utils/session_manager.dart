@@ -1,21 +1,24 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:developer' as dev;
 import 'package:flutter/foundation.dart';
-import '../../core/providers/auth_provider.dart';
-import '../../core/network/api_client.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import '../../core/models/auth_model.dart';
+import '../../config/env/app_config.dart';
 
 class SessionManager {
   static final SessionManager _instance = SessionManager._internal();
   factory SessionManager() => _instance;
   SessionManager._internal();
 
+  static const FlutterSecureStorage _storage = FlutterSecureStorage();
+
+  // Pure token management - no authentication state decisions
   Timer? _tokenMonitorTimer;
-  AuthProvider? _authProvider;
   bool _isMonitoring = false;
 
-  // Initialize session manager
-  void initialize(AuthProvider authProvider) {
-    _authProvider = authProvider;
+  // Initialize session manager (simplified)
+  void initialize() {
     _startTokenMonitoring();
   }
 
@@ -36,16 +39,13 @@ class SessionManager {
     _tokenMonitorTimer = null;
   }
 
-  // Check token validity
+  // Check token validity (simplified)
   Future<void> _checkTokenValidity() async {
-    if (_authProvider == null) return;
-
     try {
-      final isValid = await _authProvider!.validateToken();
-      if (!isValid) {
-        // Token is invalid, user will be signed out automatically
+      final authData = await getStoredAuthData();
+      if (authData != null && authData.isExpired) {
         if (kDebugMode) {
-          dev.log('SessionManager: Token validation failed, user signed out',
+          dev.log('SessionManager: Stored token is expired',
               name: 'session_manager');
         }
       }
@@ -57,91 +57,72 @@ class SessionManager {
     }
   }
 
-  // Get current token info
-  Map<String, dynamic>? getTokenInfo() {
-    if (_authProvider?.authData == null) return null;
-
-    final authData = _authProvider!.authData!;
-    final now = DateTime.now();
-    final expiresIn = authData.expiresAt.difference(now);
-
-    return {
-      'isValid': !authData.isExpired,
-      'willExpireSoon': authData.willExpireSoon,
-      'expiresIn': expiresIn.inSeconds,
-      'expiresAt': authData.expiresAt.toIso8601String(),
-      'tokenType': authData.tokenType,
-      'accessToken': authData.accessToken, // Add the access token
-      'user': {
-        'id': authData.user.id,
-        'email': authData.user.email,
-        'name': authData.user.fullName,
-      },
-    };
-  }
-
-  // Force token refresh
-  Future<bool> forceTokenRefresh() async {
-    if (_authProvider == null) return false;
-
+  // Get stored auth data
+  Future<AuthModel?> getStoredAuthData() async {
     try {
-      await _authProvider!.refreshToken();
-      return _authProvider!.hasValidToken;
+      final authJson = await _storage.read(key: AppConfig.authStorageKey);
+      if (authJson != null) {
+        return AuthModel.fromJson(jsonDecode(authJson));
+      }
     } catch (e) {
       if (kDebugMode) {
-        dev.log('SessionManager: Error refreshing token: $e',
+        dev.log('SessionManager: Error reading stored auth data: $e',
             name: 'session_manager');
       }
-      return false;
+    }
+    return null;
+  }
+
+  // Store auth data
+  Future<void> storeAuthData(AuthModel authData) async {
+    try {
+      await _storage.write(
+        key: AppConfig.authStorageKey,
+        value: jsonEncode(authData.toJson()),
+      );
+      if (kDebugMode) {
+        dev.log('SessionManager: Auth data stored successfully',
+            name: 'session_manager');
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        dev.log('SessionManager: Error storing auth data: $e',
+            name: 'session_manager');
+      }
     }
   }
 
-  // Check if session is active
-  bool get isSessionActive {
-    return _authProvider?.isAuthenticated == true &&
-        _authProvider?.hasValidToken == true;
-  }
-
-  // Get session status
-  Map<String, dynamic> getSessionStatus() {
-    return {
-      'isAuthenticated': _authProvider?.isAuthenticated ?? false,
-      'hasValidToken': _authProvider?.hasValidToken ?? false,
-      'isLoading': _authProvider?.isLoading ?? false,
-      'tokenInfo': getTokenInfo(),
-      'user': _authProvider?.currentUser?.toJson(),
-    };
+  // Clear stored auth data
+  Future<void> clearStoredAuthData() async {
+    try {
+      await _storage.delete(key: AppConfig.authStorageKey);
+      if (kDebugMode) {
+        dev.log('SessionManager: Auth data cleared', name: 'session_manager');
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        dev.log('SessionManager: Error clearing auth data: $e',
+            name: 'session_manager');
+      }
+    }
   }
 
   // Get authorization header for API requests
-  String? getAuthorizationHeader() {
+  Future<String?> getAuthorizationHeader() async {
     try {
-      // First try to get from AuthProvider
-      if (_authProvider?.authData != null) {
-        final authData = _authProvider!.authData!;
-        if (!authData.isExpired) {
-          if (kDebugMode) {
-            dev.log('SessionManager: Using AuthProvider token',
-                name: 'session_manager');
-          }
-          return authData.authorizationHeader;
-        } else {
-          if (kDebugMode) {
-            dev.log('SessionManager: AuthProvider token is expired',
-                name: 'session_manager');
-          }
+      final authData = await getStoredAuthData();
+      if (authData != null && !authData.isExpired) {
+        if (kDebugMode) {
+          dev.log('SessionManager: Using stored token for authorization',
+              name: 'session_manager');
+        }
+        return authData.authorizationHeader;
+      } else {
+        if (kDebugMode) {
+          dev.log('SessionManager: No valid token available for authorization',
+              name: 'session_manager');
         }
       }
-
-      // Fallback: try to get from ApiClient storage
-      if (kDebugMode) {
-        dev.log(
-            'SessionManager: AuthProvider token not available, trying ApiClient',
-            name: 'session_manager');
-      }
-
-      // Note: We can't directly access ApiClient here, but we can try to refresh the token
-      // This is a temporary workaround - in a real app, you'd want to inject the ApiClient
       return null;
     } catch (e) {
       if (kDebugMode) {
@@ -153,8 +134,8 @@ class SessionManager {
   }
 
   // Enhanced method to get auth headers with better error handling
-  Map<String, String> getAuthHeaders() {
-    final authHeader = getAuthorizationHeader();
+  Future<Map<String, String>> getAuthHeaders() async {
+    final authHeader = await getAuthorizationHeader();
 
     if (authHeader != null) {
       if (kDebugMode) {
@@ -169,7 +150,7 @@ class SessionManager {
     } else {
       if (kDebugMode) {
         dev.log(
-            'SessionManager: No Authorization header added (authData null or expired)',
+            'SessionManager: No Authorization header added (no valid token)',
             name: 'session_manager');
       }
       return {
@@ -179,17 +160,12 @@ class SessionManager {
   }
 
   // Debug method to check token status
-  void debugTokenStatus() {
+  void debugTokenStatus() async {
     if (kDebugMode) {
       dev.log('=== SessionManager Debug Info ===', name: 'session_manager');
-      dev.log('AuthProvider is null: ${_authProvider == null}',
-          name: 'session_manager');
-      dev.log(
-          'AuthProvider authData is null: ${_authProvider?.authData == null}',
-          name: 'session_manager');
 
-      if (_authProvider?.authData != null) {
-        final authData = _authProvider!.authData!;
+      final authData = await getStoredAuthData();
+      if (authData != null) {
         dev.log('Token expires at: ${authData.expiresAt}',
             name: 'session_manager');
         dev.log('Token is expired: ${authData.isExpired}',
@@ -197,7 +173,6 @@ class SessionManager {
         dev.log('Token will expire soon: ${authData.willExpireSoon}',
             name: 'session_manager');
 
-        // Safe substring operation
         final authHeader = authData.authorizationHeader;
         if (authHeader.isNotEmpty) {
           dev.log(
@@ -206,9 +181,10 @@ class SessionManager {
         } else {
           dev.log('Authorization header: empty', name: 'session_manager');
         }
+      } else {
+        dev.log('No stored auth data found', name: 'session_manager');
       }
 
-      dev.log('Session is active: $isSessionActive', name: 'session_manager');
       dev.log('=== End Debug Info ===', name: 'session_manager');
     }
   }
@@ -216,6 +192,5 @@ class SessionManager {
   // Dispose resources
   void dispose() {
     stopMonitoring();
-    _authProvider = null;
   }
 }

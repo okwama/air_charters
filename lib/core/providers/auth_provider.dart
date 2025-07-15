@@ -17,6 +17,7 @@ enum AuthState {
 
 class AuthProvider with ChangeNotifier {
   final AuthRepository _authRepository = AuthRepository();
+  final SessionManager _sessionManager = SessionManager();
   Timer? _tokenRefreshTimer;
 
   AuthState _state = AuthState.initial;
@@ -40,25 +41,29 @@ class AuthProvider with ChangeNotifier {
   Future<void> initialize() async {
     _setLoading(true);
     try {
-      final isAuth = await _authRepository.isAuthenticated();
-      if (isAuth) {
-        final user = await _authRepository.getCurrentUser();
-        if (user != null) {
-          // Create a basic AuthModel for the current user
-          final authData = await _authRepository.refreshToken();
-          if (authData != null) {
-            await _setAuthenticatedWithToken(authData);
-          } else {
-            _setUnauthenticated();
-          }
-        } else {
-          _setUnauthenticated();
+      // Try to restore auth state from storage
+      final storedAuthData = await _sessionManager.getStoredAuthData();
+
+      if (storedAuthData != null && !storedAuthData.isExpired) {
+        // Restore authentication state
+        await _setAuthenticatedWithToken(storedAuthData);
+        if (kDebugMode) {
+          dev.log('AuthProvider: Restored authentication from storage',
+              name: 'auth_provider');
         }
       } else {
         _setUnauthenticated();
+        if (kDebugMode) {
+          dev.log('AuthProvider: No valid stored authentication found',
+              name: 'auth_provider');
+        }
       }
     } catch (e) {
-      _setError('Failed to initialize authentication: $e');
+      if (kDebugMode) {
+        dev.log('AuthProvider: Error during initialization: $e',
+            name: 'auth_provider');
+      }
+      _setUnauthenticated();
     } finally {
       _setLoading(false);
     }
@@ -72,31 +77,19 @@ class AuthProvider with ChangeNotifier {
     _clearError();
     _clearSuccess();
 
+    // Store in SessionManager
+    await _sessionManager.storeAuthData(authData);
+
     // Setup token refresh timer
     _setupTokenRefreshTimer();
 
-    // Ensure SessionManager is updated with the new auth data
-    try {
-      final sessionManager = SessionManager();
-      // Re-initialize session manager with current auth provider
-      sessionManager.initialize(this);
-
-      // Debug token status
-      sessionManager.debugTokenStatus();
-
-      if (kDebugMode) {
-        dev.log('AuthProvider: SessionManager updated with new auth data',
-            name: 'auth_provider');
-        dev.log('AuthProvider: Token expires at: ${authData.expiresAt}',
-            name: 'auth_provider');
-        dev.log('AuthProvider: Token is expired: ${authData.isExpired}',
-            name: 'auth_provider');
-      }
-    } catch (e) {
-      if (kDebugMode) {
-        dev.log('AuthProvider: Error updating SessionManager: $e',
-            name: 'auth_provider');
-      }
+    if (kDebugMode) {
+      dev.log('AuthProvider: Authentication state set successfully',
+          name: 'auth_provider');
+      dev.log('AuthProvider: Token expires at: ${authData.expiresAt}',
+          name: 'auth_provider');
+      dev.log('AuthProvider: Token is expired: ${authData.isExpired}',
+          name: 'auth_provider');
     }
 
     notifyListeners();
@@ -116,6 +109,11 @@ class AuthProvider with ChangeNotifier {
         _tokenRefreshTimer = Timer(Duration(milliseconds: refreshTime), () {
           _refreshTokenIfNeeded();
         });
+        if (kDebugMode) {
+          dev.log(
+              'AuthProvider: Token refresh scheduled in ${refreshTime ~/ 1000} seconds',
+              name: 'auth_provider');
+        }
       } else {
         // Token is already expired or will expire soon, refresh immediately
         _refreshTokenIfNeeded();
@@ -262,6 +260,7 @@ class AuthProvider with ChangeNotifier {
     try {
       await _authRepository.signOut();
       _tokenRefreshTimer?.cancel();
+      await _sessionManager.clearStoredAuthData();
       _setUnauthenticated();
       _setSuccess('Successfully signed out');
       _setLoading(false);
@@ -289,6 +288,14 @@ class AuthProvider with ChangeNotifier {
         countryCode: countryCode,
       );
       _currentUser = updatedUser;
+
+      // Update stored auth data with new user info
+      if (_authData != null) {
+        final updatedAuthData = _authData!.copyWith(user: updatedUser);
+        await _sessionManager.storeAuthData(updatedAuthData);
+        _authData = updatedAuthData;
+      }
+
       notifyListeners();
       _setLoading(false);
     } catch (e) {
@@ -318,6 +325,7 @@ class AuthProvider with ChangeNotifier {
 
     try {
       await _authRepository.deleteAccount();
+      await _sessionManager.clearStoredAuthData();
       _setUnauthenticated();
       _setLoading(false);
     } catch (e) {
@@ -325,8 +333,6 @@ class AuthProvider with ChangeNotifier {
       _setLoading(false);
     }
   }
-
-  // Removed unused method: _setAuthenticated
 
   void _setUnauthenticated() {
     _state = AuthState.unauthenticated;
@@ -381,6 +387,7 @@ class AuthProvider with ChangeNotifier {
   Future<void> clearAllDataAndRestart() async {
     try {
       await _authRepository.clearAllStoredData();
+      await _sessionManager.clearStoredAuthData();
       _tokenRefreshTimer?.cancel();
       _setUnauthenticated();
     } catch (e) {

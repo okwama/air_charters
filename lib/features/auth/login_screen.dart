@@ -3,7 +3,6 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:air_charters/core/providers/auth_provider.dart';
 import 'package:air_charters/shared/widgets/success_toast.dart';
-import 'dart:developer' as dev;
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -125,10 +124,6 @@ class _LoginScreenState extends State<LoginScreen> {
     }
 
     print('🔥 LOGIN SCREEN: Attempting to sign in with email: $email');
-    dev.log(
-      'Attempting to sign in with email: $email',
-      name: 'LoginScreen',
-    );
 
     try {
       print('🔥 LOGIN SCREEN: Calling authProvider.signInWithEmail');
@@ -137,8 +132,12 @@ class _LoginScreenState extends State<LoginScreen> {
       // Check if authentication was successful
       if (mounted) {
         final authProvider = context.read<AuthProvider>();
-        print('🔥 LOGIN SCREEN: Authentication completed, isAuthenticated: ${authProvider.isAuthenticated}');
+        print(
+            '🔥 LOGIN SCREEN: Authentication completed, isAuthenticated: ${authProvider.isAuthenticated}');
         if (authProvider.isAuthenticated) {
+          // Login successful
+          print('🔥 LOGIN SCREEN: Login successful');
+
           // Show success message
           if (authProvider.successMessage != null) {
             showSuccessToast(context, authProvider.successMessage!);
@@ -148,13 +147,18 @@ class _LoginScreenState extends State<LoginScreen> {
           Navigator.of(context)
               .pushNamedAndRemoveUntil('/home', (route) => false);
         } else {
-          print('🔥 LOGIN SCREEN: Authentication failed - user not authenticated');
-          _showErrorSnackBar('Authentication failed. Please try again.');
+          print(
+              '🔥 LOGIN SCREEN: Authentication failed - user not authenticated');
+          // Check if there's a specific error message from the provider
+          final errorMessage = authProvider.errorMessage ??
+              'Authentication failed. Please try again.';
+          _showErrorSnackBar(errorMessage);
         }
       }
     } catch (e) {
       print('🔥 LOGIN SCREEN: Authentication error: $e');
       if (mounted) {
+        // The error is now properly formatted from the backend
         _showErrorSnackBar(e.toString());
       }
     }

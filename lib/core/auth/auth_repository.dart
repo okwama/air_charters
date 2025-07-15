@@ -38,8 +38,13 @@ class AuthRepository {
       dev.log('Error during signInWithEmail: $e', name: 'AuthRepository-ERROR');
       dev.log('Stack trace: $s', name: 'AuthRepository-ERROR');
 
-      throw AuthException(
-          'An unexpected error occurred during sign-in. Please try again.');
+      // Re-throw the original exception to preserve specific error messages
+      if (e is AuthException || e is ValidationException) {
+        throw e;
+      } else {
+        throw AuthException(
+            'An unexpected error occurred during sign-in. Please try again.');
+      }
     }
   }
 
@@ -65,7 +70,12 @@ class AuthRepository {
       dev.log('Error type: ${e.runtimeType}', name: 'AuthRepository-ERROR');
       dev.log('Stack trace: $stackTrace', name: 'AuthRepository-ERROR');
 
-      throw AuthException('Failed to sign up: ${e.toString()}');
+      // Re-throw the original exception to preserve specific error messages
+      if (e is AuthException || e is ValidationException) {
+        throw e;
+      } else {
+        throw AuthException('Failed to sign up: ${e.toString()}');
+      }
     }
   }
 
@@ -188,7 +198,12 @@ class AuthRepository {
       return authData;
     } catch (e) {
       print('🔥 LOGIN: Backend-only login failed: $e');
-      throw AuthException('Login failed: $e');
+      // Re-throw the original exception to preserve the specific error message
+      if (e is AuthException) {
+        throw e;
+      } else {
+        throw AuthException('Login failed: $e');
+      }
     }
   }
 
@@ -217,7 +232,12 @@ class AuthRepository {
       return authData;
     } catch (e) {
       print('🔥 Backend-only registration failed: $e');
-      throw AuthException('Failed to register user: $e');
+      // Re-throw the original exception to preserve the specific error message
+      if (e is AuthException || e is ValidationException) {
+        throw e;
+      } else {
+        throw AuthException('Failed to register user: $e');
+      }
     }
   }
 

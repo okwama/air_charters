@@ -4,6 +4,8 @@ import '../../core/providers/charter_deals_provider.dart';
 import '../../core/models/charter_deal_model.dart';
 import '../widgets/shimmer_loading.dart';
 import 'deal_card.dart';
+import 'dart:developer' as dev;
+import 'package:flutter/foundation.dart' show kDebugMode;
 
 class DealsListWidget extends StatefulWidget {
   final String? searchQuery;
@@ -35,26 +37,57 @@ class _DealsListWidgetState extends State<DealsListWidget> {
   @override
   void initState() {
     super.initState();
+    if (kDebugMode) {
+      dev.log('DealsListWidget: initState called', name: 'deals_list');
+    }
     _scrollController.addListener(_onScroll);
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (kDebugMode) {
+        dev.log('DealsListWidget: Post frame callback - loading initial deals',
+            name: 'deals_list');
+      }
       _loadInitialDeals();
     });
   }
 
   @override
   void dispose() {
+    if (kDebugMode) {
+      dev.log('DealsListWidget: dispose called', name: 'deals_list');
+    }
     _scrollController.dispose();
     super.dispose();
   }
 
   void _loadInitialDeals() {
-    final provider = context.read<CharterDealsProvider>();
-    provider.loadDeals(
-      searchQuery: widget.searchQuery,
-      dealType: widget.dealType,
-      fromDate: widget.fromDate,
-      toDate: widget.toDate,
-    );
+    if (kDebugMode) {
+      dev.log('DealsListWidget: Loading initial deals...', name: 'deals_list');
+      dev.log('DealsListWidget: Search query: ${widget.searchQuery}',
+          name: 'deals_list');
+      dev.log('DealsListWidget: Deal type: ${widget.dealType}',
+          name: 'deals_list');
+      dev.log('DealsListWidget: From date: ${widget.fromDate}',
+          name: 'deals_list');
+      dev.log('DealsListWidget: To date: ${widget.toDate}', name: 'deals_list');
+    }
+
+    try {
+      final provider = context.read<CharterDealsProvider>();
+      if (kDebugMode) {
+        dev.log('DealsListWidget: Provider found, calling loadDeals',
+            name: 'deals_list');
+      }
+      provider.loadDeals(
+        searchQuery: widget.searchQuery,
+        dealType: widget.dealType,
+        fromDate: widget.fromDate,
+        toDate: widget.toDate,
+      );
+    } catch (e) {
+      if (kDebugMode) {
+        dev.log('DealsListWidget: Error loading deals: $e', name: 'deals_list');
+      }
+    }
   }
 
   void _onScroll() {
@@ -64,6 +97,9 @@ class _DealsListWidgetState extends State<DealsListWidget> {
     if (_scrollController.position.pixels >=
         _scrollController.position.maxScrollExtent - 200) {
       if (provider.hasMoreData && !provider.isLoadingMore) {
+        if (kDebugMode) {
+          dev.log('DealsListWidget: Loading more deals...', name: 'deals_list');
+        }
         provider.loadMoreDeals(
           searchQuery: widget.searchQuery,
           dealType: widget.dealType,
@@ -76,10 +112,30 @@ class _DealsListWidgetState extends State<DealsListWidget> {
 
   @override
   Widget build(BuildContext context) {
+    if (kDebugMode) {
+      dev.log('DealsListWidget: build called', name: 'deals_list');
+    }
+
     return Consumer<CharterDealsProvider>(
       builder: (context, provider, child) {
+        if (kDebugMode) {
+          dev.log(
+              'DealsListWidget: Consumer rebuild - state: ${provider.state}',
+              name: 'deals_list');
+          dev.log(
+              'DealsListWidget: Consumer rebuild - deals count: ${provider.deals.length}',
+              name: 'deals_list');
+          dev.log(
+              'DealsListWidget: Consumer rebuild - has error: ${provider.hasError}',
+              name: 'deals_list');
+        }
+
         return RefreshIndicator(
           onRefresh: () async {
+            if (kDebugMode) {
+              dev.log('DealsListWidget: Pull to refresh triggered',
+                  name: 'deals_list');
+            }
             await provider.refreshDeals(
               searchQuery: widget.searchQuery,
               dealType: widget.dealType,
@@ -94,26 +150,71 @@ class _DealsListWidgetState extends State<DealsListWidget> {
   }
 
   Widget _buildContent(CharterDealsProvider provider) {
+    if (kDebugMode) {
+      dev.log('DealsListWidget: _buildContent called', name: 'deals_list');
+      dev.log('DealsListWidget: Current state: ${provider.state}',
+          name: 'deals_list');
+      dev.log('DealsListWidget: Deals count: ${provider.deals.length}',
+          name: 'deals_list');
+      dev.log('DealsListWidget: Has error: ${provider.hasError}',
+          name: 'deals_list');
+      if (provider.hasError) {
+        dev.log('DealsListWidget: Error message: ${provider.errorMessage}',
+            name: 'deals_list');
+      }
+    }
+
     switch (provider.state) {
       case CharterDealsState.initial:
+        if (kDebugMode) {
+          dev.log('DealsListWidget: Showing initial state (empty)',
+              name: 'deals_list');
+        }
         return const SizedBox.shrink();
 
       case CharterDealsState.loading:
+        if (kDebugMode) {
+          dev.log('DealsListWidget: Showing loading state (shimmer)',
+              name: 'deals_list');
+        }
         return const DealListShimmer(itemCount: 4);
 
       case CharterDealsState.loaded:
+        if (kDebugMode) {
+          dev.log('DealsListWidget: Showing loaded state', name: 'deals_list');
+        }
         if (provider.deals.isEmpty) {
+          if (kDebugMode) {
+            dev.log('DealsListWidget: No deals found, showing empty state',
+                name: 'deals_list');
+          }
           return _buildEmptyState();
+        }
+        if (kDebugMode) {
+          dev.log(
+              'DealsListWidget: Showing deals list with ${provider.deals.length} deals',
+              name: 'deals_list');
         }
         return _buildDealsList(provider);
 
       case CharterDealsState.error:
+        if (kDebugMode) {
+          dev.log('DealsListWidget: Showing error state', name: 'deals_list');
+        }
         return _buildErrorState(provider);
 
       case CharterDealsState.loadingMore:
+        if (kDebugMode) {
+          dev.log('DealsListWidget: Showing loading more state',
+              name: 'deals_list');
+        }
         return _buildDealsListWithLoadingMore(provider);
 
       default:
+        if (kDebugMode) {
+          dev.log('DealsListWidget: Unknown state, showing empty',
+              name: 'deals_list');
+        }
         return const SizedBox.shrink();
     }
   }
@@ -217,25 +318,31 @@ class _DealsListWidgetState extends State<DealsListWidget> {
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 24),
-          ElevatedButton(
-            onPressed: () {
-              final provider = context.read<CharterDealsProvider>();
-              provider.refreshDeals(
-                searchQuery: widget.searchQuery,
-                dealType: widget.dealType,
-                fromDate: widget.fromDate,
-                toDate: widget.toDate,
-              );
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.black,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              ElevatedButton(
+                onPressed: () {
+                  final provider = context.read<CharterDealsProvider>();
+                  provider.refreshDeals(
+                    searchQuery: widget.searchQuery,
+                    dealType: widget.dealType,
+                    fromDate: widget.fromDate,
+                    toDate: widget.toDate,
+                  );
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.black,
+                  foregroundColor: Colors.white,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                child: const Text('Refresh'),
               ),
-            ),
-            child: const Text('Refresh'),
+            ],
           ),
         ],
       ),

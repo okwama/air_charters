@@ -16,10 +16,6 @@ import 'package:air_charters/features/home/home_screen.dart';
 import 'package:air_charters/features/settings/settings.dart';
 import 'package:air_charters/features/profile/profile.dart';
 import 'package:air_charters/features/booking/booking_detail.dart';
-import 'package:air_charters/test/auth_test_screen.dart';
-import 'package:air_charters/test_auth_debug.dart';
-import 'package:flutter/foundation.dart' show kDebugMode;
-import 'dart:developer' as dev;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -56,8 +52,6 @@ class MyApp extends StatelessWidget {
               ),
           '/trips': (context) => const TripsPage(),
           '/landing': (context) => const LandingScreen(),
-          '/auth-test': (context) => const AuthTestScreen(),
-          '/auth-debug': (context) => const AuthDebugScreen(),
         },
         debugShowCheckedModeBanner: false,
       ),
@@ -80,19 +74,9 @@ class _AuthWrapperState extends State<AuthWrapper> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final authProvider = context.read<AuthProvider>();
       authProvider.initialize().then((_) {
-        // Initialize session manager after auth is initialized
+        // Initialize session manager (simplified - no AuthProvider dependency)
         final sessionManager = SessionManager();
-        sessionManager.initialize(authProvider);
-
-        // Add debug logging
-        if (kDebugMode) {
-          dev.log('Main: SessionManager initialized', name: 'main');
-          dev.log('Main: Auth state: ${authProvider.state}', name: 'main');
-          dev.log('Main: Is authenticated: ${authProvider.isAuthenticated}',
-              name: 'main');
-          dev.log('Main: Has valid token: ${authProvider.hasValidToken}',
-              name: 'main');
-        }
+        sessionManager.initialize();
       });
     });
   }

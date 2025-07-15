@@ -29,9 +29,9 @@ class ApiClient {
   Future<Map<String, String>> get _authHeaders async {
     final headers = Map<String, String>.from(_defaultHeaders);
 
-    // Try to get auth header from SessionManager first
+    // Use SessionManager for token retrieval (standardized approach)
     final sessionManager = SessionManager();
-    final authHeader = sessionManager.getAuthorizationHeader();
+    final authHeader = await sessionManager.getAuthorizationHeader();
 
     if (authHeader != null) {
       headers['Authorization'] = authHeader;
@@ -40,20 +40,9 @@ class ApiClient {
             name: 'api_client');
       }
     } else {
-      // Fallback to direct storage check
-      final authData = await _getStoredAuth();
-      if (authData != null && !authData.isExpired) {
-        headers['Authorization'] = authData.authorizationHeader;
-        if (kDebugMode) {
-          dev.log('ApiClient: Authorization header added from storage',
-              name: 'api_client');
-        }
-      } else {
-        if (kDebugMode) {
-          dev.log(
-              'ApiClient: No Authorization header added (authData null or expired)',
-              name: 'api_client');
-        }
+      if (kDebugMode) {
+        dev.log('ApiClient: No Authorization header added (no valid token)',
+            name: 'api_client');
       }
     }
 
@@ -138,18 +127,24 @@ class ApiClient {
       case 201:
         return body;
       case 401:
-        // Token expired or invalid
+        // Use the actual error message from backend for better UX
+        final errorMessage =
+            body['message'] ?? 'Authentication failed. Please login again.';
         _clearStoredAuth();
-        throw AuthException('Authentication failed. Please login again.');
+        throw AuthException(errorMessage);
       case 403:
-        throw AuthException(
-            'Access denied. You don\'t have permission to perform this action.');
+        final errorMessage = body['message'] ??
+            'Access denied. You don\'t have permission to perform this action.';
+        throw AuthException(errorMessage);
       case 404:
-        throw ServerException('Resource not found.');
+        final errorMessage = body['message'] ?? 'Resource not found.';
+        throw ServerException(errorMessage);
       case 422:
         throw ValidationException(body['message'] ?? 'Validation failed.');
       case 500:
-        throw ServerException('Internal server error. Please try again later.');
+        final errorMessage =
+            body['message'] ?? 'Internal server error. Please try again later.';
+        throw ServerException(errorMessage);
       default:
         throw ServerException(
             body['message'] ?? 'An unexpected error occurred.');
@@ -170,27 +165,20 @@ class ApiClient {
     }
   }
 
-  // Token Management
+  // Token Management - Use SessionManager for consistency
   Future<void> _storeAuth(AuthModel auth) async {
-    await _storage.write(
-        key: AppConfig.authStorageKey, value: jsonEncode(auth.toJson()));
+    final sessionManager = SessionManager();
+    await sessionManager.storeAuthData(auth);
   }
 
   Future<AuthModel?> _getStoredAuth() async {
-    final authJson = await _storage.read(key: AppConfig.authStorageKey);
-    if (authJson != null) {
-      try {
-        return AuthModel.fromJson(jsonDecode(authJson));
-      } catch (e) {
-        await _clearStoredAuth();
-        return null;
-      }
-    }
-    return null;
+    final sessionManager = SessionManager();
+    return await sessionManager.getStoredAuthData();
   }
 
   Future<void> _clearStoredAuth() async {
-    await _storage.delete(key: AppConfig.authStorageKey);
+    final sessionManager = SessionManager();
+    await sessionManager.clearStoredAuthData();
   }
 
   // Public methods for auth management
@@ -284,7 +272,8 @@ class ApiClient {
         dev.log('Authentication successful', name: 'ApiClient');
         return authModel;
       } else {
-        dev.log('Authentication failed with status: ${response.statusCode}', name: 'ApiClient-ERROR');
+        dev.log('Authentication failed with status: ${response.statusCode}',
+            name: 'ApiClient-ERROR');
         throw AuthException('Authentication failed. Invalid token.');
       }
     } catch (e) {

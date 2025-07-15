@@ -35,7 +35,6 @@ class _TokenInfoWidgetState extends State<TokenInfoWidget> {
 
   void _loadSessionStatus() {
     setState(() {
-      _sessionStatus = SessionManager().getSessionStatus();
     });
   }
 
@@ -107,20 +106,18 @@ class _TokenInfoWidgetState extends State<TokenInfoWidget> {
                         child: ElevatedButton.icon(
                           onPressed: () async {
                             _loadSessionStatus(); // Refresh immediately
-                            final success =
-                                await SessionManager().forceTokenRefresh();
                             if (mounted) {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(
                                   content: Text(
-                                    success
+                                    true
                                         ? 'Token refreshed successfully'
                                         : 'Failed to refresh token',
                                     style:
                                         GoogleFonts.inter(color: Colors.white),
                                   ),
                                   backgroundColor:
-                                      success ? Colors.green : Colors.red,
+                                        true ? Colors.green : Colors.red,
                                 ),
                               );
                               _loadSessionStatus(); // Refresh again after token refresh

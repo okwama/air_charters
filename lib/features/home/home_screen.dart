@@ -7,6 +7,8 @@ import 'package:air_charters/shared/components/deals_list_widget.dart';
 import 'package:air_charters/features/booking/booking_detail.dart';
 import 'package:air_charters/features/plan/flight_search_screen.dart';
 import 'package:air_charters/features/experiences/experience_tours.dart';
+import 'package:provider/provider.dart';
+import 'package:air_charters/core/providers/charter_deals_provider.dart';
 
 class CharterHomePage extends StatelessWidget {
   const CharterHomePage({super.key});
@@ -39,6 +41,7 @@ class CharterHomePage extends StatelessWidget {
               },
             ),
           ),
+          actions: [],
           bottom: PreferredSize(
             preferredSize: const Size.fromHeight(60),
             child: Container(
