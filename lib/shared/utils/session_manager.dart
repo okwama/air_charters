@@ -160,7 +160,7 @@ class SessionManager {
   }
 
   // Debug method to check token status
-  void debugTokenStatus() async {
+  Future<void> debugTokenStatus() async {
     if (kDebugMode) {
       dev.log('=== SessionManager Debug Info ===', name: 'session_manager');
 

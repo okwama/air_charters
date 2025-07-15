@@ -1,21 +1,31 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:air_charters/config/theme/app_theme.dart';
-import 'package:air_charters/core/providers/auth_provider.dart';
-import 'package:air_charters/core/providers/profile_provider.dart';
-import 'package:air_charters/core/providers/charter_deals_provider.dart';
-import 'package:air_charters/shared/utils/session_manager.dart';
-import 'package:air_charters/features/mytrips/trips.dart';
-import 'package:air_charters/features/splash/splash_screen.dart';
-import 'package:air_charters/features/splash/landing_screen.dart';
-import 'package:air_charters/features/auth/signup_screen.dart';
-import 'package:air_charters/features/auth/login_screen.dart';
-import 'package:air_charters/features/auth/verifycode.dart';
-import 'package:air_charters/features/auth/country_selection_screen.dart';
-import 'package:air_charters/features/home/home_screen.dart';
-import 'package:air_charters/features/settings/settings.dart';
-import 'package:air_charters/features/profile/profile.dart';
-import 'package:air_charters/features/booking/booking_detail.dart';
+
+// Core imports
+import 'core/providers/auth_provider.dart';
+import 'core/providers/profile_provider.dart';
+import 'core/providers/charter_deals_provider.dart';
+import 'core/providers/passengers_provider.dart';
+import 'core/providers/booking_provider.dart';
+import 'core/controllers/booking_controller.dart';
+import 'shared/utils/session_manager.dart';
+
+// Theme
+import 'config/theme/app_theme.dart';
+
+// Features
+import 'features/auth/login_screen.dart';
+import 'features/auth/signup_screen.dart';
+import 'features/auth/verifycode.dart';
+import 'features/auth/country_selection_screen.dart';
+import 'features/home/home_screen.dart';
+import 'features/profile/profile.dart';
+import 'features/settings/settings.dart';
+import 'features/splash/splash_screen.dart';
+import 'features/splash/landing_screen.dart';
+import 'features/booking/booking_detail.dart';
+import 'features/mytrips/trips.dart';
+import 'package:air_charters/core/models/charter_deal_model.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -33,6 +43,16 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => AuthProvider()),
         ChangeNotifierProvider(create: (_) => ProfileProvider()),
         ChangeNotifierProvider(create: (_) => CharterDealsProvider()),
+        ChangeNotifierProvider(create: (_) => PassengerProvider()),
+        ChangeNotifierProvider(create: (_) => BookingProvider()),
+        ProxyProvider2<BookingProvider, PassengerProvider, BookingController>(
+          update: (context, bookingProvider, passengerProvider, _) =>
+              BookingController(
+            bookingProvider: bookingProvider,
+            passengerProvider: passengerProvider,
+            authProvider: Provider.of<AuthProvider>(context, listen: false),
+          ),
+        ),
       ],
       child: MaterialApp(
         title: 'Air Charters',
@@ -46,10 +66,11 @@ class MyApp extends StatelessWidget {
           '/home': (context) => const CharterHomePage(),
           '/settings': (context) => const SettingsScreen(),
           '/profile': (context) => const ProfileScreen(),
-          '/booking-detail': (context) => const BookingDetailPage(
-                departure: 'New York',
-                destination: 'Miami',
-              ),
+          '/booking-detail': (context) {
+            final deal =
+                ModalRoute.of(context)!.settings.arguments as CharterDealModel?;
+            return BookingDetailPage(deal: deal);
+          },
           '/trips': (context) => const TripsPage(),
           '/landing': (context) => const LandingScreen(),
         },

@@ -1,7 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
 // Removed unused import: cached_network_image
 import 'payment/add_card.dart';
+import 'booking_confirmation_page.dart';
+import '../../core/models/charter_deal_model.dart';
+import '../../core/models/booking_model.dart';
+import '../../core/providers/passengers_provider.dart';
+import '../../core/providers/auth_provider.dart';
+import '../../core/controllers/booking_controller.dart';
+import '../../shared/widgets/passenger_list_widget.dart';
+import '../../shared/widgets/app_spinner.dart';
 
 class ReviewTripPage extends StatefulWidget {
   final String departure;
@@ -12,6 +21,7 @@ class ReviewTripPage extends StatefulWidget {
   final int seats;
   final String duration;
   final double price;
+  final CharterDealModel? deal; // ✅ Add deal parameter
 
   const ReviewTripPage({
     super.key,
@@ -23,6 +33,7 @@ class ReviewTripPage extends StatefulWidget {
     required this.seats,
     required this.duration,
     required this.price,
+    this.deal, // ✅ Add deal parameter
   });
 
   @override
@@ -33,9 +44,9 @@ class _ReviewTripPageState extends State<ReviewTripPage> {
   bool _onboardDining = false;
   bool _groundTransportation = false;
   bool _agreeToTerms = false;
-  final int _passengersCount = 1;
   String _selectedBillingRegion = 'United States';
   String _selectedPaymentMethod = 'Visa •••• 1234';
+  late final String _bookingId;
 
   final List<String> _billingRegions = [
     'United States',
@@ -67,6 +78,24 @@ class _ReviewTripPageState extends State<ReviewTripPage> {
       'details': 'Expires 08/25'
     },
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    // Generate a unique booking ID for when the booking is actually created
+    _bookingId = 'booking_${DateTime.now().millisecondsSinceEpoch}';
+
+    // Initialize passenger management for booking creation
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final passengerProvider =
+          Provider.of<PassengerProvider>(context, listen: false);
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+
+      // Initialize with current user data
+      passengerProvider.initializeForBooking(
+          currentUser: authProvider.currentUser);
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -349,53 +378,21 @@ class _ReviewTripPageState extends State<ReviewTripPage> {
   Widget _buildPassengersSection() {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-      child: GestureDetector(
-        onTap: () {
-          // Navigate to passengers management
-        },
-        child: Container(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: const Color(0xFFE5E5E5),
-              width: 1,
-            ),
-          ),
-          child: Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Passengers',
-                      style: GoogleFonts.inter(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.black,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      '$_passengersCount passenger${_passengersCount > 1 ? 's' : ''} added',
-                      style: GoogleFonts.inter(
-                        fontSize: 14,
-                        color: const Color(0xFF666666),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const Icon(
-                Icons.arrow_forward_ios_rounded,
-                color: Color(0xFF666666),
-                size: 16,
-              ),
-            ],
-          ),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: const Color(0xFFE5E5E5),
+          width: 1,
         ),
+      ),
+      child: PassengerListWidget(
+        bookingId: 'local_booking', // Use consistent local booking ID
+        onPassengersChanged: () {
+          // Refresh UI when passengers change
+          setState(() {});
+        },
       ),
     );
   }
@@ -1246,23 +1243,166 @@ class _ReviewTripPageState extends State<ReviewTripPage> {
     );
   }
 
-  void _showPaymentConfirmation() {
+  Future<void> _showPaymentConfirmation() async {
+    // Show loading dialog
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const AppSpinner(),
+            const SizedBox(height: 16),
+            Text(
+              'Creating your booking...',
+              style: GoogleFonts.inter(
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+                color: Colors.black,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    try {
+      // Calculate pricing
+      final basePrice = widget.price;
+      final diningCost = _onboardDining ? 150.0 : 0.0;
+      final transportationCost = _groundTransportation ? 200.0 : 0.0;
+      final taxes = (basePrice + diningCost + transportationCost) * 0.12;
+      final totalPrice = basePrice + diningCost + transportationCost + taxes;
+
+      // Get passengers from provider
+      final passengerProvider =
+          Provider.of<PassengerProvider>(context, listen: false);
+      final passengers = passengerProvider.passengers;
+
+      // Parse the date string to DateTime
+      DateTime parsedDate;
+      try {
+        // Assuming the date comes in format "Dec 15" - we need to add year
+        final currentYear = DateTime.now().year;
+        final parts = widget.date.split(' ');
+        final monthName = parts[0];
+        final day = int.parse(parts[1]);
+
+        final monthMap = {
+          'Jan': 1,
+          'Feb': 2,
+          'Mar': 3,
+          'Apr': 4,
+          'May': 5,
+          'Jun': 6,
+          'Jul': 7,
+          'Aug': 8,
+          'Sep': 9,
+          'Oct': 10,
+          'Nov': 11,
+          'Dec': 12
+        };
+
+        final month = monthMap[monthName] ?? 1;
+        parsedDate = DateTime(currentYear, month, day);
+
+        // If the date is in the past, assume next year
+        if (parsedDate.isBefore(DateTime.now())) {
+          parsedDate = DateTime(currentYear + 1, month, day);
+        }
+      } catch (e) {
+        // Fallback to tomorrow if parsing fails
+        parsedDate = DateTime.now().add(const Duration(days: 1));
+      }
+
+      // Create booking model
+      final booking = BookingModel(
+        departure: widget.departure,
+        destination: widget.destination,
+        departureDate: parsedDate,
+        departureTime: widget.time,
+        aircraft: widget.aircraft,
+        totalPassengers: passengers.length,
+        duration: widget.duration,
+        basePrice: basePrice,
+        totalPrice: totalPrice,
+        onboardDining: _onboardDining,
+        groundTransportation: _groundTransportation,
+        billingRegion: _selectedBillingRegion,
+        paymentMethod: _selectedPaymentMethod,
+        passengers: passengers,
+      );
+
+      // Create booking through controller
+      final bookingController =
+          Provider.of<BookingController>(context, listen: false);
+      final result = await bookingController.createBookingWithPassengers(
+        departure: widget.departure,
+        destination: widget.destination,
+        departureDate: parsedDate,
+        departureTime: widget.time,
+        aircraft: widget.aircraft,
+        duration: widget.duration,
+        basePrice: basePrice,
+        totalPrice: totalPrice,
+        onboardDining: _onboardDining,
+        groundTransportation: _groundTransportation,
+        billingRegion: _selectedBillingRegion,
+        paymentMethod: _selectedPaymentMethod,
+      );
+
+      // Close loading dialog
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
+
+      if (result.isSuccess && result.booking != null) {
+        // Navigate to booking confirmation page
+        if (mounted) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) =>
+                  BookingConfirmationPage(booking: result.booking!),
+            ),
+          );
+        }
+      } else {
+        // Show error dialog
+        if (mounted) {
+          _showErrorDialog(result.errorMessage ?? 'Failed to create booking. Please try again.');
+        }
+      }
+    } catch (e) {
+      // Close loading dialog
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
+
+      // Show error dialog
+      if (mounted) {
+        _showErrorDialog('An error occurred: ${e.toString()}');
+      }
+    }
+  }
+
+  void _showErrorDialog(String message) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Text(
-          'Payment Confirmation',
+          'Error',
           style: GoogleFonts.inter(
             fontSize: 18,
             fontWeight: FontWeight.w700,
-            color: Colors.black,
+            color: Colors.red,
           ),
         ),
         content: Text(
-          'Your charter flight request has been submitted and payment processed. You will receive a confirmation email shortly.',
+          message,
           style: GoogleFonts.inter(
             fontSize: 14,
             color: const Color(0xFF666666),
@@ -1270,13 +1410,9 @@ class _ReviewTripPageState extends State<ReviewTripPage> {
         ),
         actions: [
           TextButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-              Navigator.of(context).pop();
-              Navigator.of(context).pop();
-            },
+            onPressed: () => Navigator.of(context).pop(),
             child: Text(
-              'Done',
+              'OK',
               style: GoogleFonts.inter(
                 fontSize: 14,
                 fontWeight: FontWeight.w600,

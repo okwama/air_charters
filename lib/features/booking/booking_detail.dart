@@ -2,16 +2,19 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../shared/widgets/calendar_selector.dart';
+import '../../core/models/charter_deal_model.dart';
 import 'confirm_booking.dart';
 
 class BookingDetailPage extends StatefulWidget {
-  final String departure;
-  final String destination;
+  final CharterDealModel? deal;
+  final String? departure;
+  final String? destination;
 
   const BookingDetailPage({
     super.key,
-    required this.departure,
-    required this.destination,
+    this.deal,
+    this.departure,
+    this.destination,
   });
 
   @override
@@ -22,56 +25,38 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
   final PageController _pageController = PageController();
   DateTime? _selectedDate;
 
-  // Sample data for demonstration
-  final List<String> _destinationImages = [
-    'https://images.unsplash.com/photo-1436491865332-7a61a109cc05?w=800&h=400&fit=crop',
-    'https://images.unsplash.com/photo-1544551763-46a013bb70d5?w=800&h=400&fit=crop',
-    'https://images.unsplash.com/photo-1583212292454-1fe6229603b7?w=800&h=400&fit=crop',
-    'https://images.unsplash.com/photo-1540979388789-6cee28a1cdc9?w=800&h=400&fit=crop',
-  ];
+  // Get images from the actual deal data
+  List<String> get _destinationImages {
+    if (widget.deal == null) return [];
 
-  final List<Map<String, dynamic>> _flightResults = [
-    {
-      'image':
-          'https://images.unsplash.com/photo-1540962351504-03099e0a754b?w=300&h=200&fit=crop',
-      'date': 'Dec 15, 2024',
-      'seats': 8,
-      'departureTime': '08:30 AM',
-      'amount': 15000,
-      'aircraft': 'Citation CJ3+',
-      'duration': '2h 30m',
-    },
-    {
-      'image':
-          'https://images.unsplash.com/photo-1583212292454-1fe6229603b7?w=300&h=200&fit=crop',
-      'date': 'Dec 15, 2024',
-      'seats': 12,
-      'departureTime': '11:15 AM',
-      'amount': 22000,
-      'aircraft': 'King Air 350',
-      'duration': '2h 45m',
-    },
-    {
-      'image':
-          'https://images.unsplash.com/photo-1436491865332-7a61a109cc05?w=300&h=200&fit=crop',
-      'date': 'Dec 16, 2024',
-      'seats': 6,
-      'departureTime': '02:00 PM',
-      'amount': 18500,
-      'aircraft': 'Phenom 300',
-      'duration': '2h 20m',
-    },
-    {
-      'image':
-          'https://images.unsplash.com/photo-1544551763-46a013bb70d5?w=300&h=200&fit=crop',
-      'date': 'Dec 17, 2024',
-      'seats': 10,
-      'departureTime': '09:45 AM',
-      'amount': 25000,
-      'aircraft': 'Legacy 650',
-      'duration': '2h 35m',
-    },
-  ];
+    // Use aircraft images first, then route images
+    if (widget.deal!.aircraftImages.isNotEmpty) {
+      return widget.deal!.aircraftImages;
+    } else if (widget.deal!.routeImages.isNotEmpty) {
+      return widget.deal!.routeImages;
+    } else if (widget.deal!.routeImageUrl != null &&
+        widget.deal!.routeImageUrl!.isNotEmpty) {
+      return [widget.deal!.routeImageUrl!];
+    }
+
+    return [];
+  }
+
+  // Create flight result from actual deal data
+  Map<String, dynamic>? get _flightResult {
+    if (widget.deal == null) return null;
+
+    return {
+      'image': widget.deal!.imageUrl,
+      'date': _formatDate(widget.deal!.date),
+      'seats': widget.deal!.availableSeats,
+      'departureTime': widget.deal!.time,
+      'amount': widget.deal!.pricePerSeat ?? widget.deal!.pricePerHour ?? 0,
+      'aircraft': widget.deal!.aircraftName ?? 'Aircraft',
+      'duration': widget.deal!.duration,
+      'deal': widget.deal,
+    };
+  }
 
   @override
   void dispose() {
@@ -195,7 +180,7 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  widget.departure,
+                  widget.departure ?? widget.deal?.origin ?? 'Departure',
                   style: GoogleFonts.inter(
                     fontSize: 20,
                     fontWeight: FontWeight.w700,
@@ -231,7 +216,9 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  widget.destination,
+                  widget.destination ??
+                      widget.deal?.destination ??
+                      'Destination',
                   style: GoogleFonts.inter(
                     fontSize: 20,
                     fontWeight: FontWeight.w700,
@@ -248,6 +235,43 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
   }
 
   Widget _buildImageCarousel() {
+    if (_destinationImages.isEmpty) {
+      // Show placeholder when no images are available
+      return Container(
+        height: 200,
+        margin: const EdgeInsets.symmetric(horizontal: 20),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF5F5F5),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: const Color(0xFFE5E5E5),
+            width: 1,
+          ),
+        ),
+        child: const Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.flight_rounded,
+                color: Color(0xFF888888),
+                size: 48,
+              ),
+              SizedBox(height: 8),
+              Text(
+                'Flight Image',
+                style: TextStyle(
+                  color: Color(0xFF888888),
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     return Column(
       children: [
         SizedBox(
@@ -471,7 +495,7 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'Available Flights',
+                'Flight Details',
                 style: GoogleFonts.inter(
                   fontSize: 18,
                   fontWeight: FontWeight.w700,
@@ -479,7 +503,7 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
                 ),
               ),
               Text(
-                '${_flightResults.length} Results',
+                'Selected Flight',
                 style: GoogleFonts.inter(
                   fontSize: 14,
                   fontWeight: FontWeight.w500,
@@ -489,16 +513,7 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
             ],
           ),
           const SizedBox(height: 16),
-          ListView.separated(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: _flightResults.length,
-            separatorBuilder: (context, index) => const SizedBox(height: 12),
-            itemBuilder: (context, index) {
-              final flight = _flightResults[index];
-              return _buildFlightCard(flight);
-            },
-          ),
+          if (_flightResult != null) _buildFlightCard(_flightResult!),
         ],
       ),
     );
@@ -680,6 +695,8 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
   }
 
   void _showConfirmBooking(Map<String, dynamic> flight) {
+    final deal = flight['deal'] as CharterDealModel?;
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -689,14 +706,16 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
         minChildSize: 0.5,
         maxChildSize: 0.95,
         builder: (context, scrollController) => ConfirmBookingPage(
-          departure: widget.departure,
-          destination: widget.destination,
+          departure: widget.departure ?? widget.deal?.origin ?? 'Departure',
+          destination:
+              widget.destination ?? widget.deal?.destination ?? 'Destination',
           date: flight['date'],
           time: flight['departureTime'],
           aircraft: flight['aircraft'],
           seats: flight['seats'],
           duration: flight['duration'],
           price: flight['amount'].toDouble(),
+          deal: deal, // ✅ Pass the deal parameter
         ),
       ),
     );

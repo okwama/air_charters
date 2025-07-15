@@ -20,7 +20,7 @@ class CharterDealsService {
     final sessionManager = SessionManager();
 
     // Debug token status before making request
-    sessionManager.debugTokenStatus();
+    await sessionManager.debugTokenStatus();
 
     return await sessionManager.getAuthHeaders();
   }
@@ -35,27 +35,20 @@ class CharterDealsService {
     DateTime? toDate,
     bool forceRefresh = false,
   }) async {
-    if (kDebugMode) {
-      dev.log('CharterDealsService: fetchCharterDeals called',
-          name: 'charter_deals_service');
-      dev.log(
-          'CharterDealsService: Parameters - page: $page, limit: $limit, searchQuery: $searchQuery, dealType: $dealType',
-          name: 'charter_deals_service');
-      dev.log(
-          'CharterDealsService: Parameters - fromDate: $fromDate, toDate: $toDate, forceRefresh: $forceRefresh',
-          name: 'charter_deals_service');
-    }
+    print('===========================================================');
+    print('✅✅✅ SERVICE: fetchCharterDeals CALLED ✅✅✅');
+    print('===========================================================');
 
     try {
       // Check cache first (unless force refresh is requested)
-      if (!forceRefresh && _cachedDeals != null && _lastCacheTime != null) {
+      if (!forceRefresh &&
+          _cachedDeals != null &&
+          _cachedDeals!.isNotEmpty &&
+          _lastCacheTime != null) {
         final timeSinceLastCache = DateTime.now().difference(_lastCacheTime!);
         if (timeSinceLastCache < _cacheValidDuration) {
-          if (kDebugMode) {
-            dev.log(
-                'CharterDealsService: Returning cached deals (${_cachedDeals!.length} items)',
-                name: 'charter_deals_service');
-          }
+          print(
+              '✅ SERVICE: Returning ${_cachedDeals!.length} deals from CACHE.');
           return _filterCachedDeals(
             searchQuery: searchQuery,
             dealType: dealType,
@@ -65,11 +58,7 @@ class CharterDealsService {
         }
       }
 
-      if (kDebugMode) {
-        dev.log(
-            'CharterDealsService: Cache miss or force refresh, making API call',
-            name: 'charter_deals_service');
-      }
+      print('➡️ SERVICE: Cache miss or force refresh. Making API call...');
 
       // Build query parameters
       final queryParams = <String, String>{
@@ -98,12 +87,7 @@ class CharterDealsService {
           .replace(queryParameters: queryParams);
 
       final headers = await _getAuthHeaders();
-      if (kDebugMode) {
-        dev.log('CharterDealsService: Making request to $uri',
-            name: 'charter_deals_service');
-        dev.log('CharterDealsService: Headers: $headers',
-            name: 'charter_deals_service');
-      }
+      print('➡️ SERVICE: Making request to $uri');
 
       final response = await http
           .get(
@@ -112,38 +96,16 @@ class CharterDealsService {
           )
           .timeout(const Duration(seconds: 10));
 
-      if (kDebugMode) {
-        dev.log('CharterDealsService: Response status: ${response.statusCode}',
-            name: 'charter_deals_service');
-        dev.log(
-            'CharterDealsService: Response body length: ${response.body.length}',
-            name: 'charter_deals_service');
-      }
+      print('✅ SERVICE: API Response Status: ${response.statusCode}');
+      print('✅ SERVICE: RAW RESPONSE BODY: ${response.body}');
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-
-        if (kDebugMode) {
-          dev.log(
-              'CharterDealsService: Response data keys: ${data.keys.toList()}',
-              name: 'charter_deals_service');
-          dev.log('CharterDealsService: Response success: ${data['success']}',
-              name: 'charter_deals_service');
-        }
+        print('✅ SERVICE: PARSED JSON DATA: $data');
 
         if (data['success'] == true) {
           final dealsList = data['data'] as List;
-
-          if (kDebugMode) {
-            dev.log(
-                'CharterDealsService: Deals list length: ${dealsList.length}',
-                name: 'charter_deals_service');
-            if (dealsList.isNotEmpty) {
-              dev.log(
-                  'CharterDealsService: First deal data: ${dealsList.first}',
-                  name: 'charter_deals_service');
-            }
-          }
+          print('✅ SERVICE: Found ${dealsList.length} deals in API response.');
 
           final deals = <CharterDealModel>[];
 
@@ -152,100 +114,32 @@ class CharterDealsService {
             try {
               final deal = CharterDealModel.fromJson(dealsList[i]);
               deals.add(deal);
-              if (kDebugMode && i == 0) {
-                dev.log(
-                    'CharterDealsService: Successfully parsed first deal: ${deal.routeDisplay}',
-                    name: 'charter_deals_service');
-              }
             } catch (e) {
-              if (kDebugMode) {
-                dev.log(
-                    'CharterDealsService: Error parsing deal at index $i: $e',
-                    name: 'charter_deals_service');
-                dev.log(
-                    'CharterDealsService: Problematic deal data: ${dealsList[i]}',
-                    name: 'charter_deals_service');
-              }
-              // Continue parsing other deals instead of failing completely
+              print('❌ SERVICE: Error parsing deal at index $i: $e');
+              print('❌ SERVICE: Problematic deal data: ${dealsList[i]}');
             }
-          }
-
-          if (kDebugMode) {
-            dev.log(
-                'CharterDealsService: Successfully parsed ${deals.length} out of ${dealsList.length} deals',
-                name: 'charter_deals_service');
           }
 
           // Update cache
           _cachedDeals = deals;
           _lastCacheTime = DateTime.now();
 
-          if (kDebugMode) {
-            dev.log(
-                'CharterDealsService: Successfully fetched ${deals.length} deals',
-                name: 'charter_deals_service');
-            if (deals.isNotEmpty) {
-              dev.log(
-                  'CharterDealsService: First deal model: ${deals.first.routeDisplay}',
-                  name: 'charter_deals_service');
-              dev.log(
-                  'CharterDealsService: First deal price: ${deals.first.priceDisplay}',
-                  name: 'charter_deals_service');
-            }
-          }
-
+          print(
+              '✅ SERVICE: Successfully parsed and returning ${deals.length} deals.');
           return deals;
         } else {
-          if (kDebugMode) {
-            dev.log('CharterDealsService: API returned success: false',
-                name: 'charter_deals_service');
-            dev.log('CharterDealsService: Error message: ${data['message']}',
-                name: 'charter_deals_service');
-          }
+          print(
+              '❌ SERVICE: API returned success: false. Message: ${data['message']}');
           throw ServerException(data['message'] ?? 'Failed to fetch deals');
         }
-      } else if (response.statusCode == 401) {
-        if (kDebugMode) {
-          dev.log('CharterDealsService: Unauthorized - token may be invalid',
-              name: 'charter_deals_service');
-        }
-        throw AuthException('Unauthorized - Please login again');
-      } else if (response.statusCode == 404) {
-        if (kDebugMode) {
-          dev.log('CharterDealsService: 404 - No deals found',
-              name: 'charter_deals_service');
-        }
-        throw ServerException('No deals found');
       } else {
-        if (kDebugMode) {
-          dev.log('CharterDealsService: Server error ${response.statusCode}',
-              name: 'charter_deals_service');
-          dev.log('CharterDealsService: Error response body: ${response.body}',
-              name: 'charter_deals_service');
-        }
+        print(
+            '❌ SERVICE: API call failed with status code ${response.statusCode}.');
         throw ServerException('Server error: ${response.statusCode}');
       }
-    } on http.ClientException catch (e) {
-      if (kDebugMode) {
-        dev.log('CharterDealsService: ClientException: $e',
-            name: 'charter_deals_service');
-      }
-      throw NetworkException('Network error - Please check your connection');
-    } on FormatException catch (e) {
-      if (kDebugMode) {
-        dev.log('CharterDealsService: FormatException: $e',
-            name: 'charter_deals_service');
-      }
-      throw ServerException('Invalid response format');
     } catch (e) {
-      if (kDebugMode) {
-        dev.log('CharterDealsService: Unexpected error: $e',
-            name: 'charter_deals_service');
-        dev.log('CharterDealsService: Error type: ${e.runtimeType}',
-            name: 'charter_deals_service');
-      }
-      if (e is AppException) rethrow;
-      throw ServerException('Unexpected error: $e');
+      print('🔥🔥🔥 SERVICE: UNEXPECTED ERROR in fetchCharterDeals: $e 🔥🔥🔥');
+      rethrow;
     }
   }
 
@@ -400,67 +294,42 @@ class CharterDealsService {
   /// Test method to debug API response
   static Future<void> testApiResponse() async {
     try {
-      if (kDebugMode) {
-        dev.log('CharterDealsService: Starting API test...',
-            name: 'charter_deals_service');
-      }
+      print('--- Starting API test ---');
 
       final uri = Uri.parse('$baseUrl/charter-deals');
       final headers = await _getAuthHeaders();
 
-      if (kDebugMode) {
-        dev.log('CharterDealsService: Testing API response...',
-            name: 'charter_deals_service');
-        dev.log('CharterDealsService: URI: $uri',
-            name: 'charter_deals_service');
-        dev.log('CharterDealsService: Headers: $headers',
-            name: 'charter_deals_service');
-      }
+      print('CharterDealsService: Testing API response...');
+      print('CharterDealsService: URI: $uri');
+      print('CharterDealsService: Headers: $headers');
 
       final response = await http.get(uri, headers: headers);
 
-      if (kDebugMode) {
-        dev.log(
-            'CharterDealsService: Test response status: ${response.statusCode}',
-            name: 'charter_deals_service');
-        dev.log(
-            'CharterDealsService: Test response body length: ${response.body.length}',
-            name: 'charter_deals_service');
-        dev.log('CharterDealsService: Test response body: ${response.body}',
-            name: 'charter_deals_service');
-      }
+      print(
+          'CharterDealsService: Test response status: ${response.statusCode}');
+      print(
+          'CharterDealsService: Test response body length: ${response.body.length}');
+      print('CharterDealsService: Test response body: ${response.body}');
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        if (kDebugMode) {
-          dev.log('CharterDealsService: Test parsed data: $data',
-              name: 'charter_deals_service');
-          if (data['success'] == true && data['data'] != null) {
-            final dealsList = data['data'] as List;
-            dev.log(
-                'CharterDealsService: Test found ${dealsList.length} deals in response',
-                name: 'charter_deals_service');
-            if (dealsList.isNotEmpty) {
-              dev.log(
-                  'CharterDealsService: Test first deal data: ${dealsList.first}',
-                  name: 'charter_deals_service');
-            }
+        print('CharterDealsService: Test parsed data: $data');
+        if (data['success'] == true && data['data'] != null) {
+          final dealsList = data['data'] as List;
+          print(
+              'CharterDealsService: Test found ${dealsList.length} deals in response');
+          if (dealsList.isNotEmpty) {
+            print(
+                'CharterDealsService: Test first deal data: ${dealsList.first}');
           }
         }
       } else {
-        if (kDebugMode) {
-          dev.log(
-              'CharterDealsService: Test failed with status ${response.statusCode}',
-              name: 'charter_deals_service');
-        }
+        print(
+            'CharterDealsService: Test failed with status ${response.statusCode}');
       }
     } catch (e) {
-      if (kDebugMode) {
-        dev.log('CharterDealsService: Test error: $e',
-            name: 'charter_deals_service');
-        dev.log('CharterDealsService: Test error type: ${e.runtimeType}',
-            name: 'charter_deals_service');
-      }
+      print('CharterDealsService: Test error: $e');
+      print('CharterDealsService: Test error type: ${e.runtimeType}');
     }
   }
 }

@@ -42,8 +42,8 @@ class AuthRepository {
       if (e is AuthException || e is ValidationException) {
         throw e;
       } else {
-        throw AuthException(
-            'An unexpected error occurred during sign-in. Please try again.');
+      throw AuthException(
+          'An unexpected error occurred during sign-in. Please try again.');
       }
     }
   }
@@ -74,7 +74,7 @@ class AuthRepository {
       if (e is AuthException || e is ValidationException) {
         throw e;
       } else {
-        throw AuthException('Failed to sign up: ${e.toString()}');
+      throw AuthException('Failed to sign up: ${e.toString()}');
       }
     }
   }
@@ -202,7 +202,7 @@ class AuthRepository {
       if (e is AuthException) {
         throw e;
       } else {
-        throw AuthException('Login failed: $e');
+      throw AuthException('Login failed: $e');
       }
     }
   }
@@ -236,7 +236,7 @@ class AuthRepository {
       if (e is AuthException || e is ValidationException) {
         throw e;
       } else {
-        throw AuthException('Failed to register user: $e');
+      throw AuthException('Failed to register user: $e');
       }
     }
   }

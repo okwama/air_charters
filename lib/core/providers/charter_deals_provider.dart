@@ -13,6 +13,13 @@ enum CharterDealsState {
 }
 
 class CharterDealsProvider extends ChangeNotifier {
+  CharterDealsProvider() {
+    if (kDebugMode) {
+      dev.log('CharterDealsProvider: Constructor called',
+          name: 'deals_provider');
+    }
+  }
+
   CharterDealsState _state = CharterDealsState.initial;
   List<CharterDealModel> _deals = [];
   String? _errorMessage;
@@ -37,6 +44,11 @@ class CharterDealsProvider extends ChangeNotifier {
     DateTime? toDate,
     bool forceRefresh = false,
   }) async {
+    if (kDebugMode) {
+      dev.log('CharterDealsProvider: loadDeals method called',
+          name: 'deals_provider');
+    }
+
     if (_state == CharterDealsState.loading && !forceRefresh) return;
 
     try {
@@ -50,9 +62,12 @@ class CharterDealsProvider extends ChangeNotifier {
             name: 'deals_provider');
         dev.log('CharterDealsProvider: Deal type: $dealType',
             name: 'deals_provider');
+      }
 
-        // Test API response first
-        await CharterDealsService.testApiResponse();
+      if (kDebugMode) {
+        dev.log(
+            'CharterDealsProvider: About to call CharterDealsService.fetchCharterDeals',
+            name: 'deals_provider');
       }
 
       final deals = await CharterDealsService.fetchCharterDeals(
@@ -64,6 +79,12 @@ class CharterDealsProvider extends ChangeNotifier {
         toDate: toDate,
         forceRefresh: forceRefresh,
       );
+
+      if (kDebugMode) {
+        dev.log(
+            'CharterDealsProvider: Service call completed, received ${deals.length} deals',
+            name: 'deals_provider');
+      }
 
       if (kDebugMode) {
         dev.log('CharterDealsProvider: Fetched ${deals.length} deals',

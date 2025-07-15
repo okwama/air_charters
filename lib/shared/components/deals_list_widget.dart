@@ -4,6 +4,8 @@ import '../../core/providers/charter_deals_provider.dart';
 import '../../core/models/charter_deal_model.dart';
 import '../widgets/shimmer_loading.dart';
 import 'deal_card.dart';
+import 'grouped_deal_card.dart';
+import '../utils/deal_grouping_utils.dart';
 import 'dart:developer' as dev;
 import 'package:flutter/foundation.dart' show kDebugMode;
 
@@ -220,21 +222,37 @@ class _DealsListWidgetState extends State<DealsListWidget> {
   }
 
   Widget _buildDealsList(CharterDealsProvider provider) {
+    // Group deals by route and aircraft
+    final groupedDeals = DealGroupingUtils.groupDeals(provider.deals);
+
     return ListView.builder(
       controller: _scrollController,
       padding: const EdgeInsets.symmetric(vertical: 16),
-      itemCount: provider.deals.length,
+      itemCount: groupedDeals.length,
       itemBuilder: (context, index) {
-        final deal = provider.deals[index];
-        return DealCard(
-          imageUrl: deal.imageUrl,
-          route: deal.routeDisplay,
-          date: deal.dateDisplay,
-          flightsAvailable: deal.flightsAvailableDisplay,
-          price: deal.priceDisplay,
-          onTap: () {
+        final dealGroup = groupedDeals[index];
+
+        // If only one deal in group, show regular deal card
+        if (dealGroup.length == 1) {
+          final deal = dealGroup.first;
+          return DealCard(
+            imageUrl: deal.imageUrl,
+            route: deal.routeDisplay,
+            date: deal.dateDisplay,
+            flightsAvailable: deal.flightsAvailableDisplay,
+            price: deal.priceDisplay,
+            onTap: () {
+              widget.onDealTap?.call();
+              _showBookingDetail(context, deal);
+            },
+          );
+        }
+
+        // If multiple deals, show grouped deal card
+        return GroupedDealCard(
+          deals: dealGroup,
+          onDealTap: () {
             widget.onDealTap?.call();
-            _showBookingDetail(context, deal);
           },
         );
       },
@@ -242,12 +260,15 @@ class _DealsListWidgetState extends State<DealsListWidget> {
   }
 
   Widget _buildDealsListWithLoadingMore(CharterDealsProvider provider) {
+    // Group deals by route and aircraft
+    final groupedDeals = DealGroupingUtils.groupDeals(provider.deals);
+
     return ListView.builder(
       controller: _scrollController,
       padding: const EdgeInsets.symmetric(vertical: 16),
-      itemCount: provider.deals.length + 1,
+      itemCount: groupedDeals.length + 1,
       itemBuilder: (context, index) {
-        if (index == provider.deals.length) {
+        if (index == groupedDeals.length) {
           // Loading more indicator
           return Padding(
             padding: const EdgeInsets.all(16),
@@ -273,16 +294,29 @@ class _DealsListWidgetState extends State<DealsListWidget> {
           );
         }
 
-        final deal = provider.deals[index];
-        return DealCard(
-          imageUrl: deal.imageUrl,
-          route: deal.routeDisplay,
-          date: deal.dateDisplay,
-          flightsAvailable: deal.flightsAvailableDisplay,
-          price: deal.priceDisplay,
-          onTap: () {
+        final dealGroup = groupedDeals[index];
+
+        // If only one deal in group, show regular deal card
+        if (dealGroup.length == 1) {
+          final deal = dealGroup.first;
+          return DealCard(
+            imageUrl: deal.imageUrl,
+            route: deal.routeDisplay,
+            date: deal.dateDisplay,
+            flightsAvailable: deal.flightsAvailableDisplay,
+            price: deal.priceDisplay,
+            onTap: () {
+              widget.onDealTap?.call();
+              _showBookingDetail(context, deal);
+            },
+          );
+        }
+
+        // If multiple deals, show grouped deal card
+        return GroupedDealCard(
+          deals: dealGroup,
+          onDealTap: () {
             widget.onDealTap?.call();
-            _showBookingDetail(context, deal);
           },
         );
       },
@@ -419,13 +453,11 @@ class _DealsListWidgetState extends State<DealsListWidget> {
   }
 
   void _showBookingDetail(BuildContext context, CharterDealModel deal) {
-    // This would show the booking detail modal
-    // For now, we'll just show a snackbar
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Selected: ${deal.routeDisplay}'),
-        duration: const Duration(seconds: 2),
-      ),
+    // Navigate to booking detail page
+    Navigator.pushNamed(
+      context,
+      '/booking-detail',
+      arguments: deal,
     );
   }
 }

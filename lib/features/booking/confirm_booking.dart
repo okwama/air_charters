@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'review_trip.dart';
+import '../../core/models/charter_deal_model.dart';
 
 class ConfirmBookingPage extends StatefulWidget {
   final String departure;
@@ -12,6 +13,7 @@ class ConfirmBookingPage extends StatefulWidget {
   final int seats;
   final String duration;
   final double price;
+  final CharterDealModel? deal; // ✅ Add deal parameter
 
   const ConfirmBookingPage({
     super.key,
@@ -23,6 +25,7 @@ class ConfirmBookingPage extends StatefulWidget {
     required this.seats,
     required this.duration,
     required this.price,
+    this.deal, // ✅ Add deal parameter
   });
 
   @override
@@ -32,23 +35,82 @@ class ConfirmBookingPage extends StatefulWidget {
 class _ConfirmBookingPageState extends State<ConfirmBookingPage> {
   final PageController _pageController = PageController();
 
-  // Sample aircraft images
-  final List<String> _aircraftImages = [
-    'https://images.unsplash.com/photo-1540962351504-03099e0a754b?w=800&h=400&fit=crop',
-    'https://images.unsplash.com/photo-1583212292454-1fe6229603b7?w=800&h=400&fit=crop',
-    'https://images.unsplash.com/photo-1436491865332-7a61a109cc05?w=800&h=400&fit=crop',
-    'https://images.unsplash.com/photo-1544551763-46a013bb70d5?w=800&h=400&fit=crop',
-  ];
+  // ✅ Use real aircraft images from deal data
+  List<String> get _aircraftImages {
+    if (widget.deal == null) {
+      // Fallback to sample images if no deal data
+      return [
+        'https://images.unsplash.com/photo-1540962351504-03099e0a754b?w=800&h=400&fit=crop',
+        'https://images.unsplash.com/photo-1583212292454-1fe6229603b7?w=800&h=400&fit=crop',
+        'https://images.unsplash.com/photo-1436491865332-7a61a109cc05?w=800&h=400&fit=crop',
+        'https://images.unsplash.com/photo-1544551763-46a013bb70d5?w=800&h=400&fit=crop',
+      ];
+    }
 
-  // Sample amenities
-  final List<Map<String, dynamic>> _amenities = [
-    {'icon': Icons.wifi, 'name': 'Wi-Fi'},
-    {'icon': Icons.tv, 'name': 'Entertainment'},
-    {'icon': Icons.restaurant, 'name': 'Catering'},
-    {'icon': Icons.airline_seat_flat, 'name': 'Reclining Seats'},
-    {'icon': Icons.ac_unit, 'name': 'Climate Control'},
-    {'icon': Icons.luggage, 'name': 'Baggage Space'},
-  ];
+    // Use aircraft images from deal, with fallback to route images
+    if (widget.deal!.aircraftImages.isNotEmpty) {
+      return widget.deal!.aircraftImages;
+    } else if (widget.deal!.routeImages.isNotEmpty) {
+      return widget.deal!.routeImages;
+    } else if (widget.deal!.routeImageUrl != null) {
+      return [widget.deal!.routeImageUrl!];
+    } else {
+      // Fallback to deal image URL
+      return [widget.deal!.imageUrl];
+    }
+  }
+
+  // ✅ Use real amenities from deal data
+  List<Map<String, dynamic>> get _amenities {
+    if (widget.deal?.amenities.isNotEmpty == true) {
+      // Convert deal amenities to the expected format with IconData
+      return widget.deal!.amenities.map((amenity) {
+        IconData icon;
+        switch (amenity['icon'] as String) {
+          case 'wifi':
+            icon = Icons.wifi;
+            break;
+          case 'tv':
+            icon = Icons.tv;
+            break;
+          case 'restaurant':
+            icon = Icons.restaurant;
+            break;
+          case 'airline_seat_flat':
+            icon = Icons.airline_seat_flat;
+            break;
+          case 'airline_seat_recline_normal':
+            icon = Icons.airline_seat_recline_normal;
+            break;
+          case 'ac_unit':
+            icon = Icons.ac_unit;
+            break;
+          case 'luggage':
+            icon = Icons.luggage;
+            break;
+          case 'headset_mic':
+            icon = Icons.headset_mic;
+            break;
+          default:
+            icon = Icons.check_circle;
+        }
+        return {
+          'icon': icon,
+          'name': amenity['name'] as String,
+        };
+      }).toList();
+    }
+
+    // Fallback to default amenities
+    return [
+      {'icon': Icons.wifi, 'name': 'Wi-Fi'},
+      {'icon': Icons.tv, 'name': 'Entertainment'},
+      {'icon': Icons.restaurant, 'name': 'Catering'},
+      {'icon': Icons.airline_seat_flat, 'name': 'Reclining Seats'},
+      {'icon': Icons.ac_unit, 'name': 'Climate Control'},
+      {'icon': Icons.luggage, 'name': 'Baggage Space'},
+    ];
+  }
 
   @override
   void dispose() {
@@ -734,6 +796,7 @@ class _ConfirmBookingPageState extends State<ConfirmBookingPage> {
           seats: widget.seats,
           duration: widget.duration,
           price: widget.price,
+          deal: widget.deal, // ✅ Pass deal to ReviewTripPage
         ),
       ),
     );

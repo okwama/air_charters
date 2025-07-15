@@ -44,41 +44,22 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  void _showErrorSnackBar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          message,
-          style: GoogleFonts.inter(color: Colors.white),
-        ),
-        backgroundColor: Colors.red.shade600,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
-      ),
-    );
-  }
-
   void _handleSendVerificationCode() async {
     final phoneEmail = _phoneEmailController.text.trim();
     if (phoneEmail.isEmpty) {
-      _showErrorSnackBar(_isEmailMode
-          ? 'Please enter your email address'
-          : 'Please enter your phone number');
+      // Clear any previous errors and don't set new ones for empty fields
+      // The inline error container will handle this through AuthProvider
       return;
     }
 
     if (_isEmailMode) {
       // For email mode, we'll use the existing email/password authentication
-      // Show a message to use the password field instead
-      _showErrorSnackBar(
-          'For email authentication, please use the "Sign In with Password" button below');
+      // Don't show error - just return silently since this button is disabled in email mode
       return;
     } else {
       // Handle phone number validation and verification
       if (!_isValidPhoneNumberFormat(phoneEmail)) {
-        _showErrorSnackBar('Please enter a valid phone number');
+        // Let the AuthProvider handle the error state
         return;
       }
 
@@ -93,9 +74,8 @@ class _LoginScreenState extends State<LoginScreen> {
               .pushNamed('/verify', arguments: fullPhoneNumber);
         }
       } catch (e) {
-        if (mounted) {
-          _showErrorSnackBar(e.toString());
-        }
+        // Error will be handled by AuthProvider and shown in inline container
+        // No need to show snackbar
       }
     }
   }
@@ -119,7 +99,7 @@ class _LoginScreenState extends State<LoginScreen> {
     final password = _passwordController.text.trim();
 
     if (email.isEmpty || password.isEmpty) {
-      _showErrorSnackBar('Please enter both email and password');
+      // Don't show error for empty fields - let form validation handle it
       return;
     }
 
@@ -149,18 +129,13 @@ class _LoginScreenState extends State<LoginScreen> {
         } else {
           print(
               '🔥 LOGIN SCREEN: Authentication failed - user not authenticated');
-          // Check if there's a specific error message from the provider
-          final errorMessage = authProvider.errorMessage ??
-              'Authentication failed. Please try again.';
-          _showErrorSnackBar(errorMessage);
+          // Error message will be shown in the inline container via AuthProvider
         }
       }
     } catch (e) {
       print('🔥 LOGIN SCREEN: Authentication error: $e');
-      if (mounted) {
-        // The error is now properly formatted from the backend
-        _showErrorSnackBar(e.toString());
-      }
+      // Error will be handled by AuthProvider and shown in inline container
+      // No need for additional error handling here
     }
   }
 

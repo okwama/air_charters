@@ -41,7 +41,14 @@ class CharterHomePage extends StatelessWidget {
               },
             ),
           ),
-          actions: [],
+          actions: [
+            IconButton(
+              onPressed: () {
+                Navigator.pushNamed(context, '/test-grouped-deals');
+              },
+              icon: const Icon(Icons.bug_report, color: Colors.black),
+            ),
+          ],
           bottom: PreferredSize(
             preferredSize: const Size.fromHeight(60),
             child: Container(
@@ -90,9 +97,19 @@ class CharterHomePage extends StatelessWidget {
   }
 
   Widget _buildDealsTab(BuildContext context) {
-    return const DealsListWidget(
-      enablePullToRefresh: true,
-      enableInfiniteScroll: true,
+    return Consumer<CharterDealsProvider>(
+      builder: (context, provider, child) {
+        print('HOME: Provider state: ${provider.state}');
+        print('HOME: Deals count: ${provider.deals.length}');
+        if (provider.deals.isNotEmpty) {
+          print('HOME: First deal: ${provider.deals.first.routeDisplay}');
+        }
+
+        return const DealsListWidget(
+          enablePullToRefresh: true,
+          enableInfiniteScroll: true,
+        );
+      },
     );
   }
 

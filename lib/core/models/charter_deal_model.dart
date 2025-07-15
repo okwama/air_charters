@@ -10,8 +10,8 @@ class CharterDealModel {
   final String time;
   final double? pricePerSeat;
   final int discountPerSeat;
-  final double? priceFullCharter;
-  final int discountFullCharter;
+  final double? pricePerHour; // ✅ Fixed: was priceFullCharter
+  final int discountPerHour; // ✅ Fixed: was discountFullCharter
   final int availableSeats;
   final String dealType;
   final DateTime createdAt;
@@ -27,6 +27,14 @@ class CharterDealModel {
   final String? aircraftType;
   final int? aircraftCapacity;
 
+  // ✅ New fields from existing database tables
+  final List<String> aircraftImages; // From aircraft_images table
+  final List<String> routeImages; // From fixed_routes.imageUrl (can be split)
+
+  // ✅ Placeholder fields (not in database)
+  final String duration; // Placeholder: calculated from route
+  final List<Map<String, dynamic>> amenities; // Placeholder: hardcoded list
+
   const CharterDealModel({
     required this.id,
     required this.companyId,
@@ -36,8 +44,8 @@ class CharterDealModel {
     required this.time,
     this.pricePerSeat,
     this.discountPerSeat = 0,
-    this.priceFullCharter,
-    this.discountFullCharter = 0,
+    this.pricePerHour, // ✅ Fixed: was priceFullCharter
+    this.discountPerHour = 0, // ✅ Fixed: was discountFullCharter
     required this.availableSeats,
     required this.dealType,
     required this.createdAt,
@@ -50,6 +58,10 @@ class CharterDealModel {
     this.aircraftName,
     this.aircraftType,
     this.aircraftCapacity,
+    this.aircraftImages = const [], // ✅ New: from aircraft_images table
+    this.routeImages = const [], // ✅ New: from fixed_routes
+    this.duration = '2h 30m', // ✅ Placeholder: calculated
+    this.amenities = const [], // ✅ Placeholder: hardcoded amenities
   });
 
   factory CharterDealModel.fromJson(Map<String, dynamic> json) {
@@ -61,10 +73,14 @@ class CharterDealModel {
         aircraftId: json['aircraftId'] as int,
         date: DateTime.parse(json['date'] as String),
         time: json['time'] as String,
-        pricePerSeat: json['pricePerSeat']?.toDouble(),
+        pricePerSeat: (json['pricePerSeat'] != null)
+            ? double.tryParse(json['pricePerSeat'].toString())
+            : null,
         discountPerSeat: json['discountPerSeat'] as int? ?? 0,
-        priceFullCharter: json['priceFullCharter']?.toDouble(),
-        discountFullCharter: json['discountFullCharter'] as int? ?? 0,
+        pricePerHour: (json['pricePerHour'] != null)
+            ? double.tryParse(json['pricePerHour'].toString())
+            : null,
+        discountPerHour: json['discountPerHour'] as int? ?? 0,
         availableSeats: json['availableSeats'] as int,
         dealType: json['dealType'] as String,
         createdAt: DateTime.parse(json['createdAt'] as String),
@@ -77,6 +93,22 @@ class CharterDealModel {
         aircraftName: json['aircraftName'] as String?,
         aircraftType: json['aircraftType'] as String?,
         aircraftCapacity: json['aircraftCapacity'] as int?,
+
+        // ✅ New fields from existing database
+        aircraftImages: (json['aircraftImages'] as List<dynamic>?)
+                ?.map((e) => e as String)
+                .toList() ??
+            [],
+        routeImages: (json['routeImages'] as List<dynamic>?)
+                ?.map((e) => e as String)
+                .toList() ??
+            [],
+
+        // ✅ Placeholder fields
+        duration: json['duration'] as String? ??
+            _calculateDuration(
+                json['origin'] as String?, json['destination'] as String?),
+        amenities: _getAircraftAmenities(json['aircraftType'] as String?),
       );
     } catch (e) {
       // Log the error and the problematic JSON
@@ -100,8 +132,8 @@ class CharterDealModel {
       'time': time,
       'pricePerSeat': pricePerSeat,
       'discountPerSeat': discountPerSeat,
-      'priceFullCharter': priceFullCharter,
-      'discountFullCharter': discountFullCharter,
+      'pricePerHour': pricePerHour, // ✅ Fixed: was priceFullCharter
+      'discountPerHour': discountPerHour, // ✅ Fixed: was discountFullCharter
       'availableSeats': availableSeats,
       'dealType': dealType,
       'createdAt': createdAt.toIso8601String(),
@@ -114,6 +146,10 @@ class CharterDealModel {
       'aircraftName': aircraftName,
       'aircraftType': aircraftType,
       'aircraftCapacity': aircraftCapacity,
+      'aircraftImages': aircraftImages,
+      'routeImages': routeImages,
+      'duration': duration,
+      'amenities': amenities,
     };
   }
 
@@ -128,9 +164,10 @@ class CharterDealModel {
     if (pricePerSeat != null) {
       final discountedPrice = pricePerSeat! * (1 - discountPerSeat / 100);
       return '\$${discountedPrice.toStringAsFixed(0)}';
-    } else if (priceFullCharter != null) {
-      final discountedPrice =
-          priceFullCharter! * (1 - discountFullCharter / 100);
+    } else if (pricePerHour != null) {
+      // ✅ Fixed: was priceFullCharter
+      final discountedPrice = pricePerHour! *
+          (1 - discountPerHour / 100); // ✅ Fixed: was discountFullCharter
       return '\$${discountedPrice.toStringAsFixed(0)}';
     }
     return 'Contact for pricing';
@@ -160,12 +197,14 @@ class CharterDealModel {
   }
 
   String get imageUrl {
+    // ✅ Use route image first, then fallback
     return routeImageUrl ??
-        'https://images.unsplash.com/photo-1436491865332-7a61a109cc05?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w0NTYyMDF8MHwxfHJhbmRvbXx8fHx8fHx8fDE3NTA1MDU3Nzd8&ixlib=rb-4.1.0&q=80&w=1080';
+'https://ik.imagekit.io/bja2qwwdjjy/Aircharter/Heavy%20Jet%20Luxury%20Aircraft_YA1Og-8_k.webp?updatedAt=1749146876852';
   }
 
   bool get hasDiscount {
-    return discountPerSeat > 0 || discountFullCharter > 0;
+    return discountPerSeat > 0 ||
+        discountPerHour > 0; // ✅ Fixed: was discountFullCharter
   }
 
   CharterDealModel copyWith({
@@ -177,8 +216,8 @@ class CharterDealModel {
     String? time,
     double? pricePerSeat,
     int? discountPerSeat,
-    double? priceFullCharter,
-    int? discountFullCharter,
+    double? pricePerHour, // ✅ Fixed: was priceFullCharter
+    int? discountPerHour, // ✅ Fixed: was discountFullCharter
     int? availableSeats,
     String? dealType,
     DateTime? createdAt,
@@ -191,6 +230,10 @@ class CharterDealModel {
     String? aircraftName,
     String? aircraftType,
     int? aircraftCapacity,
+    List<String>? aircraftImages,
+    List<String>? routeImages,
+    String? duration,
+    List<Map<String, dynamic>>? amenities,
   }) {
     return CharterDealModel(
       id: id ?? this.id,
@@ -201,8 +244,10 @@ class CharterDealModel {
       time: time ?? this.time,
       pricePerSeat: pricePerSeat ?? this.pricePerSeat,
       discountPerSeat: discountPerSeat ?? this.discountPerSeat,
-      priceFullCharter: priceFullCharter ?? this.priceFullCharter,
-      discountFullCharter: discountFullCharter ?? this.discountFullCharter,
+      pricePerHour:
+          pricePerHour ?? this.pricePerHour, // ✅ Fixed: was priceFullCharter
+      discountPerHour: discountPerHour ??
+          this.discountPerHour, // ✅ Fixed: was discountFullCharter
       availableSeats: availableSeats ?? this.availableSeats,
       dealType: dealType ?? this.dealType,
       createdAt: createdAt ?? this.createdAt,
@@ -215,6 +260,68 @@ class CharterDealModel {
       aircraftName: aircraftName ?? this.aircraftName,
       aircraftType: aircraftType ?? this.aircraftType,
       aircraftCapacity: aircraftCapacity ?? this.aircraftCapacity,
+      aircraftImages: aircraftImages ?? this.aircraftImages,
+      routeImages: routeImages ?? this.routeImages,
+      duration: duration ?? this.duration,
+      amenities: amenities ?? this.amenities,
     );
+  }
+
+  // ✅ Placeholder: Calculate duration based on route
+  static String _calculateDuration(String? origin, String? destination) {
+    if (origin == null || destination == null) return '2h 30m';
+
+    // Simple placeholder calculation based on common routes
+    final route = '$origin-$destination';
+    switch (route) {
+      case 'Nairobi-Mombasa':
+      case 'Mombasa-Nairobi':
+        return '1h 15m';
+      case 'Nairobi-Kisumu':
+      case 'Kisumu-Nairobi':
+        return '1h 5m';
+      case 'Nairobi-Kilifi':
+      case 'Kilifi-Nairobi':
+        return '1h 25m';
+      default:
+        return '2h 30m';
+    }
+  }
+
+  // ✅ Placeholder: Get amenities based on aircraft type
+  static List<Map<String, dynamic>> _getAircraftAmenities(
+      String? aircraftType) {
+    const defaultAmenities = [
+      {'icon': 'wifi', 'name': 'Wi-Fi'},
+      {'icon': 'ac_unit', 'name': 'Climate Control'},
+      {'icon': 'airline_seat_recline_normal', 'name': 'Reclining Seats'},
+      {'icon': 'luggage', 'name': 'Baggage Space'},
+    ];
+
+    if (aircraftType == null) return defaultAmenities;
+
+    // Add specific amenities based on aircraft type
+    switch (aircraftType.toLowerCase()) {
+      case 'jet':
+        return [
+          ...defaultAmenities,
+          {'icon': 'tv', 'name': 'Entertainment'},
+          {'icon': 'restaurant', 'name': 'Catering'},
+          {'icon': 'airline_seat_flat', 'name': 'Lie-flat Seats'},
+        ];
+      case 'helicopter':
+        return [
+          {'icon': 'ac_unit', 'name': 'Climate Control'},
+          {'icon': 'headset_mic', 'name': 'Communication'},
+          {'icon': 'luggage', 'name': 'Baggage Space'},
+        ];
+      case 'fixedwing':
+        return [
+          ...defaultAmenities,
+          {'icon': 'tv', 'name': 'Entertainment'},
+        ];
+      default:
+        return defaultAmenities;
+    }
   }
 }
