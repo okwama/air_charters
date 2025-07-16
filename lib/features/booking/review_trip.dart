@@ -3,14 +3,23 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 // Removed unused import: cached_network_image
 import 'payment/add_card.dart';
+import 'payment/payment_screen.dart';
 import 'booking_confirmation_page.dart';
 import '../../core/models/charter_deal_model.dart';
-import '../../core/models/booking_model.dart' show PaymentMethod;
+import '../../core/models/booking_model.dart';
 import '../../core/providers/passengers_provider.dart';
 import '../../core/providers/auth_provider.dart';
-import '../../core/controllers/booking_controller.dart';
+import '../../core/controllers/booking.controller/booking_controller.dart';
 import '../../shared/widgets/passenger_list_widget.dart';
 import '../../shared/widgets/app_spinner.dart';
+
+// Import modular widgets
+import 'widgets/flight_details_widget.dart';
+import 'widgets/special_requests_widget.dart';
+import 'widgets/price_breakdown_widget.dart';
+import 'widgets/payment_section_widget.dart';
+import 'widgets/payment_method_selection_widget.dart';
+import 'services/booking_review_service.dart';
 
 class ReviewTripPage extends StatefulWidget {
   final String departure;
@@ -129,13 +138,34 @@ class _ReviewTripPageState extends State<ReviewTripPage> {
             const SizedBox(height: 8),
 
             // Flight Details
-            _buildFlightDetails(),
+            FlightDetailsWidget(
+              departure: widget.departure,
+              destination: widget.destination,
+              date: widget.date,
+              time: widget.time,
+              aircraft: widget.aircraft,
+              seats: widget.seats,
+              duration: widget.duration,
+            ),
 
             // Passengers Section
             _buildPassengersSection(),
 
             // Special Requests
-            _buildSpecialRequests(),
+            SpecialRequestsWidget(
+              onboardDining: _onboardDining,
+              groundTransportation: _groundTransportation,
+              onOnboardDiningChanged: (value) {
+                setState(() {
+                  _onboardDining = value;
+                });
+              },
+              onGroundTransportationChanged: (value) {
+                setState(() {
+                  _groundTransportation = value;
+                });
+              },
+            ),
 
             // Important Information
             _buildImportantInformation(),
@@ -144,13 +174,21 @@ class _ReviewTripPageState extends State<ReviewTripPage> {
             _buildSupportSection(),
 
             // Price Breakdown
-            _buildPriceBreakdown(),
+            PriceBreakdownWidget(
+              basePrice: widget.price,
+              onboardDining: _onboardDining,
+              groundTransportation: _groundTransportation,
+            ),
 
             // Billing Region
             _buildBillingRegion(),
 
             // Payment Section
-            _buildPaymentSection(),
+            PaymentSectionWidget(
+              selectedPaymentMethod: _selectedPaymentMethod,
+              savedCards: _savedCards,
+              onChangePaymentMethod: _showChangePaymentMethod,
+            ),
 
             // Agreement Section
             _buildAgreementSection(),
@@ -161,216 +199,6 @@ class _ReviewTripPageState extends State<ReviewTripPage> {
             const SizedBox(height: 20),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildFlightDetails() {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: const Color(0xFFE5E5E5),
-          width: 1,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Flight Details',
-            style: GoogleFonts.inter(
-              fontSize: 18,
-              fontWeight: FontWeight.w700,
-              color: Colors.black,
-            ),
-          ),
-          const SizedBox(height: 16),
-
-          // Aircraft and Seating
-          Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Aircraft Type',
-                      style: GoogleFonts.inter(
-                        fontSize: 12,
-                        color: const Color(0xFF666666),
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      widget.aircraft,
-                      style: GoogleFonts.inter(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.black,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    'Seating Capacity',
-                    style: GoogleFonts.inter(
-                      fontSize: 12,
-                      color: const Color(0xFF666666),
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    '${widget.seats} seats',
-                    style: GoogleFonts.inter(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.black,
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 20),
-
-          // Departure and Arrival
-          Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Departure',
-                      style: GoogleFonts.inter(
-                        fontSize: 12,
-                        color: const Color(0xFF666666),
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      widget.departure,
-                      style: GoogleFonts.inter(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.black,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      '${widget.date} • ${widget.time}',
-                      style: GoogleFonts.inter(
-                        fontSize: 14,
-                        color: const Color(0xFF888888),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF5F5F5),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: const Icon(
-                  Icons.flight_takeoff_rounded,
-                  color: Color(0xFF666666),
-                  size: 20,
-                ),
-              ),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text(
-                      'Arrival',
-                      style: GoogleFonts.inter(
-                        fontSize: 12,
-                        color: const Color(0xFF666666),
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      widget.destination,
-                      style: GoogleFonts.inter(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.black,
-                      ),
-                      textAlign: TextAlign.right,
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      widget.duration,
-                      style: GoogleFonts.inter(
-                        fontSize: 14,
-                        color: const Color(0xFF888888),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 16),
-
-          // Flight Type and Direct Flight
-          Row(
-            children: [
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFE8F5E8),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  'Direct Flight',
-                  style: GoogleFonts.inter(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: const Color(0xFF2E7D32),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF3E5F5),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  'Private Charter',
-                  style: GoogleFonts.inter(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: const Color(0xFF7B1FA2),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
       ),
     );
   }
@@ -393,113 +221,6 @@ class _ReviewTripPageState extends State<ReviewTripPage> {
           // Refresh UI when passengers change
           setState(() {});
         },
-      ),
-    );
-  }
-
-  Widget _buildSpecialRequests() {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: const Color(0xFFE5E5E5),
-          width: 1,
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Special Requests',
-            style: GoogleFonts.inter(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              color: Colors.black,
-            ),
-          ),
-          const SizedBox(height: 16),
-
-          // Onboard Dining Toggle
-          Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Onboard Dining',
-                      style: GoogleFonts.inter(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                        color: Colors.black,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      'Premium catering service',
-                      style: GoogleFonts.inter(
-                        fontSize: 12,
-                        color: const Color(0xFF666666),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Switch(
-                value: _onboardDining,
-                onChanged: (value) {
-                  setState(() {
-                    _onboardDining = value;
-                  });
-                },
-                activeColor: Colors.black,
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 16),
-
-          // Ground Transportation Toggle
-          Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Ground Transportation',
-                      style: GoogleFonts.inter(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                        color: Colors.black,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      'Airport pickup and drop-off',
-                      style: GoogleFonts.inter(
-                        fontSize: 12,
-                        color: const Color(0xFF666666),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Switch(
-                value: _groundTransportation,
-                onChanged: (value) {
-                  setState(() {
-                    _groundTransportation = value;
-                  });
-                },
-                activeColor: Colors.black,
-              ),
-            ],
-          ),
-        ],
       ),
     );
   }
@@ -676,96 +397,6 @@ class _ReviewTripPageState extends State<ReviewTripPage> {
     );
   }
 
-  Widget _buildPriceBreakdown() {
-    final basePrice = widget.price;
-    final diningCost = _onboardDining ? 150.0 : 0.0;
-    final transportationCost = _groundTransportation ? 200.0 : 0.0;
-    final taxes = (basePrice + diningCost + transportationCost) * 0.12;
-    final totalPrice = basePrice + diningCost + transportationCost + taxes;
-
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: const Color(0xFFE5E5E5),
-          width: 1,
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Price Breakdown',
-            style: GoogleFonts.inter(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              color: Colors.black,
-            ),
-          ),
-          const SizedBox(height: 16),
-          _buildPriceItem('Base Charter Cost', basePrice),
-          if (_onboardDining) _buildPriceItem('Onboard Dining', diningCost),
-          if (_groundTransportation)
-            _buildPriceItem('Ground Transportation', transportationCost),
-          _buildPriceItem('Taxes & Fees', taxes),
-          const SizedBox(height: 12),
-          const Divider(color: Color(0xFFE5E5E5)),
-          const SizedBox(height: 12),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Total',
-                style: GoogleFonts.inter(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                  color: Colors.black,
-                ),
-              ),
-              Text(
-                '\$${totalPrice.toStringAsFixed(2)}',
-                style: GoogleFonts.inter(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                  color: Colors.black,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPriceItem(String label, double amount) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            label,
-            style: GoogleFonts.inter(
-              fontSize: 14,
-              color: const Color(0xFF666666),
-            ),
-          ),
-          Text(
-            '\$${amount.toStringAsFixed(2)}',
-            style: GoogleFonts.inter(
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
-              color: Colors.black,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildBillingRegion() {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
@@ -825,132 +456,6 @@ class _ReviewTripPageState extends State<ReviewTripPage> {
                 _selectedBillingRegion = value!;
               });
             },
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPaymentSection() {
-    // Find the selected payment method details
-    Map<String, dynamic>? selectedCard = _savedCards.firstWhere(
-      (card) => card['name'] == _selectedPaymentMethod,
-      orElse: () => {},
-    );
-
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: const Color(0xFFE5E5E5),
-          width: 1,
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Payment Method',
-                style: GoogleFonts.inter(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.black,
-                ),
-              ),
-              TextButton(
-                onPressed: _showChangePaymentMethod,
-                style: TextButton.styleFrom(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  minimumSize: Size.zero,
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                ),
-                child: Text(
-                  'Change',
-                  style: GoogleFonts.inter(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.black,
-                    decoration: TextDecoration.underline,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-
-          // Selected Payment Method Display
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF8F9FA),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: const Color(0xFFE8E8E8),
-                width: 1,
-              ),
-            ),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                      color: const Color(0xFFE8E8E8),
-                      width: 1,
-                    ),
-                  ),
-                  child: Icon(
-                    selectedCard.isNotEmpty
-                        ? selectedCard['icon']
-                        : Icons.credit_card,
-                    size: 20,
-                    color: const Color(0xFF666666),
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        _selectedPaymentMethod,
-                        style: GoogleFonts.inter(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.black,
-                        ),
-                      ),
-                      if (selectedCard.isNotEmpty &&
-                          selectedCard['details'] != null)
-                        const SizedBox(height: 4),
-                      if (selectedCard.isNotEmpty &&
-                          selectedCard['details'] != null)
-                        Text(
-                          selectedCard['details'],
-                          style: GoogleFonts.inter(
-                            fontSize: 14,
-                            color: const Color(0xFF666666),
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-                const Icon(
-                  Icons.check_circle_rounded,
-                  color: Color(0xFF2E7D32),
-                  size: 20,
-                ),
-              ],
-            ),
           ),
         ],
       ),
@@ -1074,171 +579,20 @@ class _ReviewTripPageState extends State<ReviewTripPage> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: const BorderRadius.only(
-            topLeft: Radius.circular(20),
-            topRight: Radius.circular(20),
-          ),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Handle bar
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  margin: const EdgeInsets.only(bottom: 20),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFE0E0E0),
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ),
-
-              // Header
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Select Payment Method',
-                    style: GoogleFonts.inter(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.black,
-                    ),
-                  ),
-                  TextButton.icon(
-                    onPressed: () {
-                      Navigator.pop(context);
-                      _showAddCard();
-                    },
-                    icon: const Icon(
-                      Icons.add_rounded,
-                      size: 16,
-                      color: Colors.black,
-                    ),
-                    label: Text(
-                      'Add Card',
-                      style: GoogleFonts.inter(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.black,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 20),
-
-              // Saved Cards
-              if (_savedCards.isNotEmpty) ...[
-                Text(
-                  'Saved Cards',
-                  style: GoogleFonts.inter(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: const Color(0xFF666666),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                ..._savedCards.map((card) => _buildPaymentOption(
-                    card['name'], card['icon'], card['details'])),
-                const SizedBox(height: 16),
-                const Divider(),
-                const SizedBox(height: 16),
-              ],
-
-              // Other Payment Methods
-              Text(
-                'Other Payment Methods',
-                style: GoogleFonts.inter(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: const Color(0xFF666666),
-                ),
-              ),
-              const SizedBox(height: 12),
-              ..._paymentMethods.map((method) =>
-                  _buildPaymentOption(method['name'], method['icon'], null)),
-
-              const SizedBox(height: 20),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPaymentOption(String name, IconData icon, String? details) {
-    final isSelected = _selectedPaymentMethod == name;
-
-    return GestureDetector(
-      onTap: () {
-        setState(() {
-          _selectedPaymentMethod = name;
-        });
-        Navigator.pop(context);
-      },
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 8),
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFFF0F9FF) : Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color:
-                isSelected ? const Color(0xFF0EA5E9) : const Color(0xFFE8E8E8),
-            width: isSelected ? 2 : 1,
-          ),
-        ),
-        child: Row(
-          children: [
-            Icon(
-              icon,
-              size: 20,
-              color: const Color(0xFF666666),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    name,
-                    style: GoogleFonts.inter(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                      color: Colors.black,
-                    ),
-                  ),
-                  if (details != null) ...[
-                    const SizedBox(height: 2),
-                    Text(
-                      details,
-                      style: GoogleFonts.inter(
-                        fontSize: 12,
-                        color: const Color(0xFF666666),
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-            if (isSelected)
-              const Icon(
-                Icons.check_circle_rounded,
-                color: Color(0xFF0EA5E9),
-                size: 20,
-              ),
-          ],
-        ),
+      builder: (context) => PaymentMethodSelectionWidget(
+        selectedPaymentMethod: _selectedPaymentMethod,
+        savedCards: _savedCards,
+        paymentMethods: _paymentMethods,
+        onPaymentMethodSelected: (method) {
+          setState(() {
+            _selectedPaymentMethod = method;
+          });
+          Navigator.pop(context);
+        },
+        onAddCard: () {
+          Navigator.pop(context);
+          _showAddCard();
+        },
       ),
     );
   }
@@ -1276,69 +630,6 @@ class _ReviewTripPageState extends State<ReviewTripPage> {
       final taxes = (basePrice + diningCost + transportationCost) * 0.12;
       final totalPrice = basePrice + diningCost + transportationCost + taxes;
 
-      // Get passengers from provider
-      final passengerProvider =
-          Provider.of<PassengerProvider>(context, listen: false);
-      final passengers = passengerProvider.passengers;
-
-      // Parse the date string to DateTime
-      DateTime parsedDate;
-      try {
-        // Assuming the date comes in format "Dec 15" - we need to add year
-        final currentYear = DateTime.now().year;
-        final parts = widget.date.split(' ');
-        final monthName = parts[0];
-        final day = int.parse(parts[1]);
-
-        final monthMap = {
-          'Jan': 1,
-          'Feb': 2,
-          'Mar': 3,
-          'Apr': 4,
-          'May': 5,
-          'Jun': 6,
-          'Jul': 7,
-          'Aug': 8,
-          'Sep': 9,
-          'Oct': 10,
-          'Nov': 11,
-          'Dec': 12
-        };
-
-        final month = monthMap[monthName] ?? 1;
-        parsedDate = DateTime(currentYear, month, day);
-
-        // If the date is in the past, assume next year
-        if (parsedDate.isBefore(DateTime.now())) {
-          parsedDate = DateTime(currentYear + 1, month, day);
-        }
-      } catch (e) {
-        // Fallback to tomorrow if parsing fails
-        parsedDate = DateTime.now().add(const Duration(days: 1));
-      }
-
-      // Parse duration string to int (assuming format like "2h 30m" or "2.5h")
-      int durationMinutes;
-      try {
-        if (widget.duration.contains('h') && widget.duration.contains('m')) {
-          // Format: "2h 30m"
-          final parts = widget.duration.split(' ');
-          final hours = int.parse(parts[0].replaceAll('h', ''));
-          final minutes = int.parse(parts[1].replaceAll('m', ''));
-          durationMinutes = hours * 60 + minutes;
-        } else if (widget.duration.contains('h')) {
-          // Format: "2.5h" or "2h"
-          final hours = double.parse(widget.duration.replaceAll('h', ''));
-          durationMinutes = (hours * 60).round();
-        } else {
-          // Assume it's already in minutes
-          durationMinutes = int.parse(widget.duration);
-        }
-      } catch (e) {
-        // Default to 120 minutes if parsing fails
-        durationMinutes = 120;
-      }
-
       // Parse payment method
       PaymentMethod? paymentMethod;
       if (_selectedPaymentMethod.contains('Card')) {
@@ -1349,19 +640,12 @@ class _ReviewTripPageState extends State<ReviewTripPage> {
         paymentMethod = PaymentMethod.wallet;
       }
 
-      // Create booking through controller
+      // Create booking with payment intent through controller
       final bookingController =
           Provider.of<BookingController>(context, listen: false);
-      final result = await bookingController.createBookingWithPassengers(
-        companyId: 1, // TODO: Get from charter deal or user selection
-        aircraftId: 1, // TODO: Get from charter deal or user selection
-        departure: widget.departure,
-        destination: widget.destination,
-        departureDate: parsedDate,
-        departureTime: widget.time,
-        duration: durationMinutes,
-        basePrice: basePrice,
-        totalPrice: totalPrice,
+      final result = await bookingController.createBookingWithPaymentIntent(
+        dealId: widget.deal?.id ?? 0,
+        totalPrice: totalPrice.toDouble(),
         onboardDining: _onboardDining,
         groundTransportation: _groundTransportation,
         billingRegion: _selectedBillingRegion,
@@ -1374,15 +658,55 @@ class _ReviewTripPageState extends State<ReviewTripPage> {
       }
 
       if (result.isSuccess && result.booking != null) {
-        // Navigate to booking confirmation page
-        if (mounted) {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(
-              builder: (context) =>
-                  BookingConfirmationPage(booking: result.booking!),
-            ),
-          );
+        // Check if we have payment intent for Stripe integration
+        if (result.bookingWithPaymentIntent?.paymentIntent != null) {
+          final paymentIntent = result.bookingWithPaymentIntent!.paymentIntent!;
+
+          // Validate that we have a valid client secret
+          if (paymentIntent.clientSecret.isNotEmpty) {
+            // Navigate to payment screen for Stripe payment
+            if (mounted) {
+              final paymentResult = await Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => PaymentScreen(
+                    bookingId: result.booking!.id ?? '',
+                    clientSecret: paymentIntent.clientSecret,
+                    amount: totalPrice,
+                    currency: 'USD',
+                    paymentIntentId:
+                        paymentIntent.id.isNotEmpty ? paymentIntent.id : null,
+                  ),
+                ),
+              );
+
+              // Handle payment result
+              if (paymentResult == true) {
+                // Payment successful - navigate to confirmation
+                if (mounted) {
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => BookingConfirmationPage(
+                        booking: result.booking!,
+                      ),
+                    ),
+                  );
+                }
+                return;
+              }
+            }
+          } else {
+            // Fallback to legacy payment flow
+            if (mounted) {
+              _showLegacyPaymentDialog(context, result.booking!);
+            }
+          }
+        } else {
+          // No payment intent - use legacy payment flow
+          if (mounted) {
+            _showLegacyPaymentDialog(context, result.booking!);
+          }
         }
       } else {
         // Show error dialog
@@ -1433,6 +757,68 @@ class _ReviewTripPageState extends State<ReviewTripPage> {
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
                 color: Colors.black,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showLegacyPaymentDialog(BuildContext context, BookingModel booking) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(
+          'Payment Required',
+          style: GoogleFonts.inter(
+            fontSize: 18,
+            fontWeight: FontWeight.w700,
+            color: Colors.black,
+          ),
+        ),
+        content: Text(
+          'This booking requires a payment. Please complete the payment process to confirm your booking.',
+          style: GoogleFonts.inter(
+            fontSize: 14,
+            color: const Color(0xFF666666),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              // For legacy payment, we'll navigate to confirmation directly
+              // since we don't have a client secret
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => BookingConfirmationPage(
+                    booking: booking,
+                  ),
+                ),
+              );
+            },
+            child: Text(
+              'Proceed to Confirmation',
+              style: GoogleFonts.inter(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: Colors.black,
+              ),
+            ),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+            },
+            child: Text(
+              'Cancel',
+              style: GoogleFonts.inter(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: Colors.red,
               ),
             ),
           ),

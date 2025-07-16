@@ -263,6 +263,12 @@ class CharterDealsProvider extends ChangeNotifier {
     }
   }
 
+  /// Get deals by category
+  List<CharterDealModel> getDealsByCategory(String category) {
+    if (category.isEmpty) return _deals;
+    return _deals.where((deal) => deal.dealType == category).toList();
+  }
+
   /// Get deal by ID
   Future<CharterDealModel?> getDealById(int dealId) async {
     try {

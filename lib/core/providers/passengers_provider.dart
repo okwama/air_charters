@@ -180,6 +180,20 @@ class PassengerProvider with ChangeNotifier {
         p.lastName.toLowerCase() == lastName.toLowerCase());
   }
 
+  // Add method to get primary passenger (user)
+  PassengerModel? get primaryPassenger {
+    try {
+      return _passengers.firstWhere((p) => p.isUser == true);
+    } catch (e) {
+      return null;
+    }
+  }
+  
+  // Add method to get additional passengers
+  List<PassengerModel> get additionalPassengers {
+    return _passengers.where((p) => p.isUser != true).toList();
+  }
+
   // Initialize for local booking creation (before booking exists)
   void initializeForBooking({UserModel? currentUser}) {
     _isLocalMode = true;
@@ -188,20 +202,8 @@ class PassengerProvider with ChangeNotifier {
     _passengers.clear();
     _currentBookingId = null;
 
-    // Add current user as primary passenger if available
-    if (currentUser != null) {
-      final userPassenger = PassengerModel(
-        id: null, // No ID yet since not saved to backend
-        bookingId: 'local_booking', // Temporary booking ID for local management
-        firstName: currentUser.firstName ?? '',
-        lastName: currentUser.lastName ?? '',
-        age: null,
-        nationality: null,
-        idPassportNumber: null,
-        createdAt: DateTime.now(),
-      );
-      _passengers.add(userPassenger);
-    }
+    // Don't add user automatically - backend will handle this
+    // Only add additional passengers if any
 
     notifyListeners();
   }

@@ -6,6 +6,8 @@ class PassengerModel {
   final int? age;
   final String? nationality;
   final String? idPassportNumber;
+  final bool
+      isUser; // Added: Flag to identify if this passenger is the booking user
   final DateTime? createdAt;
 
   const PassengerModel({
@@ -16,6 +18,7 @@ class PassengerModel {
     this.age,
     this.nationality,
     this.idPassportNumber,
+    this.isUser = false, // Default to false
     this.createdAt,
   });
 
@@ -28,6 +31,7 @@ class PassengerModel {
       age: json['age'] as int?,
       nationality: json['nationality'] as String?,
       idPassportNumber: json['idPassportNumber'] as String?,
+      isUser: json['isUser'] as bool? ?? false, // Parse isUser field
       createdAt: json['createdAt'] != null
           ? DateTime.parse(json['createdAt'] as String)
           : null,
@@ -43,6 +47,7 @@ class PassengerModel {
       if (age != null) 'age': age,
       if (nationality != null) 'nationality': nationality,
       if (idPassportNumber != null) 'idPassportNumber': idPassportNumber,
+      'isUser': isUser, // Include isUser field
       if (createdAt != null) 'createdAt': createdAt!.toIso8601String(),
     };
   }
@@ -56,6 +61,7 @@ class PassengerModel {
       if (age != null) 'age': age,
       if (nationality != null) 'nationality': nationality,
       if (idPassportNumber != null) 'idPassportNumber': idPassportNumber,
+      'isUser': isUser, // Include isUser field
     };
   }
 
@@ -67,6 +73,7 @@ class PassengerModel {
       if (age != null) 'age': age,
       if (nationality != null) 'nationality': nationality,
       if (idPassportNumber != null) 'idPassportNumber': idPassportNumber,
+      'isUser': isUser, // Include isUser field
     };
   }
 
@@ -93,6 +100,9 @@ class PassengerModel {
     return 'ID/Passport: $idPassportNumber';
   }
 
+  // Helper method to check if this is the primary passenger (user)
+  bool get isPrimaryPassenger => isUser;
+
   PassengerModel copyWith({
     int? id,
     String? bookingId,
@@ -101,6 +111,7 @@ class PassengerModel {
     int? age,
     String? nationality,
     String? idPassportNumber,
+    bool? isUser,
     DateTime? createdAt,
   }) {
     return PassengerModel(
@@ -111,6 +122,7 @@ class PassengerModel {
       age: age ?? this.age,
       nationality: nationality ?? this.nationality,
       idPassportNumber: idPassportNumber ?? this.idPassportNumber,
+      isUser: isUser ?? this.isUser,
       createdAt: createdAt ?? this.createdAt,
     );
   }
@@ -126,7 +138,8 @@ class PassengerModel {
           lastName == other.lastName &&
           age == other.age &&
           nationality == other.nationality &&
-          idPassportNumber == other.idPassportNumber;
+          idPassportNumber == other.idPassportNumber &&
+          isUser == other.isUser;
 
   @override
   int get hashCode =>
@@ -136,10 +149,11 @@ class PassengerModel {
       lastName.hashCode ^
       age.hashCode ^
       nationality.hashCode ^
-      idPassportNumber.hashCode;
+      idPassportNumber.hashCode ^
+      isUser.hashCode;
 
   @override
   String toString() {
-    return 'PassengerModel{id: $id, fullName: $fullName, age: $age, nationality: $nationality}';
+    return 'PassengerModel{id: $id, fullName: $fullName, age: $age, nationality: $nationality, isUser: $isUser}';
   }
 }

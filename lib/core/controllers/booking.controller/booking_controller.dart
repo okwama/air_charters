@@ -1,9 +1,10 @@
 import 'package:flutter/foundation.dart';
-import '../models/booking_model.dart';
-import '../models/passenger_model.dart';
-import '../providers/booking_provider.dart';
-import '../providers/passengers_provider.dart';
-import '../providers/auth_provider.dart';
+import '../../models/booking_model.dart';
+import '../../models/passenger_model.dart';
+import '../../providers/booking_provider.dart';
+import '../../providers/passengers_provider.dart';
+import '../../providers/auth_provider.dart';
+import '../../services/booking_service.dart';
 
 /// Controller to handle booking creation business logic
 /// Coordinates between BookingProvider and PassengerProvider
@@ -20,16 +21,9 @@ class BookingController {
         _passengerProvider = passengerProvider,
         _authProvider = authProvider;
 
-  /// Create a complete booking with passengers
-  Future<BookingCreationResult> createBookingWithPassengers({
-    required int companyId,
-    required int aircraftId,
-    required String departure,
-    required String destination,
-    required DateTime departureDate,
-    required String departureTime,
-    required int duration,
-    required double basePrice,
+  /// Create a complete booking with payment intent for seamless Stripe integration
+  Future<BookingCreationResult> createBookingWithPaymentIntent({
+    required int dealId,
     required double totalPrice,
     required bool onboardDining,
     required bool groundTransportation,
@@ -53,14 +47,68 @@ class BookingController {
       // Create booking model with passenger data
       final booking = BookingModel(
         userId: _authProvider.currentUser?.id ?? '',
-        companyId: companyId,
-        aircraftId: aircraftId,
-        departure: departure,
-        destination: destination,
-        departureDate: departureDate,
-        departureTime: departureTime,
-        duration: duration,
-        basePrice: basePrice,
+        dealId: dealId,
+        totalPrice: totalPrice,
+        onboardDining: onboardDining,
+        groundTransportation: groundTransportation,
+        specialRequirements: specialRequirements,
+        billingRegion: billingRegion,
+        paymentMethod: paymentMethod,
+        passengers: _passengerProvider.passengers,
+      );
+
+      // Create booking with payment intent
+      final bookingWithPaymentIntent =
+          await _bookingProvider.createBookingWithPaymentIntent(booking);
+
+      if (bookingWithPaymentIntent != null) {
+        // Reset passenger provider since booking is created
+        _passengerProvider.reset();
+
+        return BookingCreationResult.successWithPaymentIntent(
+          bookingWithPaymentIntent.booking,
+          bookingWithPaymentIntent,
+        );
+      } else {
+        return BookingCreationResult.failure(_bookingProvider.errorMessage ??
+            'Failed to create booking with payment intent');
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('BookingController.createBookingWithPaymentIntent error: $e');
+      }
+      return BookingCreationResult.failure(
+          'An unexpected error occurred: ${e.toString()}');
+    }
+  }
+
+  /// Create a complete booking with passengers (legacy method - kept for backward compatibility)
+  Future<BookingCreationResult> createBookingWithPassengers({
+    required int dealId,
+    required double totalPrice,
+    required bool onboardDining,
+    required bool groundTransportation,
+    String? specialRequirements,
+    String? billingRegion,
+    PaymentMethod? paymentMethod,
+  }) async {
+    try {
+      // Validate user is authenticated
+      if (!_authProvider.isAuthenticated) {
+        return BookingCreationResult.failure(
+            'User must be authenticated to create booking');
+      }
+
+      // Validate passengers exist
+      if (!_passengerProvider.hasPassengers) {
+        return BookingCreationResult.failure(
+            'At least one passenger is required');
+      }
+
+      // Create booking model with passenger data
+      final booking = BookingModel(
+        userId: _authProvider.currentUser?.id ?? '',
+        dealId: dealId,
         totalPrice: totalPrice,
         onboardDining: onboardDining,
         groundTransportation: groundTransportation,
@@ -100,49 +148,14 @@ class BookingController {
 
   /// Validate booking data before creation
   BookingValidationResult validateBookingData({
-    required int companyId,
-    required int aircraftId,
-    required String departure,
-    required String destination,
-    required DateTime departureDate,
-    required String departureTime,
-    required int duration,
-    required double basePrice,
+    required int dealId,
     required double totalPrice,
   }) {
     final errors = <String>[];
 
     // Basic validation
-    if (companyId <= 0) {
-      errors.add('Company ID is required');
-    }
-
-    if (aircraftId <= 0) {
-      errors.add('Aircraft ID is required');
-    }
-
-    if (departure.trim().isEmpty) {
-      errors.add('Departure location is required');
-    }
-
-    if (destination.trim().isEmpty) {
-      errors.add('Destination location is required');
-    }
-
-    if (departureDate.isBefore(DateTime.now())) {
-      errors.add('Departure date cannot be in the past');
-    }
-
-    if (departureTime.trim().isEmpty) {
-      errors.add('Departure time is required');
-    }
-
-    if (duration <= 0) {
-      errors.add('Flight duration must be greater than 0');
-    }
-
-    if (basePrice <= 0) {
-      errors.add('Base price must be greater than 0');
+    if (dealId <= 0) {
+      errors.add('Deal ID is required');
     }
 
     if (totalPrice <= 0) {
@@ -186,6 +199,10 @@ class BookingController {
   /// Get booking creation error message
   String? get bookingErrorMessage => _bookingProvider.errorMessage;
 
+  /// Get current booking with payment intent
+  BookingWithPaymentIntent? get currentBookingWithPaymentIntent =>
+      _bookingProvider.currentBookingWithPaymentIntent;
+
   /// Clear any booking errors
   void clearBookingError() {
     _bookingProvider.clearError();
@@ -196,11 +213,13 @@ class BookingController {
 class BookingCreationResult {
   final bool isSuccess;
   final BookingModel? booking;
+  final BookingWithPaymentIntent? bookingWithPaymentIntent;
   final String? errorMessage;
 
   BookingCreationResult._({
     required this.isSuccess,
     this.booking,
+    this.bookingWithPaymentIntent,
     this.errorMessage,
   });
 
@@ -208,6 +227,17 @@ class BookingCreationResult {
     return BookingCreationResult._(
       isSuccess: true,
       booking: booking,
+    );
+  }
+
+  factory BookingCreationResult.successWithPaymentIntent(
+    BookingModel booking,
+    BookingWithPaymentIntent bookingWithPaymentIntent,
+  ) {
+    return BookingCreationResult._(
+      isSuccess: true,
+      booking: booking,
+      bookingWithPaymentIntent: bookingWithPaymentIntent,
     );
   }
 

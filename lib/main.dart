@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter_stripe/flutter_stripe.dart';
 
 // Core imports
 import 'core/providers/auth_provider.dart';
@@ -7,7 +8,7 @@ import 'core/providers/profile_provider.dart';
 import 'core/providers/charter_deals_provider.dart';
 import 'core/providers/passengers_provider.dart';
 import 'core/providers/booking_provider.dart';
-import 'core/controllers/booking_controller.dart';
+import 'core/controllers/booking.controller/booking_controller.dart';
 import 'shared/utils/session_manager.dart';
 
 // Theme
@@ -29,6 +30,11 @@ import 'package:air_charters/core/models/charter_deal_model.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialize Stripe
+  Stripe.publishableKey =
+      'pk_test_51OqX8Y2eZvKYlo2C1gQ1234567890'; // Replace with your actual publishable key
+  await Stripe.instance.applySettings();
 
   runApp(const MyApp());
 }

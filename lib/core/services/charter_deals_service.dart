@@ -332,4 +332,167 @@ class CharterDealsService {
       print('CharterDealsService: Test error type: ${e.runtimeType}');
     }
   }
+
+  // New methods for CharterDealsController
+
+  /// Search deals with advanced filters
+  static Future<List<CharterDealModel>> searchDeals({
+    String? query,
+    String? category,
+    String? origin,
+    String? destination,
+    DateTime? departureDate,
+    DateTime? returnDate,
+    int? minPrice,
+    int? maxPrice,
+    int? passengers,
+    String? aircraftType,
+    String? companyId,
+    String? sortBy = 'price',
+    String? sortOrder = 'asc',
+    int page = 1,
+    int limit = 20,
+  }) async {
+    final queryParams = <String, String>{
+      'page': page.toString(),
+      'limit': limit.toString(),
+      if (query != null && query.isNotEmpty) 'search': query,
+      if (category != null && category.isNotEmpty) 'dealType': category,
+      if (origin != null && origin.isNotEmpty) 'origin': origin,
+      if (destination != null && destination.isNotEmpty)
+        'destination': destination,
+      if (departureDate != null) 'fromDate': departureDate.toIso8601String(),
+      if (returnDate != null) 'toDate': returnDate.toIso8601String(),
+      if (minPrice != null) 'minPrice': minPrice.toString(),
+      if (maxPrice != null) 'maxPrice': maxPrice.toString(),
+      if (passengers != null) 'passengers': passengers.toString(),
+      if (aircraftType != null && aircraftType.isNotEmpty)
+        'aircraftType': aircraftType,
+      if (companyId != null && companyId.isNotEmpty) 'companyId': companyId,
+      if (sortBy != null && sortBy.isNotEmpty) 'sortBy': sortBy,
+      if (sortOrder != null && sortOrder.isNotEmpty) 'sortOrder': sortOrder,
+    };	  
+
+    final uri = Uri.parse('$baseUrl/charter-deals')
+        .replace(queryParameters: queryParams);
+    final headers = await _getAuthHeaders();
+    final response = await http
+        .get(uri, headers: headers)
+        .timeout(const Duration(seconds: 10));
+
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body);
+      if (data['success'] == true) {
+        return (data['data'] as List)
+            .map((json) => CharterDealModel.fromJson(json))
+            .toList();
+      } else {
+        throw ServerException(data['message'] ?? 'Failed to search deals');
+      }
+    } else {
+      throw ServerException('Failed to search deals');
+    }
+  }
+
+  /// Get deal by ID (alias for fetchDealById)
+  static Future<CharterDealModel?> getDealById(int dealId) async {
+    return await fetchDealById(dealId);
+  }
+
+  /// Get deals by category
+  static Future<List<CharterDealModel>> getDealsByCategory(
+      String category) async {
+    return await fetchCharterDeals(dealType: category);
+  }
+
+  /// Get featured deals
+  static Future<List<CharterDealModel>> getFeaturedDeals(
+      {int limit = 10}) async {
+    final queryParams = <String, String>{
+      'featured': 'true',
+      'limit': limit.toString(),
+    };
+
+    final uri = Uri.parse('$baseUrl/charter-deals')
+        .replace(queryParameters: queryParams);
+    final headers = await _getAuthHeaders();
+    final response = await http
+        .get(uri, headers: headers)
+        .timeout(const Duration(seconds: 10));
+
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body);
+      if (data['success'] == true) {
+        return (data['data'] as List)
+            .map((json) => CharterDealModel.fromJson(json))
+            .toList();
+      } else {
+        throw ServerException(
+            data['message'] ?? 'Failed to fetch featured deals');
+      }
+    } else {
+      throw ServerException('Failed to fetch featured deals');
+    }
+  }
+
+  /// Get deals by company (alias for fetchDealsForCompany)
+  static Future<List<CharterDealModel>> getDealsByCompany(
+      String companyId) async {
+    return await fetchDealsForCompany(companyId: int.parse(companyId));
+  }
+
+  /// Get deals by route (alias for fetchDealsForRoute)
+  static Future<List<CharterDealModel>> getDealsByRoute({
+    required String origin,
+    required String destination,
+    DateTime? departureDate,
+    int? passengers,
+  }) async {
+    return await fetchDealsForRoute(
+      origin: origin,
+      destination: destination,
+      fromDate: departureDate,
+    );
+  }
+
+  /// Get deal categories
+  static Future<List<String>> getDealCategories() async {
+    final uri = Uri.parse('$baseUrl/charter-deals/categories');
+    final headers = await _getAuthHeaders();
+    final response = await http
+        .get(uri, headers: headers)
+        .timeout(const Duration(seconds: 10));
+
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body);
+      if (data['success'] == true) {
+        return (data['data'] as List).cast<String>();
+      } else {
+        throw ServerException(data['message'] ?? 'Failed to fetch categories');
+      }
+    } else {
+      throw ServerException('Failed to fetch categories');
+    }
+  }
+
+  /// Get popular routes
+  static Future<List<Map<String, dynamic>>> getPopularRoutes() async {
+    final uri = Uri.parse('$baseUrl/charter-deals/popular-routes');
+    final headers = await _getAuthHeaders();
+    final response = await http
+        .get(uri, headers: headers)
+        .timeout(const Duration(seconds: 10));
+
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body);
+      if (data['success'] == true) {
+        return (data['data'] as List).cast<Map<String, dynamic>>();
+      } else {
+        throw ServerException(
+            data['message'] ?? 'Failed to fetch popular routes');
+      }
+    } else {
+      throw ServerException('Failed to fetch popular routes');
+    }
+  }
 }

@@ -15,7 +15,6 @@ class PaymentModel {
   final String id;
   final String bookingId;
   final String userId;
-  final int companyId;
   final PaymentMethod paymentMethod;
   final double totalAmount;
   final double platformFee;
@@ -31,7 +30,6 @@ class PaymentModel {
     required this.id,
     required this.bookingId,
     required this.userId,
-    required this.companyId,
     required this.paymentMethod,
     required this.totalAmount,
     required this.platformFee,
@@ -49,7 +47,6 @@ class PaymentModel {
       id: json['id'] ?? '',
       bookingId: json['bookingId'] ?? json['booking_id'] ?? '',
       userId: json['userId'] ?? json['user_id'] ?? '',
-      companyId: json['companyId'] ?? json['company_id'] ?? 0,
       paymentMethod: PaymentMethod.values.firstWhere(
         (e) => e.name == (json['paymentMethod'] ?? json['payment_method']),
         orElse: () => PaymentMethod.card,
@@ -88,7 +85,6 @@ class PaymentModel {
       'id': id,
       'bookingId': bookingId,
       'userId': userId,
-      'companyId': companyId,
       'paymentMethod': paymentMethod.name,
       'totalAmount': totalAmount,
       'platformFee': platformFee,

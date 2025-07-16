@@ -4,7 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../core/models/booking_model.dart' as bookingModel;
 import '../../core/models/passenger_model.dart';
 import '../../core/models/payment_model.dart' as paymentModel;
-import '../../core/controllers/booking_controller.dart';
+import '../../core/controllers/booking.controller/booking_controller.dart';
 import '../../core/services/payment_service.dart';
 import '../../shared/widgets/custom_button.dart';
 import '../../shared/widgets/app_spinner.dart';
@@ -163,12 +163,13 @@ class _BookingConfirmationPageState extends State<BookingConfirmationPage> {
           ),
           const SizedBox(height: 16),
           _buildDetailRow('Route',
-              '${widget.booking.departure} → ${widget.booking.destination}'),
-          _buildDetailRow('Date', _formatDate(widget.booking.departureDate)),
-          _buildDetailRow('Time', widget.booking.departureTime),
+              '${widget.booking.departure ?? 'N/A'} → ${widget.booking.destination ?? 'N/A'}'),
+          _buildDetailRow('Date',
+              _formatDate(widget.booking.departureDate ?? DateTime.now())),
+          _buildDetailRow('Time', widget.booking.departureTime ?? 'N/A'),
+          _buildDetailRow('Aircraft', widget.booking.aircraft),
           _buildDetailRow(
-              'Aircraft', 'Aircraft ID: ${widget.booking.aircraftId}'),
-          _buildDetailRow('Duration', '${widget.booking.duration} minutes'),
+              'Duration', '${widget.booking.duration ?? 0} minutes'),
           _buildDetailRow('Passengers', '${widget.booking.passengers.length}'),
           if (widget.booking.specialRequirements?.isNotEmpty == true)
             _buildDetailRow(
@@ -333,7 +334,7 @@ class _BookingConfirmationPageState extends State<BookingConfirmationPage> {
             ),
           ),
           const SizedBox(height: 16),
-          _buildPriceRow('Base Price', widget.booking.basePrice),
+          _buildPriceRow('Base Price', widget.booking.basePrice ?? 0.0),
           if (widget.booking.onboardDining)
             _buildPriceRow('Onboard Dining', 50.0), // Example pricing
           if (widget.booking.groundTransportation)
@@ -530,7 +531,6 @@ class _BookingConfirmationPageState extends State<BookingConfirmationPage> {
         paymentMethod: _selectedPaymentMethod,
         totalAmount: widget.booking.totalPrice,
         platformFee: platformFee,
-        companyId: 1, // This should come from the booking/deal
       );
 
       // Simulate payment processing delay

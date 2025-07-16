@@ -12,14 +12,13 @@ class PaymentService {
     required PaymentMethod paymentMethod,
     required double totalAmount,
     required double platformFee,
-    required int companyId,
     String currency = 'USD',
     String? transactionId,
     Map<String, dynamic>? paymentGatewayResponse,
   }) async {
     try {
       final response =
-          await _apiClient.post('/api/payments?companyId=$companyId', {
+          await _apiClient.post('/api/payments', {
         'bookingId': bookingId,
         'paymentMethod': paymentMethod.name,
         'totalAmount': totalAmount,

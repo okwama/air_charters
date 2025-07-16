@@ -53,6 +53,7 @@ dependencies:
   
   # Loading States
   shimmer: ^3.0.0
+  flutter_stripe: ^11.5.0
 
 dev_dependencies:
   flutter_test:

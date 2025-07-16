@@ -406,4 +406,33 @@ class AuthProvider with ChangeNotifier {
     _tokenRefreshTimer?.cancel();
     notifyListeners();
   }
+
+  // Update user data (for UserController)
+  void updateUser(UserModel user) {
+    _currentUser = user;
+
+    // Update stored auth data with new user info
+    if (_authData != null) {
+      final updatedAuthData = _authData!.copyWith(user: user);
+      _authData = updatedAuthData;
+      _sessionManager.storeAuthData(updatedAuthData);
+    }
+
+    notifyListeners();
+  }
+
+  // Clear user data (for UserController)
+  void clearUser() {
+    _currentUser = null;
+    _authData = null;
+    _state = AuthState.unauthenticated;
+    _tokenRefreshTimer?.cancel();
+    _sessionManager.clearStoredAuthData();
+    notifyListeners();
+  }
+
+  // Clear error (for UserController)
+  void clearError() {
+    _clearError();
+  }
 }

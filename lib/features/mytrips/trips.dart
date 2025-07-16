@@ -3,8 +3,8 @@ import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../home/home_screen.dart';
 import '../../shared/components/bottom_nav.dart';
-import '../../core/models/booking_model.dart';
-import '../../core/providers/booking_provider.dart';
+import '../../core/models/user_trip_model.dart';
+import '../../core/providers/trips_provider.dart';
 import '../../shared/widgets/app_spinner.dart';
 
 class TripsPage extends StatefulWidget {
@@ -21,11 +21,11 @@ class _TripsPageState extends State<TripsPage>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
-    
-    // Fetch bookings when page loads
+    _tabController = TabController(length: 3, vsync: this);
+
+    // Fetch trips when page loads
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<BookingProvider>().fetchUserBookings();
+      context.read<TripsProvider>().fetchUserTrips();
     });
   }
 
@@ -61,21 +61,22 @@ class _TripsPageState extends State<TripsPage>
 
             // Tab Content
             Expanded(
-              child: Consumer<BookingProvider>(
-                builder: (context, bookingProvider, child) {
-                  if (bookingProvider.isLoading) {
+              child: Consumer<TripsProvider>(
+                builder: (context, tripsProvider, child) {
+                  if (tripsProvider.isLoading) {
                     return const Center(child: AppSpinner());
                   }
 
-                  if (bookingProvider.error != null) {
-                    return _buildErrorState(bookingProvider.error!);
+                  if (tripsProvider.error != null) {
+                    return _buildErrorState(tripsProvider.error!);
                   }
 
                   return TabBarView(
                     controller: _tabController,
                     children: [
-                      _buildUpcomingTrips(bookingProvider.upcomingBookings),
-                      _buildPastTrips(bookingProvider.pastBookings),
+                      _buildUpcomingTrips(tripsProvider.upcomingTrips),
+                      _buildCompletedTrips(tripsProvider.completedTrips),
+                      _buildCancelledTrips(tripsProvider.cancelledTrips),
                     ],
                   );
                 },
@@ -104,16 +105,17 @@ class _TripsPageState extends State<TripsPage>
             indicatorSize: TabBarIndicatorSize.label,
             labelStyle: GoogleFonts.inter(
               fontWeight: FontWeight.w600,
-              fontSize: 16,
+              fontSize: 14,
             ),
             unselectedLabelStyle: GoogleFonts.inter(
               fontWeight: FontWeight.w500,
-              fontSize: 16,
+              fontSize: 14,
             ),
             dividerColor: Colors.transparent,
             tabs: const [
-              Tab(text: 'Upcoming Trips'),
-              Tab(text: 'Past Trips'),
+              Tab(text: 'Upcoming'),
+              Tab(text: 'Completed'),
+              Tab(text: 'Cancelled'),
             ],
           ),
           Container(
@@ -125,7 +127,7 @@ class _TripsPageState extends State<TripsPage>
     );
   }
 
-  Widget _buildUpcomingTrips(List<BookingModel> upcomingTrips) {
+  Widget _buildUpcomingTrips(List<UserTripModel> upcomingTrips) {
     if (upcomingTrips.isEmpty) {
       return _buildEmptyState(
         'No upcoming trips',
@@ -143,10 +145,10 @@ class _TripsPageState extends State<TripsPage>
     );
   }
 
-  Widget _buildPastTrips(List<BookingModel> pastTrips) {
-    if (pastTrips.isEmpty) {
+  Widget _buildCompletedTrips(List<UserTripModel> completedTrips) {
+    if (completedTrips.isEmpty) {
       return _buildEmptyState(
-        'No past trips',
+        'No completed trips',
         'Your completed trips will appear here',
         false,
       );
@@ -154,9 +156,27 @@ class _TripsPageState extends State<TripsPage>
 
     return ListView.builder(
       padding: const EdgeInsets.all(20),
-      itemCount: pastTrips.length,
+      itemCount: completedTrips.length,
       itemBuilder: (context, index) {
-        return _buildTripCard(pastTrips[index], isUpcoming: false);
+        return _buildTripCard(completedTrips[index], isUpcoming: false);
+      },
+    );
+  }
+
+  Widget _buildCancelledTrips(List<UserTripModel> cancelledTrips) {
+    if (cancelledTrips.isEmpty) {
+      return _buildEmptyState(
+        'No cancelled trips',
+        'Your cancelled trips will appear here',
+        false,
+      );
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.all(20),
+      itemCount: cancelledTrips.length,
+      itemBuilder: (context, index) {
+        return _buildTripCard(cancelledTrips[index], isUpcoming: false);
       },
     );
   }
@@ -197,7 +217,7 @@ class _TripsPageState extends State<TripsPage>
               height: 40,
               child: ElevatedButton(
                 onPressed: () {
-                  context.read<BookingProvider>().fetchUserBookings();
+                  context.read<TripsProvider>().fetchUserTrips();
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.black,
@@ -301,7 +321,9 @@ class _TripsPageState extends State<TripsPage>
     );
   }
 
-  Widget _buildTripCard(BookingModel booking, {required bool isUpcoming}) {
+  Widget _buildTripCard(UserTripModel trip, {required bool isUpcoming}) {
+    final booking = trip.booking;
+
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(20),
@@ -328,7 +350,9 @@ class _TripsPageState extends State<TripsPage>
             children: [
               Expanded(
                 child: Text(
-                  '${booking.departure} → ${booking.destination}',
+                  booking != null
+                      ? '${booking.departure} → ${booking.destination}'
+                      : 'Trip ${trip.id.substring(0, 8)}',
                   style: GoogleFonts.inter(
                     fontSize: 18,
                     fontWeight: FontWeight.w700,
@@ -336,92 +360,137 @@ class _TripsPageState extends State<TripsPage>
                   ),
                 ),
               ),
-              _buildStatusChip(booking.bookingStatus, booking.paymentStatus),
+              _buildStatusChip(trip.status),
             ],
           ),
 
           const SizedBox(height: 12),
 
           // Date and time
-          Row(
-            children: [
-              const Icon(
-                Icons.calendar_today_rounded,
-                size: 16,
-                color: Color(0xFF666666),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                _formatDate(booking.departureDate),
-                style: GoogleFonts.inter(
-                  fontSize: 14,
-                  color: const Color(0xFF666666),
-                ),
-              ),
-              const SizedBox(width: 16),
-              const Icon(
-                Icons.access_time_rounded,
-                size: 16,
-                color: Color(0xFF666666),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                booking.departureTime,
-                style: GoogleFonts.inter(
-                  fontSize: 14,
-                  color: const Color(0xFF666666),
-                ),
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 12),
-
-          // Aircraft and passengers
-          Row(
-            children: [
-              const Icon(
-                Icons.flight_rounded,
-                size: 16,
-                color: Color(0xFF666666),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                booking.aircraft,
-                style: GoogleFonts.inter(
-                  fontSize: 14,
-                  color: const Color(0xFF666666),
-                ),
-              ),
-              const SizedBox(width: 16),
-              const Icon(
-                Icons.person_rounded,
-                size: 16,
-                color: Color(0xFF666666),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                '${booking.totalPassengers} passenger${booking.totalPassengers > 1 ? 's' : ''}',
-                style: GoogleFonts.inter(
-                  fontSize: 14,
-                  color: const Color(0xFF666666),
-                ),
-              ),
-            ],
-          ),
-
-          if (booking.bookingReference != null) ...[
-            const SizedBox(height: 12),
+          if (booking != null) ...[
             Row(
               children: [
                 const Icon(
-                  Icons.confirmation_number_rounded,
+                  Icons.calendar_today_rounded,
                   size: 16,
                   color: Color(0xFF666666),
                 ),
                 const SizedBox(width: 8),
                 Text(
-                  'Ref: ${booking.bookingReference}',
+                  _formatDate(booking.departureDate ?? DateTime.now()),
+                  style: GoogleFonts.inter(
+                    fontSize: 14,
+                    color: const Color(0xFF666666),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                const Icon(
+                  Icons.access_time_rounded,
+                  size: 16,
+                  color: Color(0xFF666666),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  booking.departureTime ?? 'N/A',
+                  style: GoogleFonts.inter(
+                    fontSize: 14,
+                    color: const Color(0xFF666666),
+                  ),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 12),
+
+            // Aircraft and passengers
+            Row(
+              children: [
+                const Icon(
+                  Icons.flight_rounded,
+                  size: 16,
+                  color: Color(0xFF666666),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  booking.aircraftName ?? 'N/A',
+                  style: GoogleFonts.inter(
+                    fontSize: 14,
+                    color: const Color(0xFF666666),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                const Icon(
+                  Icons.person_rounded,
+                  size: 16,
+                  color: Color(0xFF666666),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  '${booking.passengers.length} passenger${booking.passengers.length > 1 ? 's' : ''}',
+                  style: GoogleFonts.inter(
+                    fontSize: 14,
+                    color: const Color(0xFF666666),
+                  ),
+                ),
+              ],
+            ),
+
+            if (booking.referenceNumber != null) ...[
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  const Icon(
+                    Icons.confirmation_number_rounded,
+                    size: 16,
+                    color: Color(0xFF666666),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Ref: ${booking.referenceNumber}',
+                    style: GoogleFonts.inter(
+                      fontSize: 14,
+                      color: const Color(0xFF666666),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ],
+
+          // Trip creation date
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              const Icon(
+                Icons.schedule_rounded,
+                size: 16,
+                color: Color(0xFF666666),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'Created: ${_formatDate(trip.createdAt)}',
+                style: GoogleFonts.inter(
+                  fontSize: 14,
+                  color: const Color(0xFF666666),
+                ),
+              ),
+            ],
+          ),
+
+          // Rating display for completed trips
+          if (trip.status == UserTripStatus.completed &&
+              trip.rating != null) ...[
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                const Icon(
+                  Icons.star_rounded,
+                  size: 16,
+                  color: Color(0xFFFFD700),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  '${trip.rating}/5 stars',
                   style: GoogleFonts.inter(
                     fontSize: 14,
                     color: const Color(0xFF666666),
@@ -433,31 +502,50 @@ class _TripsPageState extends State<TripsPage>
 
           const SizedBox(height: 16),
 
-          // Price and action button
+          // Price and action buttons
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                '\$${booking.totalPrice.toStringAsFixed(2)}',
-                style: GoogleFonts.inter(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w700,
-                  color: Colors.black,
-                ),
-              ),
-              TextButton(
-                onPressed: () {
-                  _showTripDetails(booking);
-                },
-                child: Text(
-                  'View Details',
+              if (booking != null)
+                Text(
+                  '\$${booking.totalPrice.toStringAsFixed(2)}',
                   style: GoogleFonts.inter(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w700,
                     color: Colors.black,
-                    decoration: TextDecoration.underline,
                   ),
-                ),
+                )
+              else
+                const Spacer(),
+              Row(
+                children: [
+                  if (isUpcoming) ...[
+                    TextButton(
+                      onPressed: () => _cancelTrip(trip),
+                      child: Text(
+                        'Cancel',
+                        style: GoogleFonts.inter(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.red,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                  ],
+                  TextButton(
+                    onPressed: () => _showTripDetails(trip),
+                    child: Text(
+                      'View Details',
+                      style: GoogleFonts.inter(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.black,
+                        decoration: TextDecoration.underline,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
@@ -466,32 +554,27 @@ class _TripsPageState extends State<TripsPage>
     );
   }
 
-  Widget _buildStatusChip(BookingStatus bookingStatus, PaymentStatus paymentStatus) {
+  Widget _buildStatusChip(UserTripStatus status) {
     Color backgroundColor;
     Color textColor;
     String text;
 
-    // Determine status display based on booking and payment status
-    if (paymentStatus == PaymentStatus.paid && bookingStatus == BookingStatus.confirmed) {
-      backgroundColor = const Color(0xFFE8F5E8);
-      textColor = const Color(0xFF2E7D32);
-      text = 'Confirmed';
-    } else if (paymentStatus == PaymentStatus.paid && bookingStatus == BookingStatus.completed) {
-      backgroundColor = const Color(0xFFE3F2FD);
-      textColor = const Color(0xFF1976D2);
-      text = 'Completed';
-    } else if (bookingStatus == BookingStatus.cancelled) {
-      backgroundColor = const Color(0xFFFFEBEE);
-      textColor = const Color(0xFFD32F2F);
-      text = 'Cancelled';
-    } else if (paymentStatus == PaymentStatus.pending) {
-      backgroundColor = const Color(0xFFFFF3E0);
-      textColor = const Color(0xFFE65100);
-      text = 'Payment Pending';
-    } else {
-      backgroundColor = const Color(0xFFF3F4F6);
-      textColor = const Color(0xFF6B7280);
-      text = 'Pending';
+    switch (status) {
+      case UserTripStatus.upcoming:
+        backgroundColor = const Color(0xFFFFF3E0);
+        textColor = const Color(0xFFE65100);
+        text = 'Upcoming';
+        break;
+      case UserTripStatus.completed:
+        backgroundColor = const Color(0xFFE8F5E8);
+        textColor = const Color(0xFF2E7D32);
+        text = 'Completed';
+        break;
+      case UserTripStatus.cancelled:
+        backgroundColor = const Color(0xFFFFEBEE);
+        textColor = const Color(0xFFD32F2F);
+        text = 'Cancelled';
+        break;
     }
 
     return Container(
@@ -514,7 +597,56 @@ class _TripsPageState extends State<TripsPage>
     );
   }
 
-  void _showTripDetails(BookingModel booking) {
+  void _cancelTrip(UserTripModel trip) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(
+          'Cancel Trip',
+          style: GoogleFonts.inter(
+            fontSize: 18,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        content: Text(
+          'Are you sure you want to cancel this trip? This action cannot be undone.',
+          style: GoogleFonts.inter(
+            fontSize: 14,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(
+              'No',
+              style: GoogleFonts.inter(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              await context.read<TripsProvider>().cancelTrip(trip.id);
+            },
+            child: Text(
+              'Yes, Cancel',
+              style: GoogleFonts.inter(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: Colors.red,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showTripDetails(UserTripModel trip) {
+    final booking = trip.booking;
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -558,44 +690,77 @@ class _TripsPageState extends State<TripsPage>
                 ),
                 const SizedBox(height: 20),
 
-                // Flight details
-                _buildDetailSection('Flight Information', [
-                  ('Route', '${booking.departure} → ${booking.destination}'),
-                  ('Date', _formatDate(booking.departureDate)),
-                  ('Time', booking.departureTime),
-                  ('Aircraft', booking.aircraft),
-                  ('Duration', booking.duration),
-                  ('Passengers', '${booking.totalPassengers}'),
-                  if (booking.bookingReference != null)
-                    ('Reference', booking.bookingReference!),
+                // Trip information
+                _buildDetailSection('Trip Information', [
+                  ('Trip ID', trip.id.substring(0, 8)),
+                  ('Status', trip.status.name.toUpperCase()),
+                  ('Created', _formatDate(trip.createdAt)),
+                  if (trip.completedAt != null)
+                    ('Completed', _formatDate(trip.completedAt!)),
+                  if (trip.cancelledAt != null)
+                    ('Cancelled', _formatDate(trip.cancelledAt!)),
                 ]),
 
-                const SizedBox(height: 20),
-
-                // Passenger details
-                if (booking.passengers.isNotEmpty) ...[
-                  _buildDetailSection('Passengers', 
-                    booking.passengers.asMap().entries.map((entry) {
-                      final index = entry.key + 1;
-                      final passenger = entry.value;
-                      return ('Passenger $index', passenger.displayName);
-                    }).toList(),
-                  ),
+                if (booking != null) ...[
                   const SizedBox(height: 20),
+                  // Flight details
+                  _buildDetailSection('Flight Information', [
+                    (
+                      'Route',
+                      '${booking.departure ?? 'N/A'} → ${booking.destination ?? 'N/A'}'
+                    ),
+                    (
+                      'Date',
+                      _formatDate(booking.departureDate ?? DateTime.now())
+                    ),
+                    ('Time', booking.departureTime ?? 'N/A'),
+                    ('Aircraft', booking.aircraftName ?? 'N/A'),
+                    ('Duration', '${booking.duration ?? 0} minutes'),
+                    ('Passengers', '${booking.passengers.length}'),
+                    if (booking.referenceNumber != null)
+                      ('Reference', booking.referenceNumber!),
+                  ]),
+
+                  const SizedBox(height: 20),
+
+                  // Passenger details
+                  if (booking.passengers.isNotEmpty) ...[
+                    _buildDetailSection(
+                      'Passengers',
+                      booking.passengers.asMap().entries.map((entry) {
+                        final index = entry.key + 1;
+                        final passenger = entry.value;
+                        return ('Passenger $index', passenger.displayName);
+                      }).toList(),
+                    ),
+                    const SizedBox(height: 20),
+                  ],
+
+                  // Pricing details
+                  _buildDetailSection('Pricing', [
+                    (
+                      'Base Price',
+                      '\$${(booking.basePrice ?? 0).toStringAsFixed(2)}'
+                    ),
+                    (
+                      'Total Price',
+                      '\$${booking.totalPrice.toStringAsFixed(2)}'
+                    ),
+                  ]),
+
+                  // Special requirements
+                  if (booking.specialRequirements?.isNotEmpty == true) ...[
+                    const SizedBox(height: 20),
+                    _buildDetailSection('Special Requirements', [
+                      ('Notes', booking.specialRequirements!),
+                    ]),
+                  ],
                 ],
 
-                // Pricing details
-                _buildDetailSection('Pricing', [
-                  ('Base Price', '\$${booking.basePrice.toStringAsFixed(2)}'),
-                  ('Total Price', '\$${booking.totalPrice.toStringAsFixed(2)}'),
-                ]),
-
-                // Special requirements
-                if (booking.specialRequirements?.isNotEmpty == true) ...[
+                // Review section for completed trips
+                if (trip.status == UserTripStatus.completed) ...[
                   const SizedBox(height: 20),
-                  _buildDetailSection('Special Requirements', [
-                    ('Notes', booking.specialRequirements!),
-                  ]),
+                  _buildReviewSection(trip),
                 ],
 
                 const SizedBox(height: 32),
@@ -604,6 +769,88 @@ class _TripsPageState extends State<TripsPage>
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildReviewSection(UserTripModel trip) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Review',
+          style: GoogleFonts.inter(
+            fontSize: 18,
+            fontWeight: FontWeight.w700,
+            color: Colors.black,
+          ),
+        ),
+        const SizedBox(height: 12),
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF8F9FA),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: const Color(0xFFE5E5E5)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (trip.rating != null) ...[
+                Row(
+                  children: [
+                    ...List.generate(
+                        5,
+                        (index) => Icon(
+                              index < trip.rating!
+                                  ? Icons.star_rounded
+                                  : Icons.star_border_rounded,
+                              size: 20,
+                              color: const Color(0xFFFFD700),
+                            )),
+                    const SizedBox(width: 8),
+                    Text(
+                      '${trip.rating}/5',
+                      style: GoogleFonts.inter(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+                if (trip.review != null) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    trip.review!,
+                    style: GoogleFonts.inter(
+                      fontSize: 14,
+                      color: const Color(0xFF666666),
+                    ),
+                  ),
+                ],
+                if (trip.reviewDate != null) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    'Reviewed on ${_formatDate(trip.reviewDate!)}',
+                    style: GoogleFonts.inter(
+                      fontSize: 12,
+                      color: const Color(0xFF999999),
+                    ),
+                  ),
+                ],
+              ] else ...[
+                Text(
+                  'No review yet',
+                  style: GoogleFonts.inter(
+                    fontSize: 14,
+                    color: const Color(0xFF666666),
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ],
     );
   }
 
@@ -628,34 +875,36 @@ class _TripsPageState extends State<TripsPage>
             border: Border.all(color: const Color(0xFFE5E5E5)),
           ),
           child: Column(
-            children: details.map((detail) => Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  SizedBox(
-                    width: 100,
-                    child: Text(
-                      detail.$1,
-                      style: GoogleFonts.inter(
-                        fontSize: 14,
-                        color: const Color(0xFF666666),
+            children: details
+                .map((detail) => Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          SizedBox(
+                            width: 100,
+                            child: Text(
+                              detail.$1,
+                              style: GoogleFonts.inter(
+                                fontSize: 14,
+                                color: const Color(0xFF666666),
+                              ),
+                            ),
+                          ),
+                          Expanded(
+                            child: Text(
+                              detail.$2,
+                              style: GoogleFonts.inter(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w500,
+                                color: Colors.black,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
-                  ),
-                  Expanded(
-                    child: Text(
-                      detail.$2,
-                      style: GoogleFonts.inter(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                        color: Colors.black,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            )).toList(),
+                    ))
+                .toList(),
           ),
         ),
       ],
@@ -675,8 +924,18 @@ class _TripsPageState extends State<TripsPage>
 
   String _formatDate(DateTime date) {
     final months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec'
     ];
     return '${date.day} ${months[date.month - 1]} ${date.year}';
   }
