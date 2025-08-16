@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../core/models/passenger_model.dart';
 import '../../core/providers/passengers_provider.dart';
 import '../../features/booking/passenger_form_page.dart';
+import '../../core/providers/auth_provider.dart';
 
 class PassengerListWidget extends StatelessWidget {
   final String bookingId;
@@ -17,16 +18,60 @@ class PassengerListWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<PassengerProvider>(
-      builder: (context, provider, child) {
+    return Consumer2<PassengerProvider, AuthProvider>(
+      builder: (context, provider, authProvider, child) {
+        final userIncluded = provider.passengers.any((p) => p.isUser == true);
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Add Myself as Passenger toggle/button
+            Row(
+              children: [
+                Switch(
+                  value: userIncluded,
+                  onChanged: (value) {
+                    if (value) {
+                      // Add user as passenger if not present
+                      final user = authProvider.currentUser;
+                      if (user != null && !userIncluded) {
+                        provider.addPassengerLocally(PassengerModel(
+                          bookingId: bookingId,
+                          firstName: user.firstName ?? '',
+                          lastName: user.lastName ?? '',
+                          age: null,
+                          nationality: null,
+                          idPassportNumber: null,
+                          isUser: true,
+                        ));
+                        onPassengersChanged?.call();
+                      }
+                    } else {
+                      // Remove user as passenger if present
+                      final idx = provider.passengers
+                          .indexWhere((p) => p.isUser == true);
+                      if (idx != -1) {
+                        provider.removePassengerLocally(idx);
+                        onPassengersChanged?.call();
+                      }
+                    }
+                  },
+                  activeColor: Colors.black,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'Add Myself as Passenger',
+                  style: GoogleFonts.inter(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
             // Header with count and add button
             _buildHeader(context, provider),
-
             const SizedBox(height: 16),
-
             // Passengers list
             _buildPassengersList(context, provider),
           ],

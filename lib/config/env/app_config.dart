@@ -2,7 +2,7 @@ class AppConfig {
   // Authentication Configuration
   static const bool useBackend = true; // Backend-only authentication
   static const String backendUrl =
-      'http://192.168.100.10:5000'; // Updated for local development
+      'http://192.168.100.2:5000'; // Updated for local development
 
   // Storage Configuration
   static const String localAuthDataKey = 'local_auth_data';

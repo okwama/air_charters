@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:air_charters/features/plan/locations.dart';
+import 'package:air_charters/features/plan/aircraft_results_screen.dart';
 import 'package:air_charters/shared/widgets/calendar_selector.dart';
 import 'package:air_charters/shared/widgets/custom_button.dart';
+import '../../core/models/location_model.dart';
 
 class FlightSearchScreen extends StatefulWidget {
   const FlightSearchScreen({super.key});
@@ -18,6 +20,7 @@ class _FlightSearchScreenState extends State<FlightSearchScreen> {
   DateTime? _returnDate;
   bool _isRoundTrip = false;
   bool _isLoadingDeals = false;
+  int _passengerCount = 1;
 
   @override
   Widget build(BuildContext context) {
@@ -52,6 +55,8 @@ class _FlightSearchScreenState extends State<FlightSearchScreen> {
             // Date Selection (only show if both locations are selected)
             if (_originLocation != null && _destinationLocation != null) ...[
               _buildDateSelection(),
+              const SizedBox(height: 24),
+              _buildPassengerSelection(),
               const SizedBox(height: 32),
               _buildNextButton(),
             ],
@@ -445,15 +450,96 @@ class _FlightSearchScreenState extends State<FlightSearchScreen> {
   }
 
   void _showDealsAvailable() {
-    // TODO: Navigate to deals/results screen
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          'Great! We found ${(2 + DateTime.now().millisecond % 8)} deals for your route.',
-          style: GoogleFonts.inter(color: Colors.white),
+    // Navigate to aircraft results screen
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => AircraftResultsScreen(
+          origin: _originLocation!,
+          destination: _destinationLocation!,
+          departureDate: _departureDate!,
+          returnDate: _returnDate,
+          passengerCount: _passengerCount,
+          isRoundTrip: _isRoundTrip,
         ),
-        backgroundColor: Colors.green,
       ),
+    );
+  }
+
+  Widget _buildPassengerSelection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Passengers',
+          style: GoogleFonts.inter(
+            fontSize: 20,
+            fontWeight: FontWeight.w700,
+            color: Colors.black,
+          ),
+        ),
+        const SizedBox(height: 12),
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            border: Border.all(color: Colors.grey[300]!),
+            borderRadius: BorderRadius.circular(12),
+            color: Colors.white,
+          ),
+          child: Row(
+            children: [
+              Icon(Icons.person, color: Colors.grey[600], size: 20),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Text(
+                  'Number of passengers',
+                  style: GoogleFonts.inter(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black,
+                  ),
+                ),
+              ),
+              Row(
+                children: [
+                  IconButton(
+                    onPressed: _passengerCount > 1
+                        ? () => setState(() => _passengerCount--)
+                        : null,
+                    icon: Icon(
+                      Icons.remove_circle_outline,
+                      color:
+                          _passengerCount > 1 ? Colors.black : Colors.grey[300],
+                    ),
+                  ),
+                  Container(
+                    width: 40,
+                    alignment: Alignment.center,
+                    child: Text(
+                      '$_passengerCount',
+                      style: GoogleFonts.inter(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: _passengerCount < 20
+                        ? () => setState(() => _passengerCount++)
+                        : null,
+                    icon: Icon(
+                      Icons.add_circle_outline,
+                      color: _passengerCount < 20
+                          ? Colors.black
+                          : Colors.grey[300],
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 

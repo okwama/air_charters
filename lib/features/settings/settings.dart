@@ -1,14 +1,54 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:lucide_icons/lucide_icons.dart';
 import '../../shared/components/bottom_nav.dart';
 import '../../shared/widgets/token_info_widget.dart';
 import 'package:provider/provider.dart';
 import '../../core/providers/auth_provider.dart';
-import 'package:flutter/foundation.dart';
+import '../../core/controllers/settings.controller/settings_controller.dart';
+import '../../core/services/user_service.dart';
 
-class SettingsScreen extends StatelessWidget {
+// Import modular widgets
+import 'widgets/user_info_section.dart';
+import 'widgets/app_preferences_section.dart';
+import 'widgets/account_security_section.dart';
+import 'widgets/support_help_section.dart';
+import 'widgets/troubleshooting_section.dart';
+import 'widgets/sign_out_button.dart';
+
+// Import dialogs
+import 'dialogs/theme_dialog.dart';
+import 'dialogs/language_dialog.dart';
+import 'dialogs/currency_dialog.dart';
+
+class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
+
+  @override
+  State<SettingsScreen> createState() => _SettingsScreenState();
+}
+
+class _SettingsScreenState extends State<SettingsScreen> {
+  SettingsController? _settingsController;
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeSettingsController();
+  }
+
+  void _initializeSettingsController() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        final authProvider = Provider.of<AuthProvider>(context, listen: false);
+        setState(() {
+          _settingsController = SettingsController(
+            authProvider: authProvider,
+            userService: UserService(),
+          );
+        });
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -51,7 +91,68 @@ class SettingsScreen extends StatelessWidget {
                   const SizedBox(height: 16),
 
                   // User Info Section
-                  _buildUserInfoSection(context),
+                  const UserInfoSection(),
+
+                  const SizedBox(height: 24),
+
+                  // App Preferences Section
+                  if (_settingsController != null)
+                    AppPreferencesSection(
+                      settingsController: _settingsController!,
+                      onThemeTap: _showThemeDialog,
+                      onLanguageTap: _showLanguageDialog,
+                      onCurrencyTap: _showCurrencyDialog,
+                      onNotificationsTap: _showNotificationsDialog,
+                      onPrivacyTap: _showPrivacyDialog,
+                    )
+                  else
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      margin: const EdgeInsets.symmetric(horizontal: 16),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.05),
+                            blurRadius: 10,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: const Row(
+                        children: [
+                          SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                          SizedBox(width: 16),
+                          Text('Loading preferences...'),
+                        ],
+                      ),
+                    ),
+
+                  const SizedBox(height: 24),
+
+                  // Account & Security Section
+                  AccountSecuritySection(
+                    onChangePasswordTap: _showChangePasswordDialog,
+                    onBiometricTap: _showBiometricDialog,
+                    onExportDataTap: _exportUserData,
+                    onDeleteAccountTap: _showDeleteAccountDialog,
+                  ),
+
+                  const SizedBox(height: 24),
+
+                  // Support & Help Section
+                  SupportHelpSection(
+                    onFAQTap: _showFAQ,
+                    onContactSupportTap: _contactSupport,
+                    onAppTutorialTap: _showAppTutorial,
+                    onRateAppTap: _rateApp,
+                    onAppVersionTap: _showAppVersion,
+                  ),
 
                   const SizedBox(height: 24),
 
@@ -61,12 +162,7 @@ class SettingsScreen extends StatelessWidget {
                   const SizedBox(height: 24),
 
                   // Troubleshooting Section (for debugging)
-                  _buildTroubleshootingSection(context),
-
-                  const SizedBox(height: 24),
-
-                  // Settings Menu Items
-                  _buildSettingsMenuSection(),
+                  const TroubleshootingSection(),
 
                   const SizedBox(height: 32),
                 ],
@@ -75,515 +171,390 @@ class SettingsScreen extends StatelessWidget {
           ),
 
           // Sign Out Button at bottom
-          _buildSignOutButton(context),
+          const SignOutButton(),
 
           const SizedBox(height: 32),
         ],
       ),
       bottomNavigationBar: const BottomNav(
-        currentIndex: 3, // Settings tab is active
+        currentIndex: 3, // Settings tab is active (fixed)
       ),
     );
   }
 
-  Widget _buildUserInfoSection(BuildContext context) {
-    return Consumer<AuthProvider>(
-      builder: (context, authProvider, child) {
-        final user = authProvider.currentUser;
-        final userName = user?.fullName ?? 'User';
-        final userEmail = user?.email ?? 'No email';
-        final userPhone = user?.phoneNumber ?? 'No phone';
-
-        return GestureDetector(
-          onTap: () {
-            Navigator.of(context).pushNamed('/profile');
-          },
-          child: Container(
-            margin: const EdgeInsets.symmetric(horizontal: 16),
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.grey.shade100, width: 0.5),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.03),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: Row(
-              children: [
-                // Profile Avatar
-                Container(
-                  width: 60,
-                  height: 60,
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade100,
-                    borderRadius: BorderRadius.circular(30),
-                    border: Border.all(color: Colors.grey.shade200, width: 2),
-                  ),
-                  child: Icon(
-                    LucideIcons.user,
-                    size: 30,
-                    color: Colors.grey.shade600,
-                  ),
-                ),
-
-                const SizedBox(width: 16),
-
-                // User Details
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        userName,
-                        style: GoogleFonts.outfit(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.black,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        userEmail,
-                        style: GoogleFonts.plusJakartaSans(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                          color: Colors.grey.shade600,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        userPhone,
-                        style: GoogleFonts.plusJakartaSans(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                          color: Colors.grey.shade600,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                Icon(
-                  Icons.chevron_right_rounded,
-                  color: Colors.grey.shade400,
-                  size: 24,
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildSettingsMenuSection() {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade100, width: 0.5),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          _buildSettingsItem(
-            icon: LucideIcons.heart,
-            title: 'Favorite Routes',
-            onTap: () {
-              // TODO: Implement favorite routes
-            },
-            showDivider: true,
-          ),
-          _buildSettingsItem(
-            icon: LucideIcons.helpCircle,
-            title: 'FAQ',
-            onTap: () {
-              // TODO: Implement FAQ
-            },
-            showDivider: true,
-          ),
-          _buildSettingsItem(
-            icon: LucideIcons.scale,
-            title: 'Legal',
-            onTap: () {
-              // TODO: Implement legal
-            },
-            showDivider: true,
-          ),
-          _buildSettingsItem(
-            icon: LucideIcons.shield,
-            title: 'Privacy',
-            onTap: () {
-              // TODO: Implement privacy
-            },
-            showDivider: true,
-          ),
-          _buildSettingsItem(
-            icon: LucideIcons.messageCircle,
-            title: 'Contact Us',
-            onTap: () {
-              // TODO: Implement contact us
-            },
-            showDivider: true,
-          ),
-          _buildSettingsItem(
-            icon: LucideIcons.dollarSign,
-            title: 'Currency',
-            subtitle: 'Canadian Dollar (CAD)',
-            onTap: () {
-              // TODO: Implement currency selection
-            },
-          ),
-        ],
+  // Dialog methods (placeholder implementations)
+  void _showThemeDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => ThemeDialog(
+        onThemeSelected: (theme) {
+          // TODO: Implement theme change
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Theme changed to $theme')),
+          );
+        },
       ),
     );
   }
 
-  Widget _buildSignOutButton(BuildContext context) {
-    return Consumer<AuthProvider>(
-      builder: (context, authProvider, child) {
-        return Container(
-          margin: const EdgeInsets.symmetric(horizontal: 16),
-          child: SizedBox(
-            width: double.infinity,
-            height: 52,
-            child: OutlinedButton.icon(
-              onPressed: () async {
-                // Show confirmation dialog
-                final confirmed = await showDialog<bool>(
-                  context: context,
-                  builder: (context) => AlertDialog(
-                    title: Text(
-                      'Sign Out?',
-                      style: GoogleFonts.outfit(
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    content: Text(
-                      'Are you sure you want to sign out?',
-                      style: GoogleFonts.plusJakartaSans(),
-                    ),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.of(context).pop(false),
-                        child: Text(
-                          'Cancel',
-                          style: GoogleFonts.outfit(
-                            color: Colors.grey.shade600,
-                          ),
-                        ),
-                      ),
-                      TextButton(
-                        onPressed: () => Navigator.of(context).pop(true),
-                        child: Text(
-                          'Sign Out',
-                          style: GoogleFonts.outfit(
-                            color: Colors.red.shade600,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
+  void _showLanguageDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => LanguageDialog(
+        onLanguageSelected: (language) {
+          // TODO: Implement language change
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Language changed to $language')),
+          );
+        },
+      ),
+    );
+  }
+
+  void _showCurrencyDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => CurrencyDialog(
+        onCurrencySelected: (currency) {
+          // TODO: Implement currency change
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Currency changed to $currency')),
+          );
+        },
+      ),
+    );
+  }
+
+  void _showNotificationsDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Notification Settings'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SwitchListTile(
+              title: const Text('Email Notifications'),
+              subtitle: const Text('Receive notifications via email'),
+              value: _settingsController?.emailNotificationsEnabled ?? false,
+              onChanged: (value) {
+                // TODO: Implement notification toggle
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                      content: Text(
+                          'Email notifications ${value ? 'enabled' : 'disabled'}')),
                 );
-
-                if (confirmed == true && context.mounted) {
-                  await authProvider.signOut();
-                  if (context.mounted) {
-                    // Navigate to landing screen and clear the stack
-                    Navigator.of(context).pushNamedAndRemoveUntil(
-                      '/landing',
-                      (route) => false,
-                    );
-                  }
-                }
               },
-              icon: Icon(
-                LucideIcons.logOut,
-                size: 18,
-                color: Colors.red.shade600,
-              ),
-              label: Text(
-                'Sign Out',
-                style: GoogleFonts.outfit(
-                  fontWeight: FontWeight.w600,
-                  color: Colors.red.shade600,
-                  fontSize: 16,
-                ),
-              ),
-              style: OutlinedButton.styleFrom(
-                side: BorderSide(
-                  color: Colors.red.shade200,
-                  width: 1,
-                ),
-                backgroundColor: Colors.red.shade50,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-              ),
             ),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildSettingsItem({
-    required IconData icon,
-    required String title,
-    String? subtitle,
-    required VoidCallback onTap,
-    bool showDivider = false,
-  }) {
-    return Column(
-      children: [
-        InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(16),
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Row(
-              children: [
-                Icon(
-                  icon,
-                  size: 24,
-                  color: Colors.grey.shade700,
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        title,
-                        style: GoogleFonts.outfit(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.black,
-                        ),
-                      ),
-                      if (subtitle != null) ...[
-                        const SizedBox(height: 2),
-                        Text(
-                          subtitle,
-                          style: GoogleFonts.plusJakartaSans(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
-                            color: Colors.grey.shade600,
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-                Icon(
-                  Icons.chevron_right_rounded,
-                  color: Colors.grey.shade400,
-                  size: 24,
-                ),
-              ],
+            SwitchListTile(
+              title: const Text('Push Notifications'),
+              subtitle: const Text('Receive push notifications'),
+              value: _settingsController?.pushNotificationsEnabled ?? false,
+              onChanged: (value) {
+                // TODO: Implement notification toggle
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                      content: Text(
+                          'Push notifications ${value ? 'enabled' : 'disabled'}')),
+                );
+              },
             ),
-          ),
+            SwitchListTile(
+              title: const Text('SMS Notifications'),
+              subtitle: const Text('Receive SMS notifications'),
+              value: _settingsController?.smsNotificationsEnabled ?? false,
+              onChanged: (value) {
+                // TODO: Implement notification toggle
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                      content: Text(
+                          'SMS notifications ${value ? 'enabled' : 'disabled'}')),
+                );
+              },
+            ),
+          ],
         ),
-        if (showDivider)
-          Divider(
-            height: 1,
-            color: Colors.grey.shade100,
-            indent: 56,
-            endIndent: 20,
-          ),
-      ],
-    );
-  }
-
-  Widget _buildTroubleshootingSection(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade100, width: 0.5),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Done'),
           ),
         ],
       ),
-      child: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Icon(
-                      LucideIcons.wrench,
-                      size: 24,
-                      color: Colors.orange.shade600,
-                    ),
-                    const SizedBox(width: 12),
-                    Text(
-                      'Troubleshooting',
-                      style: GoogleFonts.outfit(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.black,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  'If you\'re experiencing issues, you can clear all stored data and restart fresh.',
-                  style: GoogleFonts.plusJakartaSans(
-                    fontSize: 14,
-                    color: Colors.grey.shade600,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Consumer<AuthProvider>(
-                  builder: (context, authProvider, child) {
-                    return Column(
-                      children: [
-                        SizedBox(
-                          width: double.infinity,
-                          height: 48,
-                          child: OutlinedButton.icon(
-                            onPressed: authProvider.isLoading
-                                ? null
-                                : () async {
-                                    // Show confirmation dialog
-                                    final confirmed = await showDialog<bool>(
-                                      context: context,
-                                      builder: (context) => AlertDialog(
-                                        title: Text(
-                                          'Clear All Data?',
-                                          style: GoogleFonts.outfit(
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                        content: Text(
-                                          'This will clear all stored data and sign you out. You\'ll need to sign in again.',
-                                          style: GoogleFonts.plusJakartaSans(),
-                                        ),
-                                        actions: [
-                                          TextButton(
-                                            onPressed: () =>
-                                                Navigator.of(context)
-                                                    .pop(false),
-                                            child: Text(
-                                              'Cancel',
-                                              style: GoogleFonts.outfit(
-                                                color: Colors.grey.shade600,
-                                              ),
-                                            ),
-                                          ),
-                                          TextButton(
-                                            onPressed: () =>
-                                                Navigator.of(context).pop(true),
-                                            child: Text(
-                                              'Clear Data',
-                                              style: GoogleFonts.outfit(
-                                                color: Colors.red.shade600,
-                                                fontWeight: FontWeight.w600,
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    );
+    );
+  }
 
-                                    if (confirmed == true && context.mounted) {
-                                      await authProvider
-                                          .clearAllDataAndRestart();
-                                      if (context.mounted) {
-                                        Navigator.of(context)
-                                            .pushReplacementNamed('/landing');
-                                      }
-                                    }
-                                  },
-                            icon: Icon(
-                              LucideIcons.refreshCw,
-                              size: 18,
-                              color: Colors.orange.shade600,
-                            ),
-                            label: Text(
-                              'Clear All Data & Restart',
-                              style: GoogleFonts.outfit(
-                                fontWeight: FontWeight.w600,
-                                color: Colors.orange.shade600,
-                                fontSize: 14,
-                              ),
-                            ),
-                            style: OutlinedButton.styleFrom(
-                              side: BorderSide(
-                                color: Colors.orange.shade200,
-                                width: 1,
-                              ),
-                              backgroundColor: Colors.orange.shade50,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        // Debug button (only show in debug mode)
-                        if (kDebugMode)
-                          SizedBox(
-                            width: double.infinity,
-                            height: 48,
-                            child: OutlinedButton.icon(
-                              onPressed: () {
-                                Navigator.of(context).pushNamed('/auth-debug');
-                              },
-                              icon: Icon(
-                                LucideIcons.bug,
-                                size: 18,
-                                color: Colors.blue.shade600,
-                              ),
-                              label: Text(
-                                'Auth Debug',
-                                style: GoogleFonts.outfit(
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.blue.shade600,
-                                  fontSize: 14,
-                                ),
-                              ),
-                              style: OutlinedButton.styleFrom(
-                                side: BorderSide(
-                                  color: Colors.blue.shade200,
-                                  width: 1,
-                                ),
-                                backgroundColor: Colors.blue.shade50,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                              ),
-                            ),
-                          ),
-                      ],
-                    );
-                  },
-                ),
-              ],
+  void _showPrivacyDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Privacy Settings'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SwitchListTile(
+              title: const Text('Profile Visibility'),
+              subtitle: const Text('Make your profile visible to others'),
+              value: _settingsController?.profileVisible ?? false,
+              onChanged: (value) {
+                // TODO: Implement privacy toggle
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                      content: Text(
+                          'Profile visibility ${value ? 'enabled' : 'disabled'}')),
+                );
+              },
             ),
+            SwitchListTile(
+              title: const Text('Analytics'),
+              subtitle: const Text('Help improve the app with analytics'),
+              value: true, // Default to true
+              onChanged: (value) {
+                // TODO: Implement analytics toggle
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                      content:
+                          Text('Analytics ${value ? 'enabled' : 'disabled'}')),
+                );
+              },
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Done'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showChangePasswordDialog(BuildContext context) {
+    final currentPasswordController = TextEditingController();
+    final newPasswordController = TextEditingController();
+    final confirmPasswordController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Change Password'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: currentPasswordController,
+              obscureText: true,
+              decoration: const InputDecoration(
+                labelText: 'Current Password',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: newPasswordController,
+              obscureText: true,
+              decoration: const InputDecoration(
+                labelText: 'New Password',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: confirmPasswordController,
+              obscureText: true,
+              decoration: const InputDecoration(
+                labelText: 'Confirm New Password',
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () async {
+              // TODO: Implement password change
+              Navigator.pop(context);
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Password changed successfully')),
+              );
+            },
+            child: const Text('Change Password'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showBiometricDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Biometric Authentication'),
+        content:
+            const Text('This feature will be available in a future update.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _exportUserData(BuildContext context) async {
+    // TODO: Implement data export
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Data export feature coming soon')),
+    );
+  }
+
+  void _showDeleteAccountDialog(BuildContext context) {
+    final passwordController = TextEditingController();
+    final confirmationController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Account'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'This action cannot be undone. All your data will be permanently deleted.',
+              style: TextStyle(color: Colors.red),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: passwordController,
+              obscureText: true,
+              decoration: const InputDecoration(
+                labelText: 'Enter your password',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: confirmationController,
+              decoration: const InputDecoration(
+                labelText: 'Type "DELETE" to confirm',
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () async {
+              // TODO: Implement account deletion
+              Navigator.pop(context);
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                    content: Text('Account deletion feature coming soon')),
+              );
+            },
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Delete Account'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showFAQ(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('FAQ'),
+        content:
+            const Text('Frequently asked questions will be available here.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _contactSupport(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Contact Support'),
+        content:
+            const Text('Support contact information will be available here.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showAppTutorial(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('App Tutorial'),
+        content: const Text('Interactive tutorial will be available here.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _rateApp(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Rate App'),
+        content: const Text('App store rating link will be available here.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showAppVersion(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('App Version'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Version: 1.0.0'),
+            const Text('Build: 1'),
+            const Text('Platform: Flutter'),
+            Text('Last Updated: ${DateTime.now().toString().split(' ')[0]}'),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('OK'),
           ),
         ],
       ),

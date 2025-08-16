@@ -6,6 +6,8 @@ class SpecialRequestsWidget extends StatefulWidget {
   final bool groundTransportation;
   final Function(bool) onOnboardDiningChanged;
   final Function(bool) onGroundTransportationChanged;
+  final String departure;
+  final String destination;
 
   const SpecialRequestsWidget({
     Key? key,
@@ -13,6 +15,8 @@ class SpecialRequestsWidget extends StatefulWidget {
     required this.groundTransportation,
     required this.onOnboardDiningChanged,
     required this.onGroundTransportationChanged,
+    required this.departure,
+    required this.destination,
   }) : super(key: key);
 
   @override
@@ -36,6 +40,72 @@ class _SpecialRequestsWidgetState extends State<SpecialRequestsWidget> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Route Information
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'From',
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        color: const Color(0xFF666666),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      widget.departure,
+                      style: GoogleFonts.inter(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.black,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF5F5F5),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: const Icon(
+                  Icons.flight_rounded,
+                  color: Color(0xFF666666),
+                  size: 20,
+                ),
+              ),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      'To',
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        color: const Color(0xFF666666),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      widget.destination,
+                      style: GoogleFonts.inter(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.black,
+                      ),
+                      textAlign: TextAlign.right,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+
           Text(
             'Special Requests',
             style: GoogleFonts.inter(

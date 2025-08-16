@@ -1,5 +1,3 @@
-import 'dart:convert';
-import 'package:http/http.dart' as http;
 import '../models/passenger_model.dart';
 import '../error/app_exceptions.dart';
 import '../network/api_client.dart';

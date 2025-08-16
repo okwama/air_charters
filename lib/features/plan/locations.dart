@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../../core/services/locations_service.dart';
+import '../../core/models/location_model.dart';
 
 class LocationsScreen extends StatefulWidget {
   final String title;
@@ -17,9 +19,11 @@ class LocationsScreen extends StatefulWidget {
 
 class _LocationsScreenState extends State<LocationsScreen> {
   final TextEditingController _searchController = TextEditingController();
+  final LocationsService _locationsService = LocationsService();
   List<LocationModel> _allLocations = [];
   List<LocationModel> _filteredLocations = [];
   bool _isLoading = true;
+  String? _errorMessage;
 
   @override
   void initState() {
@@ -45,7 +49,8 @@ class _LocationsScreenState extends State<LocationsScreen> {
           return location.name.toLowerCase().contains(query) ||
               location.city.toLowerCase().contains(query) ||
               location.country.toLowerCase().contains(query) ||
-              (location.iataCode?.toLowerCase().contains(query) ?? false);
+              (location.iataCode?.toLowerCase().contains(query) ?? false) ||
+              location.code.toLowerCase().contains(query);
         }).toList();
       }
     });
@@ -53,78 +58,24 @@ class _LocationsScreenState extends State<LocationsScreen> {
 
   Future<void> _loadLocations() async {
     try {
-      // TODO: Replace with actual API call
-      await Future.delayed(const Duration(milliseconds: 500));
-
-      // Sample data - replace with API call
-      _allLocations = [
-        LocationModel(
-          id: 1,
-          name: "Los Angeles International Airport",
-          city: "Los Angeles",
-          country: "United States",
-          iataCode: "LAX",
-        ),
-        LocationModel(
-          id: 2,
-          name: "John F. Kennedy International Airport",
-          city: "New York",
-          country: "United States",
-          iataCode: "JFK",
-        ),
-        LocationModel(
-          id: 3,
-          name: "Heathrow Airport",
-          city: "London",
-          country: "United Kingdom",
-          iataCode: "LHR",
-        ),
-        LocationModel(
-          id: 4,
-          name: "Dubai International Airport",
-          city: "Dubai",
-          country: "United Arab Emirates",
-          iataCode: "DXB",
-        ),
-        LocationModel(
-          id: 5,
-          name: "Charles de Gaulle Airport",
-          city: "Paris",
-          country: "France",
-          iataCode: "CDG",
-        ),
-        LocationModel(
-          id: 6,
-          name: "Tokyo Haneda Airport",
-          city: "Tokyo",
-          country: "Japan",
-          iataCode: "HND",
-        ),
-        LocationModel(
-          id: 7,
-          name: "Singapore Changi Airport",
-          city: "Singapore",
-          country: "Singapore",
-          iataCode: "SIN",
-        ),
-        LocationModel(
-          id: 8,
-          name: "Sydney Kingsford Smith Airport",
-          city: "Sydney",
-          country: "Australia",
-          iataCode: "SYD",
-        ),
-      ];
-
-      _filteredLocations = _allLocations;
       setState(() {
+        _isLoading = true;
+        _errorMessage = null;
+      });
+
+      final locations = await _locationsService.getAllLocations();
+      
+      setState(() {
+        _allLocations = locations;
+        _filteredLocations = locations;
         _isLoading = false;
       });
     } catch (e) {
       setState(() {
         _isLoading = false;
+        _errorMessage = 'Failed to load locations. Please try again.';
       });
-      // Handle error
+      print('Error loading locations: $e');
     }
   }
 
@@ -209,19 +160,19 @@ class _LocationsScreenState extends State<LocationsScreen> {
                       color: Colors.black,
                     ),
                   )
-                : _filteredLocations.isEmpty
+                : _errorMessage != null
                     ? Center(
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Icon(
-                              Icons.location_off,
+                              Icons.error_outline,
                               size: 64,
                               color: Colors.grey[400],
                             ),
                             const SizedBox(height: 16),
                             Text(
-                              'No locations found',
+                              'Error',
                               style: GoogleFonts.inter(
                                 fontSize: 18,
                                 fontWeight: FontWeight.w500,
@@ -230,7 +181,56 @@ class _LocationsScreenState extends State<LocationsScreen> {
                             ),
                             const SizedBox(height: 8),
                             Text(
-                              'Try adjusting your search',
+                              _errorMessage!,
+                              style: GoogleFonts.inter(
+                                fontSize: 14,
+                                color: Colors.grey[500],
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: 16),
+                            ElevatedButton(
+                              onPressed: _loadLocations,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.black,
+                                foregroundColor: Colors.white,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                              ),
+                              child: Text(
+                                'Retry',
+                                style: GoogleFonts.inter(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    : _filteredLocations.isEmpty
+                        ? Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.location_off,
+                                  size: 64,
+                                  color: Colors.grey[400],
+                                ),
+                                const SizedBox(height: 16),
+                                Text(
+                                  'No locations found',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w500,
+                                    color: Colors.grey[600],
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  'Try adjusting your search',
                               style: GoogleFonts.inter(
                                 fontSize: 14,
                                 color: Colors.grey[500],
@@ -353,63 +353,4 @@ class LocationTile extends StatelessWidget {
   }
 }
 
-class LocationModel {
-  final int id;
-  final String name;
-  final String city;
-  final String country;
-  final String? iataCode;
-  final String? icaoCode;
-  final double? latitude;
-  final double? longitude;
-  final String? timezone;
-  final bool isActive;
 
-  LocationModel({
-    required this.id,
-    required this.name,
-    required this.city,
-    required this.country,
-    this.iataCode,
-    this.icaoCode,
-    this.latitude,
-    this.longitude,
-    this.timezone,
-    this.isActive = true,
-  });
-
-  factory LocationModel.fromJson(Map<String, dynamic> json) {
-    return LocationModel(
-      id: json['id'],
-      name: json['name'],
-      city: json['city'],
-      country: json['country'],
-      iataCode: json['iata_code'],
-      icaoCode: json['icao_code'],
-      latitude: json['latitude']?.toDouble(),
-      longitude: json['longitude']?.toDouble(),
-      timezone: json['timezone'],
-      isActive: json['is_active'] ?? true,
-    );
-  }
-
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'name': name,
-      'city': city,
-      'country': country,
-      'iata_code': iataCode,
-      'icao_code': icaoCode,
-      'latitude': latitude,
-      'longitude': longitude,
-      'timezone': timezone,
-      'is_active': isActive,
-    };
-  }
-
-  @override
-  String toString() {
-    return '$name ($city, $country)';
-  }
-}

@@ -1,5 +1,3 @@
-import 'dart:convert';
-import 'package:http/http.dart' as http;
 import '../models/booking_model.dart';
 import '../models/payment_models.dart';
 import '../error/app_exceptions.dart';
@@ -12,17 +10,42 @@ class BookingService {
   Future<BookingWithPaymentIntent> createBookingWithPaymentIntent(
       BookingModel booking) async {
     try {
+      print('=== BOOKING SERVICE: CREATE BOOKING WITH PAYMENT INTENT ===');
+      print('Booking model: $booking');
+
+      final bookingJson = booking.toCreateJson();
+      print('Booking JSON: $bookingJson');
+
       final response = await _apiClient.post(
         '/api/bookings',
-        booking.toCreateJson(),
+        bookingJson,
       );
 
+      print('=== BOOKING SERVICE: RESPONSE RECEIVED ===');
+      print('Response: $response');
+      print('Response success: ${response['success']}');
+      print('Response data: ${response['data']}');
+
       if (response['success'] == true && response['data'] != null) {
-        return BookingWithPaymentIntent.fromJson(response['data']);
+        try {
+          print('=== BOOKING SERVICE: PARSING RESPONSE ===');
+          final result = BookingWithPaymentIntent.fromJson(response['data']);
+          print('=== BOOKING SERVICE: PARSING SUCCESSFUL ===');
+          return result;
+        } catch (parseError) {
+          print('=== BOOKING SERVICE: PARSING ERROR ===');
+          print('Parse error: $parseError');
+          print('Parse error type: ${parseError.runtimeType}');
+          throw NetworkException(
+              'Failed to parse booking response: ${parseError.toString()}');
+        }
       }
 
       throw ServerException('Failed to create booking with payment intent');
     } catch (e) {
+      print('=== BOOKING SERVICE: EXCEPTION ===');
+      print('Exception: $e');
+      print('Exception type: ${e.runtimeType}');
       if (e is AppException) rethrow;
       throw NetworkException('Failed to create booking: ${e.toString()}');
     }
@@ -399,14 +422,52 @@ class BookingWithPaymentIntent {
   });
 
   factory BookingWithPaymentIntent.fromJson(Map<String, dynamic> json) {
-    return BookingWithPaymentIntent(
-      booking: BookingModel.fromJson(json['booking']),
-      paymentIntent: json['paymentIntent'] != null
-          ? PaymentIntent.fromJson(json['paymentIntent'])
-          : null,
-      paymentInstructions:
-          PaymentInstructions.fromJson(json['paymentInstructions']),
-    );
+    try {
+      print('=== PARSING BOOKING WITH PAYMENT INTENT ===');
+      print('JSON keys: ${json.keys.toList()}');
+      print('JSON: $json');
+
+      // Parse booking
+      print('Parsing booking...');
+      print('Booking JSON: ${json['booking']}');
+      print('Booking JSON type: ${json['booking'].runtimeType}');
+      final booking = BookingModel.fromJson(json['booking']);
+      print('Booking parsed successfully');
+
+      // Parse payment intent
+      PaymentIntent? paymentIntent;
+      if (json['paymentIntent'] != null) {
+        print('Parsing payment intent...');
+        print('Payment intent JSON: ${json['paymentIntent']}');
+        print('Payment intent JSON type: ${json['paymentIntent'].runtimeType}');
+        paymentIntent = PaymentIntent.fromJson(json['paymentIntent']);
+        print('Payment intent parsed successfully');
+      } else {
+        print('No payment intent found');
+      }
+
+      // Parse payment instructions
+      print('Parsing payment instructions...');
+      print('Payment instructions JSON: ${json['paymentInstructions']}');
+      print(
+          'Payment instructions JSON type: ${json['paymentInstructions'].runtimeType}');
+      final paymentInstructions =
+          PaymentInstructions.fromJson(json['paymentInstructions']);
+      print('Payment instructions parsed successfully');
+
+      return BookingWithPaymentIntent(
+        booking: booking,
+        paymentIntent: paymentIntent,
+        paymentInstructions: paymentInstructions,
+      );
+    } catch (e, stackTrace) {
+      print('=== ERROR PARSING BOOKING WITH PAYMENT INTENT ===');
+      print('Error: $e');
+      print('Error type: ${e.runtimeType}');
+      print('Stack trace: $stackTrace');
+      print('JSON: $json');
+      rethrow;
+    }
   }
 }
 
@@ -428,11 +489,11 @@ class PaymentIntent {
 
   factory PaymentIntent.fromJson(Map<String, dynamic> json) {
     return PaymentIntent(
-      id: json['id'] ?? '',
-      clientSecret: json['clientSecret'] ?? '',
-      status: json['status'] ?? '',
-      requiresAction: json['requiresAction'] ?? false,
-      nextAction: json['nextAction'],
+      id: json['id']?.toString() ?? '',
+      clientSecret: json['clientSecret']?.toString() ?? '',
+      status: json['status']?.toString() ?? '',
+      requiresAction: json['requiresAction'] as bool? ?? false,
+      nextAction: json['nextAction'] as Map<String, dynamic>?,
     );
   }
 }
@@ -454,13 +515,87 @@ class PaymentInstructions {
   });
 
   factory PaymentInstructions.fromJson(Map<String, dynamic> json) {
+    print('=== PARSING PAYMENT INSTRUCTIONS ===');
+    print('Payment instructions JSON: $json');
+    print('Amount: ${json['amount']} (${json['amount'].runtimeType})');
+    print('Currency: ${json['currency']} (${json['currency'].runtimeType})');
+    print(
+        'Payment methods: ${json['paymentMethods']} (${json['paymentMethods'].runtimeType})');
+    print(
+        'Next steps: ${json['nextSteps']} (${json['nextSteps'].runtimeType})');
+    print(
+        'API endpoints: ${json['apiEndpoints']} (${json['apiEndpoints'].runtimeType})');
+
+    final amount = (json['amount'] is num) ? json['amount'].toDouble() : 0.0;
+    final currency = json['currency']?.toString() ?? 'USD';
+    final paymentMethods = _parseStringList(json['paymentMethods']);
+    final nextSteps = _parseStringList(json['nextSteps']);
+    final apiEndpoints = _parseStringMap(json['apiEndpoints']);
+
+    print('Parsed amount: $amount');
+    print('Parsed currency: $currency');
+    print('Parsed payment methods: $paymentMethods');
+    print('Parsed next steps: $nextSteps');
+    print('Parsed API endpoints: $apiEndpoints');
+
     return PaymentInstructions(
-      amount: json['amount'].toDouble(),
-      currency: json['currency'],
-      paymentMethods: List<String>.from(json['paymentMethods']),
-      nextSteps: List<String>.from(json['nextSteps']),
-      apiEndpoints: Map<String, String>.from(json['apiEndpoints']),
+      amount: amount,
+      currency: currency,
+      paymentMethods: paymentMethods,
+      nextSteps: nextSteps,
+      apiEndpoints: apiEndpoints,
     );
+  }
+
+  // Helper method to safely parse List<String> from dynamic
+  static List<String> _parseStringList(dynamic value) {
+    print('=== PARSING STRING LIST ===');
+    print('Input value: $value');
+    print('Input type: ${value.runtimeType}');
+
+    if (value == null) {
+      print('Value is null, returning empty list');
+      return [];
+    }
+    if (value is List) {
+      print('Value is List, mapping to strings');
+      final result = value.map((item) => item?.toString() ?? '').toList();
+      print('Parsed result: $result');
+      return result;
+    }
+    if (value is String) {
+      print('Value is String, returning single item list');
+      final result = [value];
+      print('Parsed result: $result');
+      return result;
+    }
+    print('Value is neither List nor String, returning empty list');
+    return [];
+  }
+
+  // Helper method to safely parse Map<String, String> from dynamic
+  static Map<String, String> _parseStringMap(dynamic value) {
+    print('=== PARSING STRING MAP ===');
+    print('Input value: $value');
+    print('Input type: ${value.runtimeType}');
+
+    if (value == null) {
+      print('Value is null, returning empty map');
+      return {};
+    }
+    if (value is Map) {
+      print('Value is Map, mapping to string entries');
+      final result = Map<String, String>.fromEntries(
+        value.entries.map((entry) => MapEntry(
+              entry.key?.toString() ?? '',
+              entry.value?.toString() ?? '',
+            )),
+      );
+      print('Parsed result: $result');
+      return result;
+    }
+    print('Value is not Map, returning empty map');
+    return {};
   }
 }
 

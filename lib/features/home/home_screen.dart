@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:lucide_icons/lucide_icons.dart';
 import 'package:air_charters/shared/components/bottom_nav.dart';
 import 'package:air_charters/shared/widgets/searchbar.dart' as custom;
 import 'package:air_charters/shared/components/deal_card.dart';
@@ -74,7 +73,7 @@ class CharterHomePage extends StatelessWidget {
                     iconMargin: EdgeInsets.only(bottom: 4),
                   ),
                   Tab(
-                    icon: Icon(LucideIcons.mountain, size: 22),
+                    icon: Icon(Icons.explore, size: 22),
                     text: 'Experiences',
                     iconMargin: EdgeInsets.only(bottom: 4),
                   ),

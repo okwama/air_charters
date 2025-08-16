@@ -1,12 +1,11 @@
+// ignore_for_file: avoid_print
+
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
-// Removed unused import: cached_network_image
-import 'payment/add_card.dart';
-import 'payment/payment_screen.dart';
 import 'booking_confirmation_page.dart';
 import '../../core/models/charter_deal_model.dart';
-import '../../core/models/booking_model.dart';
+import '../../core/models/booking_model.dart' show BookingModel, PaymentMethod;
 import '../../core/providers/passengers_provider.dart';
 import '../../core/providers/auth_provider.dart';
 import '../../core/controllers/booking.controller/booking_controller.dart';
@@ -17,9 +16,6 @@ import '../../shared/widgets/app_spinner.dart';
 import 'widgets/flight_details_widget.dart';
 import 'widgets/special_requests_widget.dart';
 import 'widgets/price_breakdown_widget.dart';
-import 'widgets/payment_section_widget.dart';
-import 'widgets/payment_method_selection_widget.dart';
-import 'services/booking_review_service.dart';
 
 class ReviewTripPage extends StatefulWidget {
   final String departure;
@@ -54,7 +50,6 @@ class _ReviewTripPageState extends State<ReviewTripPage> {
   bool _groundTransportation = false;
   bool _agreeToTerms = false;
   String _selectedBillingRegion = 'United States';
-  String _selectedPaymentMethod = 'Visa •••• 1234';
   late final String _bookingId;
 
   final List<String> _billingRegions = [
@@ -64,28 +59,6 @@ class _ReviewTripPageState extends State<ReviewTripPage> {
     'European Union',
     'Australia',
     'Other',
-  ];
-
-  final List<Map<String, dynamic>> _paymentMethods = [
-    {'name': 'Credit Card', 'icon': Icons.credit_card},
-    {'name': 'Debit Card', 'icon': Icons.payment},
-    {'name': 'Digital Wallet', 'icon': Icons.account_balance_wallet},
-    {'name': 'MPesa', 'icon': Icons.phone_android},
-  ];
-
-  final List<Map<String, dynamic>> _savedCards = [
-    {
-      'name': 'Visa •••• 1234',
-      'icon': Icons.credit_card,
-      'type': 'saved_card',
-      'details': 'Expires 12/26'
-    },
-    {
-      'name': 'Mastercard •••• 5678',
-      'icon': Icons.credit_card,
-      'type': 'saved_card',
-      'details': 'Expires 08/25'
-    },
   ];
 
   @override
@@ -153,6 +126,8 @@ class _ReviewTripPageState extends State<ReviewTripPage> {
 
             // Special Requests
             SpecialRequestsWidget(
+              departure: widget.departure,
+              destination: widget.destination,
               onboardDining: _onboardDining,
               groundTransportation: _groundTransportation,
               onOnboardDiningChanged: (value) {
@@ -175,6 +150,8 @@ class _ReviewTripPageState extends State<ReviewTripPage> {
 
             // Price Breakdown
             PriceBreakdownWidget(
+              departure: widget.departure,
+              destination: widget.destination,
               basePrice: widget.price,
               onboardDining: _onboardDining,
               groundTransportation: _groundTransportation,
@@ -183,12 +160,8 @@ class _ReviewTripPageState extends State<ReviewTripPage> {
             // Billing Region
             _buildBillingRegion(),
 
-            // Payment Section
-            PaymentSectionWidget(
-              selectedPaymentMethod: _selectedPaymentMethod,
-              savedCards: _savedCards,
-              onChangePaymentMethod: _showChangePaymentMethod,
-            ),
+            // Payment Section - Simplified
+            _buildSimplifiedPaymentSection(),
 
             // Agreement Section
             _buildAgreementSection(),
@@ -462,6 +435,115 @@ class _ReviewTripPageState extends State<ReviewTripPage> {
     );
   }
 
+  Widget _buildSimplifiedPaymentSection() {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: const Color(0xFFE5E5E5),
+          width: 1,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Payment',
+                style: GoogleFonts.inter(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.black,
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF8F9FA),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  'Secure Payment',
+                  style: GoogleFonts.inter(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: const Color(0xFF666666),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF8F9FA),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: const Color(0xFFE8E8E8),
+                width: 1,
+              ),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: const Color(0xFFE8E8E8),
+                      width: 1,
+                    ),
+                  ),
+                  child: const Icon(
+                    Icons.credit_card,
+                    size: 20,
+                    color: Color(0xFF666666),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Payment Details',
+                        style: GoogleFonts.inter(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.black,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Enter payment details on next screen',
+                        style: GoogleFonts.inter(
+                          fontSize: 14,
+                          color: const Color(0xFF666666),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const Icon(
+                  Icons.arrow_forward_ios_rounded,
+                  color: Color(0xFF666666),
+                  size: 16,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildAgreementSection() {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
@@ -526,103 +608,110 @@ class _ReviewTripPageState extends State<ReviewTripPage> {
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-      child: SizedBox(
-        width: double.infinity,
-        height: 56,
-        child: ElevatedButton(
-          onPressed: _agreeToTerms
-              ? () {
-                  _showPaymentConfirmation();
-                }
-              : null,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.black,
-            disabledBackgroundColor: const Color(0xFFE5E5E5),
-            foregroundColor: Colors.white,
-            disabledForegroundColor: const Color(0xFF888888),
-            elevation: 0,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
+      child: Column(
+        children: [
+          // Single Request & Pay Button
+          SizedBox(
+            width: double.infinity,
+            height: 56,
+            child: ElevatedButton(
+              onPressed: _agreeToTerms
+                  ? () {
+                      _addToCart();
+                    }
+                  : null,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.black,
+                disabledBackgroundColor: const Color(0xFFE5E5E5),
+                foregroundColor: Colors.white,
+                disabledForegroundColor: const Color(0xFF888888),
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+              ),
+              child: Text(
+                'Request & Pay',
+                style: GoogleFonts.inter(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
             ),
           ),
-          child: Text(
-            'Request & Pay – \$${totalPrice.toStringAsFixed(2)} USD',
+          const SizedBox(height: 8),
+          // Total Price Display
+          Text(
+            'Total: \$${totalPrice.toStringAsFixed(2)} USD',
             style: GoogleFonts.inter(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+              color: Colors.grey.shade600,
             ),
           ),
-        ),
+        ],
       ),
     );
   }
 
-  void _showAddCard() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => const AddCardPage(),
-      ),
-    ).then((result) {
-      // Refresh the page if a card was added
-      if (result == true) {
-        setState(() {
-          // You could add the new card to _savedCards here
-          // For now, we'll just refresh the UI
-        });
-      }
-    });
-  }
+  Future<void> _addToCart() async {
+    print('=== ADDING TO CART START ===');
+    print('Stack trace: ${StackTrace.current}');
 
-  void _showChangePaymentMethod() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => PaymentMethodSelectionWidget(
-        selectedPaymentMethod: _selectedPaymentMethod,
-        savedCards: _savedCards,
-        paymentMethods: _paymentMethods,
-        onPaymentMethodSelected: (method) {
-          setState(() {
-            _selectedPaymentMethod = method;
-          });
-          Navigator.pop(context);
-        },
-        onAddCard: () {
-          Navigator.pop(context);
-          _showAddCard();
-        },
-      ),
-    );
-  }
-
-  Future<void> _showPaymentConfirmation() async {
     // Show loading dialog
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const AppSpinner(),
-            const SizedBox(height: 16),
-            Text(
-              'Creating your booking...',
-              style: GoogleFonts.inter(
-                fontSize: 16,
-                fontWeight: FontWeight.w500,
-                color: Colors.black,
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: Container(
+          padding: const EdgeInsets.all(32),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Loading Icon
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.blue[50],
+                  shape: BoxShape.circle,
+                ),
+                child: const AppSpinner(),
               ),
-            ),
-          ],
+              const SizedBox(height: 20),
+
+              // Loading Text
+              Text(
+                'Processing Booking...',
+                style: GoogleFonts.inter(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.black,
+                ),
+              ),
+              const SizedBox(height: 8),
+
+              Text(
+                'Please wait while we create your booking request',
+                style: GoogleFonts.inter(
+                  fontSize: 14,
+                  color: const Color(0xFF666666),
+                  height: 1.4,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
         ),
       ),
     );
 
     try {
+      print('=== CALCULATING PRICING ===');
       // Calculate pricing
       final basePrice = widget.price;
       final diningCost = _onboardDining ? 150.0 : 0.0;
@@ -630,95 +719,98 @@ class _ReviewTripPageState extends State<ReviewTripPage> {
       final taxes = (basePrice + diningCost + transportationCost) * 0.12;
       final totalPrice = basePrice + diningCost + transportationCost + taxes;
 
-      // Parse payment method
-      PaymentMethod? paymentMethod;
-      if (_selectedPaymentMethod.contains('Card')) {
-        paymentMethod = PaymentMethod.card;
-      } else if (_selectedPaymentMethod.contains('MPesa')) {
-        paymentMethod = PaymentMethod.mpesa;
-      } else if (_selectedPaymentMethod.contains('Wallet')) {
-        paymentMethod = PaymentMethod.wallet;
-      }
+      print('Base price: $basePrice');
+      print('Dining cost: $diningCost');
+      print('Transportation cost: $transportationCost');
+      print('Taxes: $taxes');
+      print('Total price: $totalPrice');
 
-      // Create booking with payment intent through controller
+      print('=== GETTING BOOKING CONTROLLER ===');
+      // Create booking without payment intent (request only)
       final bookingController =
           Provider.of<BookingController>(context, listen: false);
+      print('Booking controller obtained: ${bookingController != null}');
+
+      print('=== CALLING CREATE BOOKING (REQUEST ONLY) ===');
+      print('Deal ID: ${widget.deal?.id ?? 0}');
+      print('Total price: $totalPrice');
+
       final result = await bookingController.createBookingWithPaymentIntent(
         dealId: widget.deal?.id ?? 0,
         totalPrice: totalPrice.toDouble(),
         onboardDining: _onboardDining,
         groundTransportation: _groundTransportation,
         billingRegion: _selectedBillingRegion,
-        paymentMethod: paymentMethod,
+        paymentMethod: PaymentMethod.card, // Default for request
       );
 
-      // Close loading dialog
-      if (mounted) {
-        Navigator.of(context).pop();
-      }
+      print('=== BOOKING RESULT RECEIVED ===');
+      print('Result success: ${result.isSuccess}');
+      print('Result booking: ${result.booking != null}');
+      print('Result error message: ${result.errorMessage}');
 
       if (result.isSuccess && result.booking != null) {
-        // Check if we have payment intent for Stripe integration
-        if (result.bookingWithPaymentIntent?.paymentIntent != null) {
-          final paymentIntent = result.bookingWithPaymentIntent!.paymentIntent!;
-
-          // Validate that we have a valid client secret
-          if (paymentIntent.clientSecret.isNotEmpty) {
-            // Navigate to payment screen for Stripe payment
-            if (mounted) {
-              final paymentResult = await Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => PaymentScreen(
-                    bookingId: result.booking!.id ?? '',
-                    clientSecret: paymentIntent.clientSecret,
-                    amount: totalPrice,
-                    currency: 'USD',
-                    paymentIntentId:
-                        paymentIntent.id.isNotEmpty ? paymentIntent.id : null,
-                  ),
-                ),
-              );
-
-              // Handle payment result
-              if (paymentResult == true) {
-                // Payment successful - navigate to confirmation
-                if (mounted) {
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => BookingConfirmationPage(
-                        booking: result.booking!,
-                      ),
-                    ),
-                  );
-                }
-                return;
-              }
-            }
-          } else {
-            // Fallback to legacy payment flow
-            if (mounted) {
-              _showLegacyPaymentDialog(context, result.booking!);
-            }
-          }
-        } else {
-          // No payment intent - use legacy payment flow
-          if (mounted) {
-            _showLegacyPaymentDialog(context, result.booking!);
-          }
+        print('=== REQUEST SUCCESSFUL - NAVIGATING TO CONFIRMATION ===');
+        // Close loading dialog before navigation
+        if (mounted) {
+          Navigator.of(context).pop();
+          print('=== LOADING DIALOG CLOSED ===');
+        }
+        // Request successful - navigate to confirmation
+        if (mounted) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) => BookingConfirmationPage(
+                bookingData: {
+                  'id': result.booking!.id, // Add the actual booking ID
+                  'reference': result.booking!.referenceNumber,
+                  'departure': widget.departure,
+                  'destination': widget.destination,
+                  'date': widget.date,
+                  'time': widget.time,
+                  'aircraft': widget.aircraft,
+                  'passengers': result.booking!.passengers
+                      .map((passenger) => {
+                            'firstName': passenger.firstName,
+                            'lastName': passenger.lastName,
+                            'age': passenger.age,
+                            'nationality': passenger.nationality,
+                            'passportNumber': passenger.idPassportNumber,
+                            'type': 'Adult', // Default type
+                          })
+                      .toList(),
+                  'totalAmount': totalPrice,
+                  'onboardDining': _onboardDining,
+                  'groundTransportation': _groundTransportation,
+                  'billingRegion': _selectedBillingRegion,
+                },
+              ),
+            ),
+          );
         }
       } else {
+        print('=== REQUEST FAILED - SHOWING ERROR ===');
+        // Close loading dialog before showing error
+        if (mounted) {
+          Navigator.of(context).pop();
+          print('=== LOADING DIALOG CLOSED DUE TO ERROR ===');
+        }
         // Show error dialog
         if (mounted) {
           _showErrorDialog(result.errorMessage ??
-              'Failed to create booking. Please try again.');
+              'Failed to create booking request. Please try again.');
         }
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
+      print('=== EXCEPTION CAUGHT ===');
+      print('Error: $e');
+      print('Stack trace: $stackTrace');
+
       // Close loading dialog
       if (mounted) {
         Navigator.of(context).pop();
+        print('=== LOADING DIALOG CLOSED DUE TO EXCEPTION ===');
       }
 
       // Show error dialog
@@ -726,103 +818,88 @@ class _ReviewTripPageState extends State<ReviewTripPage> {
         _showErrorDialog('An error occurred: ${e.toString()}');
       }
     }
+
+    print('=== ADDING TO CART END ===');
   }
 
   void _showErrorDialog(String message) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text(
-          'Error',
-          style: GoogleFonts.inter(
-            fontSize: 18,
-            fontWeight: FontWeight.w700,
-            color: Colors.red,
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
           ),
-        ),
-        content: Text(
-          message,
-          style: GoogleFonts.inter(
-            fontSize: 14,
-            color: const Color(0xFF666666),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: Text(
-              'OK',
-              style: GoogleFonts.inter(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: Colors.black,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Error Icon
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.red[50],
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.error_outline,
+                  color: Colors.red[600],
+                  size: 32,
+                ),
               ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+              const SizedBox(height: 20),
 
-  void _showLegacyPaymentDialog(BuildContext context, BookingModel booking) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text(
-          'Payment Required',
-          style: GoogleFonts.inter(
-            fontSize: 18,
-            fontWeight: FontWeight.w700,
-            color: Colors.black,
-          ),
-        ),
-        content: Text(
-          'This booking requires a payment. Please complete the payment process to confirm your booking.',
-          style: GoogleFonts.inter(
-            fontSize: 14,
-            color: const Color(0xFF666666),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-              // For legacy payment, we'll navigate to confirmation directly
-              // since we don't have a client secret
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => BookingConfirmationPage(
-                    booking: booking,
+              // Title
+              Text(
+                'Error',
+                style: GoogleFonts.inter(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.black,
+                ),
+              ),
+              const SizedBox(height: 12),
+
+              // Message
+              Text(
+                message,
+                style: GoogleFonts.inter(
+                  fontSize: 16,
+                  color: const Color(0xFF666666),
+                  height: 1.4,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 24),
+
+              // Action Button
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.black,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    elevation: 0,
+                  ),
+                  child: Text(
+                    'OK',
+                    style: GoogleFonts.inter(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
-              );
-            },
-            child: Text(
-              'Proceed to Confirmation',
-              style: GoogleFonts.inter(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: Colors.black,
               ),
-            ),
+            ],
           ),
-          TextButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-            },
-            child: Text(
-              'Cancel',
-              style: GoogleFonts.inter(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: Colors.red,
-              ),
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }

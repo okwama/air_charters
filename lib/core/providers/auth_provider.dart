@@ -6,6 +6,8 @@ import '../error/app_exceptions.dart';
 import 'dart:async';
 import 'dart:developer' as dev;
 import '../../shared/utils/session_manager.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter/widgets.dart'; // Added for BuildContext
 
 enum AuthState {
   initial,
@@ -39,22 +41,59 @@ class AuthProvider with ChangeNotifier {
 
   // Initialize auth state
   Future<void> initialize() async {
+    if (kDebugMode) {
+      dev.log('AuthProvider: Starting initialization', name: 'auth_provider');
+    }
+
     _setLoading(true);
     try {
       // Try to restore auth state from storage
       final storedAuthData = await _sessionManager.getStoredAuthData();
 
-      if (storedAuthData != null && !storedAuthData.isExpired) {
-        // Restore authentication state
-        await _setAuthenticatedWithToken(storedAuthData);
-        if (kDebugMode) {
-          dev.log('AuthProvider: Restored authentication from storage',
-              name: 'auth_provider');
+      if (storedAuthData != null) {
+        if (storedAuthData.isExpired) {
+          if (kDebugMode) {
+            dev.log('AuthProvider: Stored token is expired, attempting refresh',
+                name: 'auth_provider');
+          }
+
+          // Try to refresh the token
+          try {
+            final newAuthData = await _authRepository.refreshToken();
+            if (newAuthData != null) {
+              await _setAuthenticatedWithToken(newAuthData);
+              if (kDebugMode) {
+                dev.log('AuthProvider: Token refreshed successfully',
+                    name: 'auth_provider');
+              }
+            } else {
+              _setUnauthenticated();
+              if (kDebugMode) {
+                dev.log(
+                    'AuthProvider: Token refresh failed, setting unauthenticated',
+                    name: 'auth_provider');
+              }
+            }
+          } catch (e) {
+            if (kDebugMode) {
+              dev.log(
+                  'AuthProvider: Token refresh error, setting unauthenticated: $e',
+                  name: 'auth_provider');
+            }
+            _setUnauthenticated();
+          }
+        } else {
+          // Token is valid, restore authentication
+          await _setAuthenticatedWithToken(storedAuthData);
+          if (kDebugMode) {
+            dev.log('AuthProvider: Restored authentication from storage',
+                name: 'auth_provider');
+          }
         }
       } else {
         _setUnauthenticated();
         if (kDebugMode) {
-          dev.log('AuthProvider: No valid stored authentication found',
+          dev.log('AuthProvider: No stored authentication found',
               name: 'auth_provider');
         }
       }
@@ -71,28 +110,43 @@ class AuthProvider with ChangeNotifier {
 
   // Set authenticated state with token management
   Future<void> _setAuthenticatedWithToken(AuthModel authData) async {
-    _authData = authData;
-    _currentUser = authData.user;
-    _state = AuthState.authenticated;
-    _clearError();
-    _clearSuccess();
-
-    // Store in SessionManager
-    await _sessionManager.storeAuthData(authData);
-
-    // Setup token refresh timer
-    _setupTokenRefreshTimer();
-
     if (kDebugMode) {
-      dev.log('AuthProvider: Authentication state set successfully',
-          name: 'auth_provider');
-      dev.log('AuthProvider: Token expires at: ${authData.expiresAt}',
-          name: 'auth_provider');
-      dev.log('AuthProvider: Token is expired: ${authData.isExpired}',
+      dev.log('AuthProvider: Setting authenticated state',
           name: 'auth_provider');
     }
 
-    notifyListeners();
+    try {
+      _authData = authData;
+      _currentUser = authData.user;
+      _state = AuthState.authenticated;
+      _clearError();
+      _clearSuccess();
+
+      // Store in SessionManager
+      await _sessionManager.storeAuthData(authData);
+
+      // Setup token refresh timer
+      _setupTokenRefreshTimer();
+
+      if (kDebugMode) {
+        dev.log('AuthProvider: Authentication state set successfully',
+            name: 'auth_provider');
+        dev.log('AuthProvider: Token expires at: ${authData.expiresAt}',
+            name: 'auth_provider');
+        dev.log('AuthProvider: Token is expired: ${authData.isExpired}',
+            name: 'auth_provider');
+      }
+
+      notifyListeners();
+    } catch (e) {
+      if (kDebugMode) {
+        dev.log('AuthProvider: Error setting authenticated state: $e',
+            name: 'auth_provider');
+      }
+      // If setting authenticated state fails, fall back to unauthenticated
+      _setUnauthenticated();
+      throw e;
+    }
   }
 
   // Setup automatic token refresh
@@ -255,18 +309,114 @@ class AuthProvider with ChangeNotifier {
 
   // Sign Out
   Future<void> signOut() async {
+    if (kDebugMode) {
+      dev.log('AuthProvider: Starting sign out process', name: 'auth_provider');
+    }
+
     _setLoading(true);
 
     try {
-      await _authRepository.signOut();
+      // Cancel any ongoing token refresh
       _tokenRefreshTimer?.cancel();
+
+      // Clear auth data from backend (if possible)
+      try {
+        await _authRepository.signOut();
+      } catch (e) {
+        // Don't fail signout if backend call fails
+        if (kDebugMode) {
+          dev.log(
+              'AuthProvider: Backend signout failed, continuing with local cleanup: $e',
+              name: 'auth_provider');
+        }
+      }
+
+      // Clear all local storage
       await _sessionManager.clearStoredAuthData();
+
+      // Clear SharedPreferences landing flag (optional - keeps user as "returning")
+      // await _clearLandingFlag(); // Uncomment if you want to reset landing page for logout
+
+      // Reset state
       _setUnauthenticated();
+
+      if (kDebugMode) {
+        dev.log('AuthProvider: Sign out completed successfully',
+            name: 'auth_provider');
+      }
+
       _setSuccess('Successfully signed out');
-      _setLoading(false);
     } catch (e) {
+      if (kDebugMode) {
+        dev.log('AuthProvider: Error during sign out: $e',
+            name: 'auth_provider');
+      }
       _setError(_getErrorMessage(e));
+    } finally {
       _setLoading(false);
+    }
+  }
+
+  // Comprehensive logout method for UI
+  Future<void> logout(BuildContext context) async {
+    if (kDebugMode) {
+      dev.log('AuthProvider: Starting comprehensive logout',
+          name: 'auth_provider');
+    }
+
+    try {
+      // Show loading indicator
+      _setLoading(true);
+
+      // Perform signout
+      await signOut();
+
+      // Navigate to appropriate screen based on landing page status
+      if (context.mounted) {
+        final userHasSeenLanding = await hasSeenLanding();
+        if (userHasSeenLanding) {
+          // Returning user - go to login
+          Navigator.of(context)
+              .pushNamedAndRemoveUntil('/login', (route) => false);
+        } else {
+          // New user - go to landing
+          Navigator.of(context)
+              .pushNamedAndRemoveUntil('/landing', (route) => false);
+        }
+      }
+
+      if (kDebugMode) {
+        dev.log('AuthProvider: Comprehensive logout completed',
+            name: 'auth_provider');
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        dev.log('AuthProvider: Error during comprehensive logout: $e',
+            name: 'auth_provider');
+      }
+      // Even if logout fails, try to navigate to login
+      if (context.mounted) {
+        Navigator.of(context)
+            .pushNamedAndRemoveUntil('/login', (route) => false);
+      }
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  // Clear landing flag (optional method for complete reset)
+  Future<void> _clearLandingFlag() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('hasSeenLanding');
+      if (kDebugMode) {
+        dev.log('AuthProvider: Landing flag cleared', name: 'auth_provider');
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        dev.log('AuthProvider: Error clearing landing flag: $e',
+            name: 'auth_provider');
+      }
     }
   }
 
@@ -334,7 +484,43 @@ class AuthProvider with ChangeNotifier {
     }
   }
 
+  // Check if user has seen landing page
+  Future<bool> hasSeenLanding() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      return prefs.getBool('hasSeenLanding') ?? false;
+    } catch (e) {
+      if (kDebugMode) {
+        dev.log('AuthProvider: Error checking landing status: $e',
+            name: 'auth_provider');
+      }
+      return false;
+    }
+  }
+
+  // Mark landing page as seen
+  Future<void> markLandingAsSeen() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('hasSeenLanding', true);
+      if (kDebugMode) {
+        dev.log('AuthProvider: Landing page marked as seen',
+            name: 'auth_provider');
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        dev.log('AuthProvider: Error marking landing as seen: $e',
+            name: 'auth_provider');
+      }
+    }
+  }
+
   void _setUnauthenticated() {
+    if (kDebugMode) {
+      dev.log('AuthProvider: Setting unauthenticated state',
+          name: 'auth_provider');
+    }
+
     _state = AuthState.unauthenticated;
     _authData = null;
     _currentUser = null;
@@ -342,6 +528,11 @@ class AuthProvider with ChangeNotifier {
     _clearError();
     _clearSuccess();
     notifyListeners();
+
+    if (kDebugMode) {
+      dev.log('AuthProvider: Unauthenticated state set successfully',
+          name: 'auth_provider');
+    }
   }
 
   void _setLoading(bool loading) {

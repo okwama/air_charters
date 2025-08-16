@@ -1,6 +1,8 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
+import '../../core/providers/auth_provider.dart';
 
 class LandingScreen extends StatefulWidget {
   const LandingScreen({super.key});
@@ -287,7 +289,11 @@ class _LandingScreenState extends State<LandingScreen>
                                     color: Colors.transparent,
                                     child: InkWell(
                                       borderRadius: BorderRadius.circular(16),
-                                      onTap: () {
+                                      onTap: () async {
+                                        // Mark landing page as seen for this user
+                                        final authProvider = Provider.of<AuthProvider>(context, listen: false);
+                                        await authProvider.markLandingAsSeen();
+                                        
                                         Navigator.of(context)
                                             .pushReplacementNamed('/login');
                                       },

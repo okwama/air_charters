@@ -1,4 +1,3 @@
-import '../../../core/models/booking_model.dart';
 
 class BookingReviewService {
   /// Calculate total price based on base price and add-ons

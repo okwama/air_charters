@@ -102,6 +102,11 @@ class AppUtils {
     return '${date.month}/${date.day}/${date.year}';
   }
 
+  // Format date time
+  static String formatDateTime(DateTime dateTime) {
+    return '${dateTime.month}/${dateTime.day}/${dateTime.year} ${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')}';
+  }
+
   // Get screen size
   static Size getScreenSize(BuildContext context) {
     return MediaQuery.of(context).size;

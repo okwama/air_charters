@@ -4,8 +4,6 @@ import '../models/charter_deal_model.dart';
 import '../error/app_exceptions.dart';
 import '../../shared/utils/session_manager.dart';
 import '../../config/env/app_config.dart';
-import 'dart:developer' as dev;
-import 'package:flutter/foundation.dart' show kDebugMode;
 
 class CharterDealsService {
   static String get baseUrl => AppConfig.fullBackendUrl;

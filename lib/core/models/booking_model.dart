@@ -85,51 +85,153 @@ class BookingModel {
   });
 
   factory BookingModel.fromJson(Map<String, dynamic> json) {
-    return BookingModel(
-      id: json['id'] as String?,
-      referenceNumber: json['referenceNumber'] as String?,
-      userId: json['userId'] as String? ?? '',
-      dealId: json['dealId'] as int? ?? 0,
-      companyId: json['companyId'] as int?, // Parse company ID
-      totalPrice: double.tryParse(json['totalPrice']?.toString() ?? '0') ?? 0.0,
-      bookingStatus: _parseBookingStatus(json['bookingStatus'] as String?),
-      paymentStatus: _parsePaymentStatus(json['paymentStatus'] as String?),
-      onboardDining: json['onboardDining'] as bool? ?? false,
-      groundTransportation: json['groundTransportation'] as bool? ?? false,
-      specialRequirements: json['specialRequirements'] as String?,
-      billingRegion: json['billingRegion'] as String?,
-      paymentMethod: _parsePaymentMethod(json['paymentMethod'] as String?),
-      paymentTransactionId: json['paymentTransactionId']
-          as String?, // Parse payment transaction ID
-      loyaltyPointsEarned: json['loyaltyPointsEarned'] as int? ??
-          0, // Parse loyalty points earned
-      loyaltyPointsRedeemed: json['loyaltyPointsRedeemed'] as int? ??
-          0, // Parse loyalty points redeemed
-      walletAmountUsed:
-          double.tryParse(json['walletAmountUsed']?.toString() ?? '0') ??
-              0.0, // Parse wallet amount
-      passengers: (json['passengers'] as List<dynamic>?)
-              ?.map((p) => PassengerModel.fromJson(p as Map<String, dynamic>))
-              .toList() ??
-          [],
-      createdAt: json['createdAt'] != null
-          ? DateTime.parse(json['createdAt'] as String)
-          : null,
-      updatedAt: json['updatedAt'] != null
-          ? DateTime.parse(json['updatedAt'] as String)
-          : null,
-      // Deal-related data (from relations)
-      departure: json['departure'] as String?,
-      destination: json['destination'] as String?,
-      departureDate: json['departureDate'] != null
-          ? DateTime.parse(json['departureDate'] as String)
-          : null,
-      departureTime: json['departureTime'] as String?,
-      duration: json['duration'] as int?,
-      basePrice: double.tryParse(json['basePrice']?.toString() ?? '0') ?? 0.0,
-      aircraftName: json['aircraftName'] as String?,
-      companyName: json['companyName'] as String?,
-    );
+    try {
+      print('=== PARSING BOOKING MODEL ===');
+      print('JSON keys: ${json.keys.toList()}');
+
+      // Parse basic fields
+      final id = json['id'] as String?;
+      final referenceNumber = json['referenceNumber'] as String?;
+      final userId = json['userId'] as String? ?? '';
+      final dealId = json['dealId'] as int? ?? 0;
+      final companyId = json['companyId'] as int?;
+      final totalPrice =
+          double.tryParse(json['totalPrice']?.toString() ?? '0') ?? 0.0;
+      final bookingStatus =
+          _parseBookingStatus(json['bookingStatus'] as String?);
+      final paymentStatus =
+          _parsePaymentStatus(json['paymentStatus'] as String?);
+      final onboardDining = json['onboardDining'] as bool? ?? false;
+      final groundTransportation =
+          json['groundTransportation'] as bool? ?? false;
+      final specialRequirements = json['specialRequirements'] as String?;
+      final billingRegion = json['billingRegion'] as String?;
+      print('=== PARSING PAYMENT METHOD FIELD ===');
+      print('Payment method field: ${json['paymentMethod']}');
+      print('Payment method field type: ${json['paymentMethod'].runtimeType}');
+      final paymentMethod =
+          _parsePaymentMethod(json['paymentMethod'] as String?);
+      final paymentTransactionId = json['paymentTransactionId'] as String?;
+      final loyaltyPointsEarned = json['loyaltyPointsEarned'] as int? ?? 0;
+      final loyaltyPointsRedeemed = json['loyaltyPointsRedeemed'] as int? ?? 0;
+      final walletAmountUsed =
+          double.tryParse(json['walletAmountUsed']?.toString() ?? '0') ?? 0.0;
+
+      // Parse passengers with detailed logging
+      print('Parsing passengers...');
+      print('Passengers field type: ${json['passengers']?.runtimeType}');
+      print('Passengers field value: ${json['passengers']}');
+      final passengers = _parsePassengersList(json['passengers']);
+      print('Passengers parsed successfully: ${passengers.length} passengers');
+
+      // Parse dates
+      DateTime? createdAt;
+      if (json['createdAt'] != null) {
+        createdAt = DateTime.parse(json['createdAt'] as String);
+      }
+
+      DateTime? updatedAt;
+      if (json['updatedAt'] != null) {
+        updatedAt = DateTime.parse(json['updatedAt'] as String);
+      }
+
+      // Parse deal-related data from nested structure
+      // For trips API: booking.deal.route.origin and booking.deal.route.destination
+      // For bookings API: direct departure/destination fields
+      String? departure;
+      String? destination;
+      DateTime? departureDate;
+      String? departureTime;
+      int? duration;
+      double? basePrice;
+      String? aircraftName;
+      String? companyName;
+
+      // Check if we have nested deal data (from trips API)
+      if (json['deal'] != null) {
+        final deal = json['deal'] as Map<String, dynamic>;
+
+        // Get route data
+        if (deal['route'] != null) {
+          final route = deal['route'] as Map<String, dynamic>;
+          departure = route['origin'] as String?;
+          destination = route['destination'] as String?;
+          duration = route['duration'] as int?;
+        }
+
+        // Get deal data
+        departureDate = deal['date'] != null
+            ? DateTime.parse(deal['date'] as String)
+            : null;
+        departureTime = deal['time'] as String?;
+        basePrice = double.tryParse(deal['pricePerSeat']?.toString() ?? '0');
+
+        // Get aircraft data
+        if (deal['aircraft'] != null) {
+          final aircraft = deal['aircraft'] as Map<String, dynamic>;
+          aircraftName = aircraft['name'] as String?;
+        }
+
+        // Get company data
+        if (deal['company'] != null) {
+          final company = deal['company'] as Map<String, dynamic>;
+          companyName = company['name'] as String?;
+        }
+      } else {
+        // Fallback to direct fields (from bookings API)
+        departure = json['departure'] as String? ?? json['origin'] as String?;
+        destination = json['destination'] as String?;
+
+        if (json['departureDate'] != null) {
+          departureDate = DateTime.parse(json['departureDate'] as String);
+        }
+
+        departureTime = json['departureTime'] as String?;
+        duration = json['duration'] as int?;
+        basePrice = double.tryParse(json['basePrice']?.toString() ?? '0');
+        aircraftName = json['aircraftName'] as String?;
+        companyName = json['companyName'] as String?;
+      }
+
+      print('All fields parsed successfully');
+
+      return BookingModel(
+        id: id,
+        referenceNumber: referenceNumber,
+        userId: userId,
+        dealId: dealId,
+        companyId: companyId,
+        totalPrice: totalPrice,
+        bookingStatus: bookingStatus,
+        paymentStatus: paymentStatus,
+        onboardDining: onboardDining,
+        groundTransportation: groundTransportation,
+        specialRequirements: specialRequirements,
+        billingRegion: billingRegion,
+        paymentMethod: paymentMethod,
+        paymentTransactionId: paymentTransactionId,
+        loyaltyPointsEarned: loyaltyPointsEarned,
+        loyaltyPointsRedeemed: loyaltyPointsRedeemed,
+        walletAmountUsed: walletAmountUsed,
+        passengers: passengers,
+        createdAt: createdAt,
+        updatedAt: updatedAt,
+        departure: departure,
+        destination: destination,
+        departureDate: departureDate,
+        departureTime: departureTime,
+        duration: duration,
+        basePrice: basePrice,
+        aircraftName: aircraftName,
+        companyName: companyName,
+      );
+    } catch (e, stackTrace) {
+      print('=== ERROR PARSING BOOKING MODEL ===');
+      print('Error: $e');
+      print('Stack trace: $stackTrace');
+      print('JSON: $json');
+      rethrow;
+    }
   }
 
   Map<String, dynamic> toJson() {
@@ -161,7 +263,26 @@ class BookingModel {
 
   // Create JSON for booking creation (without server-generated fields)
   Map<String, dynamic> toCreateJson() {
-    return {
+    print('=== BOOKING MODEL TO CREATE JSON ===');
+    print('Deal ID: $dealId (${dealId.runtimeType})');
+    print('Total price: $totalPrice (${totalPrice.runtimeType})');
+    print('Onboard dining: $onboardDining (${onboardDining.runtimeType})');
+    print(
+        'Ground transportation: $groundTransportation (${groundTransportation.runtimeType})');
+    print(
+        'Special requirements: $specialRequirements (${specialRequirements.runtimeType})');
+    print('Billing region: $billingRegion (${billingRegion.runtimeType})');
+    print('Payment method: $paymentMethod (${paymentMethod.runtimeType})');
+    print(
+        'Payment method name: ${paymentMethod?.name} (${paymentMethod?.name.runtimeType})');
+    print('Passengers count: ${passengers.length}');
+
+    final passengerJsonList = passengers.map((p) => p.toCreateJson()).toList();
+    print('Passenger JSON list type: ${passengerJsonList.runtimeType}');
+    print(
+        'First passenger JSON: ${passengerJsonList.isNotEmpty ? passengerJsonList.first : 'No passengers'}');
+
+    final json = {
       'dealId': dealId,
       'totalPrice': totalPrice,
       'onboardDining': onboardDining,
@@ -170,8 +291,11 @@ class BookingModel {
         'specialRequirements': specialRequirements,
       if (billingRegion != null) 'billingRegion': billingRegion,
       if (paymentMethod != null) 'paymentMethod': paymentMethod!.name,
-      'passengers': passengers.map((p) => p.toCreateJson()).toList(),
+      'passengers': passengerJsonList,
     };
+
+    print('Final JSON: $json');
+    return json;
   }
 
   BookingModel copyWith({
@@ -341,15 +465,68 @@ class BookingModel {
   }
 
   static PaymentMethod? _parsePaymentMethod(String? method) {
-    switch (method?.toLowerCase()) {
+    print('=== PARSING PAYMENT METHOD ===');
+    print('Input method: $method');
+    print('Input method type: ${method.runtimeType}');
+
+    if (method == null) {
+      print('Method is null, returning null');
+      return null;
+    }
+
+    final lowerMethod = method.toLowerCase();
+    print('Lowercase method: $lowerMethod');
+
+    PaymentMethod? result;
+    switch (lowerMethod) {
       case 'card':
-        return PaymentMethod.card;
+        result = PaymentMethod.card;
+        break;
       case 'mpesa':
-        return PaymentMethod.mpesa;
+        result = PaymentMethod.mpesa;
+        break;
       case 'wallet':
-        return PaymentMethod.wallet;
+        result = PaymentMethod.wallet;
+        break;
       default:
-        return null;
+        result = null;
+        break;
+    }
+
+    print('Parsed result: $result');
+    return result;
+  }
+
+  static List<PassengerModel> _parsePassengersList(dynamic value) {
+    try {
+      print('=== PARSING PASSENGERS LIST ===');
+      print('Value type: ${value.runtimeType}');
+      print('Value: $value');
+
+      if (value == null) {
+        print('Value is null, returning empty list');
+        return [];
+      }
+
+      if (value is List) {
+        print('Value is List, processing ${value.length} items');
+        final passengers =
+            value.where((item) => item is Map<String, dynamic>).map((p) {
+          print('Parsing passenger: $p');
+          return PassengerModel.fromJson(p as Map<String, dynamic>);
+        }).toList();
+        print('Successfully parsed ${passengers.length} passengers');
+        return passengers;
+      }
+
+      print('Value is not a List, returning empty list');
+      return [];
+    } catch (e, stackTrace) {
+      print('=== ERROR PARSING PASSENGERS LIST ===');
+      print('Error: $e');
+      print('Stack trace: $stackTrace');
+      print('Value: $value');
+      rethrow;
     }
   }
 }

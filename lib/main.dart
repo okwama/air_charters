@@ -8,7 +8,9 @@ import 'core/providers/profile_provider.dart';
 import 'core/providers/charter_deals_provider.dart';
 import 'core/providers/passengers_provider.dart';
 import 'core/providers/booking_provider.dart';
+import 'core/providers/trips_provider.dart';
 import 'core/controllers/booking.controller/booking_controller.dart';
+import 'core/controllers/booking_inquiry_controller.dart';
 import 'shared/utils/session_manager.dart';
 
 // Theme
@@ -25,15 +27,19 @@ import 'features/settings/settings.dart';
 import 'features/splash/splash_screen.dart';
 import 'features/splash/landing_screen.dart';
 import 'features/booking/booking_detail.dart';
+import 'features/booking/booking_confirmation_page.dart';
 import 'features/mytrips/trips.dart';
+import 'features/direct_charter/direct_charter_search_screen.dart';
 import 'package:air_charters/core/models/charter_deal_model.dart';
+import 'core/models/booking_inquiry_model.dart';
+import 'features/plan/inquiry/inquiry_confirmation_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // Initialize Stripe
   Stripe.publishableKey =
-      'pk_test_51OqX8Y2eZvKYlo2C1gQ1234567890'; // Replace with your actual publishable key
+      'pk_test_51RTguYIo90LS4Ah4PiXhCbadG1lxbzAZAvYqwtjW9qNcjGqcIvc7a5IDVhIF9H5YrOWGZ8Yvo8LrxtfU5BNvSuhm00KykUKxUF';
   await Stripe.instance.applySettings();
 
   runApp(const MyApp());
@@ -51,6 +57,8 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => CharterDealsProvider()),
         ChangeNotifierProvider(create: (_) => PassengerProvider()),
         ChangeNotifierProvider(create: (_) => BookingProvider()),
+        ChangeNotifierProvider(create: (_) => TripsProvider()),
+        ChangeNotifierProvider(create: (_) => BookingInquiryController()),
         ProxyProvider2<BookingProvider, PassengerProvider, BookingController>(
           update: (context, bookingProvider, passengerProvider, _) =>
               BookingController(
@@ -64,6 +72,13 @@ class MyApp extends StatelessWidget {
         title: 'Air Charters',
         theme: AppTheme.lightTheme,
         home: const AuthWrapper(),
+        onUnknownRoute: (settings) {
+          // Fallback for unknown routes
+          return MaterialPageRoute(
+            builder: (context) => const CharterHomePage(),
+          );
+        },
+        navigatorKey: GlobalKey<NavigatorState>(),
         routes: {
           '/signup': (context) => const SignupScreen(),
           '/login': (context) => const LoginScreen(),
@@ -77,8 +92,19 @@ class MyApp extends StatelessWidget {
                 ModalRoute.of(context)!.settings.arguments as CharterDealModel?;
             return BookingDetailPage(deal: deal);
           },
+          '/booking-confirmation': (context) {
+            final bookingData = ModalRoute.of(context)!.settings.arguments
+                as Map<String, dynamic>;
+            return BookingConfirmationPage(bookingData: bookingData);
+          },
           '/trips': (context) => const TripsPage(),
+          '/direct-charter': (context) => const DirectCharterWrapper(),
           '/landing': (context) => const LandingScreen(),
+          '/inquiry-confirmation': (context) {
+            final inquiry = ModalRoute.of(context)!.settings.arguments
+                as BookingInquiryModel;
+            return InquiryConfirmationScreen(inquiry: inquiry);
+          },
         },
         debugShowCheckedModeBanner: false,
       ),
@@ -104,6 +130,10 @@ class _AuthWrapperState extends State<AuthWrapper> {
         // Initialize session manager (simplified - no AuthProvider dependency)
         final sessionManager = SessionManager();
         sessionManager.initialize();
+
+        // Set auth provider reference in other providers
+        context.read<TripsProvider>().setAuthProvider(authProvider);
+        context.read<ProfileProvider>().setAuthProvider(authProvider);
       });
     });
   }
@@ -127,7 +157,21 @@ class _AuthWrapperState extends State<AuthWrapper> {
             return const CharterHomePage();
           case AuthState.unauthenticated:
           case AuthState.error:
-            return const LandingScreen();
+            return FutureBuilder<bool>(
+              future: authProvider.hasSeenLanding(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const SplashScreen();
+                }
+
+                final hasSeenLanding = snapshot.data ?? false;
+                if (hasSeenLanding) {
+                  return const LoginScreen(); // Returning user
+                } else {
+                  return const LandingScreen(); // New user
+                }
+              },
+            );
         }
       },
     );

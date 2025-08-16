@@ -1,5 +1,4 @@
 import 'package:flutter/foundation.dart';
-import '../models/booking_model.dart';
 import '../services/booking_service.dart';
 import '../error/app_exceptions.dart';
 

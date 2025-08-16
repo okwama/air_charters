@@ -16,6 +16,15 @@ class UserModel {
   final DateTime createdAt;
   final DateTime updatedAt;
 
+  // New fields from enhanced database
+  final DateTime? dateOfBirth;
+  final String? nationality;
+  final String? language;
+  final String? currency;
+  final String? timezone;
+  final String? theme;
+  final String? loyaltyTier;
+
   UserModel({
     required this.id,
     this.email,
@@ -29,6 +38,13 @@ class UserModel {
     this.isActive = true,
     this.emailVerified = false,
     this.phoneVerified = false,
+    this.dateOfBirth,
+    this.nationality,
+    this.language,
+    this.currency,
+    this.timezone,
+    this.theme,
+    this.loyaltyTier,
     DateTime? createdAt,
     DateTime? updatedAt,
   })  : createdAt = createdAt ?? DateTime.now(),
@@ -61,6 +77,18 @@ class UserModel {
         isActive: json['isActive'] ?? json['is_active'] ?? true,
         emailVerified: json['emailVerified'] ?? json['email_verified'] ?? false,
         phoneVerified: json['phoneVerified'] ?? json['phone_verified'] ?? false,
+        dateOfBirth:
+            json['dateOfBirth'] != null || json['date_of_birth'] != null
+                ? DateTime.parse(
+                    (json['dateOfBirth'] ?? json['date_of_birth']).toString())
+                : null,
+        nationality: json['nationality']?.toString(),
+        language: json['language']?.toString(),
+        currency: json['currency']?.toString(),
+        timezone: json['timezone']?.toString(),
+        theme: json['theme']?.toString(),
+        loyaltyTier:
+            json['loyaltyTier']?.toString() ?? json['loyalty_tier']?.toString(),
         createdAt: json['createdAt'] != null || json['created_at'] != null
             ? DateTime.parse(
                 (json['createdAt'] ?? json['created_at']).toString())
@@ -104,6 +132,13 @@ class UserModel {
       'is_active': isActive,
       'email_verified': emailVerified,
       'phone_verified': phoneVerified,
+      'date_of_birth': dateOfBirth?.toIso8601String(),
+      'nationality': nationality,
+      'language': language,
+      'currency': currency,
+      'timezone': timezone,
+      'theme': theme,
+      'loyalty_tier': loyaltyTier,
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
     };
@@ -122,6 +157,13 @@ class UserModel {
     bool? isActive,
     bool? emailVerified,
     bool? phoneVerified,
+    DateTime? dateOfBirth,
+    String? nationality,
+    String? language,
+    String? currency,
+    String? timezone,
+    String? theme,
+    String? loyaltyTier,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -138,6 +180,13 @@ class UserModel {
       isActive: isActive ?? this.isActive,
       emailVerified: emailVerified ?? this.emailVerified,
       phoneVerified: phoneVerified ?? this.phoneVerified,
+      dateOfBirth: dateOfBirth ?? this.dateOfBirth,
+      nationality: nationality ?? this.nationality,
+      language: language ?? this.language,
+      currency: currency ?? this.currency,
+      timezone: timezone ?? this.timezone,
+      theme: theme ?? this.theme,
+      loyaltyTier: loyaltyTier ?? this.loyaltyTier,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );

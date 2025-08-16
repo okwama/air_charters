@@ -101,13 +101,22 @@ class _CalendarSelectorState extends State<CalendarSelector> {
             ),
           ),
 
-          // Calendar
-          _buildCalendar(),
+          // Scrollable calendar content
+          Flexible(
+            child: SingleChildScrollView(
+              child: Column(
+                children: [
+                  // Calendar
+                  _buildCalendar(),
 
-          // Action buttons
-          _buildActionButtons(),
+                  // Action buttons
+                  _buildActionButtons(),
 
-          const SizedBox(height: 20),
+                  const SizedBox(height: 20),
+                ],
+              ),
+            ),
+          ),
         ],
       ),
     );

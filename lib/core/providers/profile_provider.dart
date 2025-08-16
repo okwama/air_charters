@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import '../network/api_client.dart';
-import '../models/auth_model.dart';
 import 'auth_provider.dart';
 import '../../shared/utils/session_manager.dart';
-import 'dart:developer' as dev;
 
 class ProfileProvider extends ChangeNotifier {
   final ApiClient _apiClient = ApiClient();

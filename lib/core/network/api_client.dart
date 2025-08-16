@@ -50,7 +50,7 @@ class ApiClient {
   }
 
   // GET Request
-  Future<Map<String, dynamic>> get(String endpoint) async {
+  Future<dynamic> get(String endpoint) async {
     try {
       print('🔥 API: GET $endpoint');
       final headers = await _authHeaders;
@@ -67,27 +67,36 @@ class ApiClient {
   }
 
   // POST Request
-  Future<Map<String, dynamic>> post(
-      String endpoint, Map<String, dynamic> data) async {
+  Future<dynamic> post(String endpoint, Map<String, dynamic> data) async {
     try {
+      print('🔥 API: POST $endpoint');
+      print('🔥 API: Request data: $data');
+      print('🔥 API: Request data type: ${data.runtimeType}');
+
       final headers = await _authHeaders;
+      final jsonBody = jsonEncode(data);
+      print('🔥 API: JSON body: $jsonBody');
+
       final response = await _client
           .post(
             Uri.parse('$_baseUrl$endpoint'),
             headers: headers,
-            body: jsonEncode(data),
+            body: jsonBody,
           )
           .timeout(const Duration(seconds: 30));
 
+      print('🔥 API: POST $endpoint - Status: ${response.statusCode}');
+      print('🔥 API: Response body: ${response.body}');
+
       return _handleResponse(response);
     } catch (e) {
+      print('🔥 API: POST $endpoint - Error: $e');
       throw _handleError(e);
     }
   }
 
   // PUT Request
-  Future<Map<String, dynamic>> put(
-      String endpoint, Map<String, dynamic> data) async {
+  Future<dynamic> put(String endpoint, Map<String, dynamic> data) async {
     try {
       final headers = await _authHeaders;
       final response = await _client
@@ -105,7 +114,7 @@ class ApiClient {
   }
 
   // DELETE Request
-  Future<Map<String, dynamic>> delete(String endpoint) async {
+  Future<dynamic> delete(String endpoint) async {
     try {
       final headers = await _authHeaders;
       final response = await _client
@@ -118,8 +127,26 @@ class ApiClient {
     }
   }
 
+  // DELETE Request with body
+  Future<dynamic> deleteWithBody(
+      String endpoint, Map<String, dynamic> data) async {
+    try {
+      final headers = await _authHeaders;
+      final request = http.Request('DELETE', Uri.parse('$_baseUrl$endpoint'));
+      request.headers.addAll(headers);
+      request.body = jsonEncode(data);
+
+      final streamedResponse = await _client.send(request);
+      final response = await http.Response.fromStream(streamedResponse);
+
+      return _handleResponse(response);
+    } catch (e) {
+      throw _handleError(e);
+    }
+  }
+
   // Handle Response
-  Map<String, dynamic> _handleResponse(http.Response response) {
+  dynamic _handleResponse(http.Response response) {
     final body = jsonDecode(response.body);
 
     switch (response.statusCode) {

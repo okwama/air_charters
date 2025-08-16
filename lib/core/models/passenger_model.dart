@@ -25,16 +25,22 @@ class PassengerModel {
   factory PassengerModel.fromJson(Map<String, dynamic> json) {
     return PassengerModel(
       id: json['id'] as int?,
-      bookingId: json['bookingId'] as String,
-      firstName: json['firstName'] as String,
-      lastName: json['lastName'] as String,
+      bookingId:
+          json['bookingId']?.toString() ?? json['booking_id']?.toString() ?? '',
+      firstName:
+          json['firstName']?.toString() ?? json['first_name']?.toString() ?? '',
+      lastName:
+          json['lastName']?.toString() ?? json['last_name']?.toString() ?? '',
       age: json['age'] as int?,
-      nationality: json['nationality'] as String?,
-      idPassportNumber: json['idPassportNumber'] as String?,
-      isUser: json['isUser'] as bool? ?? false, // Parse isUser field
+      nationality: json['nationality']?.toString(),
+      idPassportNumber: json['idPassportNumber']?.toString() ??
+          json['id_passport_number']?.toString(),
+      isUser: json['isUser'] as bool? ?? json['is_user'] as bool? ?? false,
       createdAt: json['createdAt'] != null
           ? DateTime.parse(json['createdAt'] as String)
-          : null,
+          : json['created_at'] != null
+              ? DateTime.parse(json['created_at'] as String)
+              : null,
     );
   }
 
@@ -52,17 +58,25 @@ class PassengerModel {
     };
   }
 
-  // Create a copy for API requests (without id and createdAt)
+  // Create a copy for API requests (without id, bookingId, isUser and createdAt)
   Map<String, dynamic> toCreateJson() {
-    return {
-      'bookingId': bookingId,
+    print('=== PASSENGER MODEL TO CREATE JSON ===');
+    print('First name: $firstName (${firstName.runtimeType})');
+    print('Last name: $lastName (${lastName.runtimeType})');
+    print('Age: $age (${age.runtimeType})');
+    print('Nationality: $nationality (${nationality.runtimeType})');
+    print('ID/Passport: $idPassportNumber (${idPassportNumber.runtimeType})');
+
+    final json = {
       'firstName': firstName,
       'lastName': lastName,
       if (age != null) 'age': age,
       if (nationality != null) 'nationality': nationality,
       if (idPassportNumber != null) 'idPassportNumber': idPassportNumber,
-      'isUser': isUser, // Include isUser field
     };
+
+    print('Passenger JSON: $json');
+    return json;
   }
 
   // Create a copy for API updates (without bookingId, id and createdAt)

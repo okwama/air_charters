@@ -1,5 +1,3 @@
-import 'dart:convert';
-import 'package:http/http.dart' as http;
 import '../models/user_trip_model.dart';
 import '../error/app_exceptions.dart';
 import '../network/api_client.dart';
@@ -10,7 +8,7 @@ class TripsService {
   /// Get all trips for the current user
   Future<List<UserTripModel>> fetchUserTrips() async {
     try {
-      final response = await _apiClient.get('/api/user-trips');
+      final response = await _apiClient.get('/api/trips');
 
       if (response['success'] == true && response['data'] != null) {
         final List<dynamic> tripsJson = response['data'] as List;
@@ -26,7 +24,7 @@ class TripsService {
   /// Get a specific trip by ID
   Future<UserTripModel> fetchTripById(String tripId) async {
     try {
-      final response = await _apiClient.get('/api/user-trips/$tripId');
+      final response = await _apiClient.get('/api/trips/$tripId');
 
       if (response['success'] == true && response['data'] != null) {
         return UserTripModel.fromJson(response['data']);
@@ -42,8 +40,7 @@ class TripsService {
   /// Get trips by status
   Future<List<UserTripModel>> fetchTripsByStatus(UserTripStatus status) async {
     try {
-      final response =
-          await _apiClient.get('/api/user-trips/status/${status.name}');
+      final response = await _apiClient.get('/api/trips/status/${status.name}');
 
       if (response['success'] == true && response['data'] != null) {
         final List<dynamic> tripsJson = response['data'] as List;
@@ -61,7 +58,7 @@ class TripsService {
   Future<UserTripModel> createTrip(UserTripModel trip) async {
     try {
       final response = await _apiClient.post(
-        '/api/user-trips',
+        '/api/trips',
         trip.toCreateJson(),
       );
 
@@ -80,7 +77,7 @@ class TripsService {
   Future<UserTripModel> updateTripStatus(
       String tripId, UserTripStatus status) async {
     try {
-      final response = await _apiClient.put('/api/user-trips/$tripId/status', {
+      final response = await _apiClient.put('/api/trips/$tripId/status', {
         'status': status.name,
       });
 
@@ -98,8 +95,9 @@ class TripsService {
   /// Cancel a trip
   Future<UserTripModel> cancelTrip(String tripId) async {
     try {
-      final response =
-          await _apiClient.put('/api/user-trips/$tripId/cancel', {});
+      final response = await _apiClient.put('/api/trips/$tripId/status', {
+        'status': 'cancelled',
+      });
 
       if (response['success'] == true && response['data'] != null) {
         return UserTripModel.fromJson(response['data']);
@@ -115,8 +113,9 @@ class TripsService {
   /// Complete a trip
   Future<UserTripModel> completeTrip(String tripId) async {
     try {
-      final response =
-          await _apiClient.put('/api/user-trips/$tripId/complete', {});
+      final response = await _apiClient.put('/api/trips/$tripId/status', {
+        'status': 'completed',
+      });
 
       if (response['success'] == true && response['data'] != null) {
         return UserTripModel.fromJson(response['data']);
@@ -138,7 +137,7 @@ class TripsService {
     String? videos,
   }) async {
     try {
-      final response = await _apiClient.put('/api/user-trips/$tripId/review', {
+      final response = await _apiClient.post('/api/trips/$tripId/review', {
         'rating': rating,
         'review': review,
         if (photos != null) 'photos': photos,
@@ -172,7 +171,7 @@ class TripsService {
       if (videos != null) updateData['videos'] = videos;
 
       final response =
-          await _apiClient.put('/api/user-trips/$tripId/review', updateData);
+          await _apiClient.post('/api/trips/$tripId/review', updateData);
 
       if (response['success'] == true && response['data'] != null) {
         return UserTripModel.fromJson(response['data']);
@@ -188,8 +187,13 @@ class TripsService {
   /// Delete trip review
   Future<UserTripModel> deleteTripReview(String tripId) async {
     try {
-      final response =
-          await _apiClient.delete('/api/user-trips/$tripId/review');
+      // For delete review, we'll send an empty review to clear it
+      final response = await _apiClient.post('/api/trips/$tripId/review', {
+        'rating': null,
+        'review': null,
+        'photos': null,
+        'videos': null,
+      });
 
       if (response['success'] == true && response['data'] != null) {
         return UserTripModel.fromJson(response['data']);
@@ -205,7 +209,7 @@ class TripsService {
   /// Get trip statistics for the current user
   Future<Map<String, dynamic>> getTripStatistics() async {
     try {
-      final response = await _apiClient.get('/api/user-trips/statistics');
+      final response = await _apiClient.get('/api/trips/stats/overview');
 
       if (response['success'] == true && response['data'] != null) {
         return response['data'] as Map<String, dynamic>;

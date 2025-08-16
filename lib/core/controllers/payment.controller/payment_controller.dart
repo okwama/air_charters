@@ -1,9 +1,7 @@
 import 'package:flutter/foundation.dart';
-import '../../models/booking_model.dart';
 import '../../providers/booking_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/booking_service.dart';
-import '../../error/app_exceptions.dart';
 
 /// Controller to handle all payment-related operations
 /// Centralizes payment logic including Stripe integration, payment processing, and payment method management

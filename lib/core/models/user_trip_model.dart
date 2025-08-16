@@ -8,7 +8,7 @@ enum UserTripStatus {
 
 class UserTripModel {
   final String id;
-  final String userId;
+  final String? userId; // Make userId optional
   final String bookingId;
   final UserTripStatus status;
   final int? rating;
@@ -25,7 +25,7 @@ class UserTripModel {
 
   const UserTripModel({
     required this.id,
-    required this.userId,
+    this.userId, // Make userId optional
     required this.bookingId,
     required this.status,
     this.rating,
@@ -40,35 +40,35 @@ class UserTripModel {
   });
 
   factory UserTripModel.fromJson(Map<String, dynamic> json) {
-    return UserTripModel(
-      id: json['id'] as String,
-      userId: json['userId'] as String,
-      bookingId: json['bookingId'] as String,
-      status: _parseUserTripStatus(json['status'] as String),
-      rating: json['rating'] as int?,
-      review: json['review'] as String?,
-      reviewDate: json['reviewDate'] != null
-          ? DateTime.parse(json['reviewDate'] as String)
-          : null,
-      photos: json['photos'] as String?,
-      videos: json['videos'] as String?,
-      createdAt: DateTime.parse(json['createdAt'] as String),
-      completedAt: json['completedAt'] != null
-          ? DateTime.parse(json['completedAt'] as String)
-          : null,
-      cancelledAt: json['cancelledAt'] != null
-          ? DateTime.parse(json['cancelledAt'] as String)
-          : null,
-      booking: json['booking'] != null
-          ? BookingModel.fromJson(json['booking'] as Map<String, dynamic>)
-          : null,
-    );
+    try {
+      return UserTripModel(
+        id: json['id']?.toString() ?? '',
+        userId: json['userId']?.toString(), // Allow null userId
+        bookingId: json['bookingId']?.toString() ?? '',
+        status: _parseUserTripStatus(json['status']?.toString()),
+        rating: _parseNullableInt(json['rating']),
+        review: _parseNullableString(json['review']),
+        reviewDate: _parseNullableDateTime(json['reviewDate']),
+        photos: _parseNullableString(json['photos']),
+        videos: _parseNullableString(json['videos']),
+        createdAt: _parseDateTime(json['createdAt']),
+        completedAt: _parseNullableDateTime(json['completedAt']),
+        cancelledAt: _parseNullableDateTime(json['cancelledAt']),
+        booking: json['booking'] != null
+            ? BookingModel.fromJson(json['booking'] as Map<String, dynamic>)
+            : null,
+      );
+    } catch (e) {
+      print('Error parsing UserTripModel: $e');
+      print('JSON: $json');
+      rethrow;
+    }
   }
 
   Map<String, dynamic> toJson() {
     return {
       'id': id,
-      'userId': userId,
+      if (userId != null) 'userId': userId,
       'bookingId': bookingId,
       'status': status.name,
       if (rating != null) 'rating': rating,
@@ -86,12 +86,14 @@ class UserTripModel {
   // Create JSON for trip creation (without server-generated fields)
   Map<String, dynamic> toCreateJson() {
     return {
+      if (userId != null) 'userId': userId,
       'bookingId': bookingId,
       'status': status.name,
-      if (rating != null) 'rating': rating,
-      if (review != null) 'review': review,
-      if (photos != null) 'photos': photos,
-      if (videos != null) 'videos': videos,
+      // Only include optional fields if they have values
+      if (rating != null && rating! > 0) 'rating': rating,
+      if (review != null && review!.isNotEmpty) 'review': review,
+      if (photos != null && photos!.isNotEmpty) 'photos': photos,
+      if (videos != null && videos!.isNotEmpty) 'videos': videos,
     };
   }
 
@@ -140,6 +142,68 @@ class UserTripModel {
     }
   }
 
+  // Helper method to safely parse nullable string
+  static String? _parseNullableString(dynamic value) {
+    if (value == null) return null;
+    if (value is String) return value;
+    return value.toString();
+  }
+
+  // Helper method to safely parse nullable int
+  static int? _parseNullableInt(dynamic value) {
+    if (value == null) return null;
+    if (value is int) return value;
+    if (value is String) {
+      final parsed = int.tryParse(value);
+      return parsed;
+    }
+    if (value is double) return value.toInt();
+    return null;
+  }
+
+  // Helper method to safely parse DateTime (required field)
+  static DateTime _parseDateTime(dynamic value) {
+    if (value == null) return DateTime.now();
+    if (value is DateTime) return value;
+    if (value is String) {
+      try {
+        return DateTime.parse(value);
+      } catch (e) {
+        print('Error parsing DateTime: $value');
+        return DateTime.now();
+      }
+    }
+    return DateTime.now();
+  }
+
+  // Helper method to safely parse nullable DateTime
+  static DateTime? _parseNullableDateTime(dynamic value) {
+    if (value == null) return null;
+    if (value is DateTime) return value;
+    if (value is String) {
+      try {
+        return DateTime.parse(value);
+      } catch (e) {
+        print('Error parsing nullable DateTime: $value');
+        return null;
+      }
+    }
+    return null;
+  }
+
+  // Convenience getters for nullable fields
+  bool get hasRating => rating != null && rating! > 0;
+  bool get hasReview => review != null && review!.isNotEmpty;
+  bool get hasPhotos => photos != null && photos!.isNotEmpty;
+  bool get hasVideos => videos != null && videos!.isNotEmpty;
+  bool get isCompleted => completedAt != null;
+  bool get isCancelled => cancelledAt != null;
+
+  // Display helpers
+  String get ratingDisplay => hasRating ? '$rating/5' : 'No rating';
+  String get reviewDisplay => hasReview ? review! : 'No review';
+  String get statusDisplay => status.name.toUpperCase();
+
   @override
   String toString() {
     return 'UserTripModel(id: $id, userId: $userId, bookingId: $bookingId, status: $status)';
@@ -157,6 +221,9 @@ class UserTripModel {
 
   @override
   int get hashCode {
-    return id.hashCode ^ userId.hashCode ^ bookingId.hashCode ^ status.hashCode;
+    return id.hashCode ^
+        (userId?.hashCode ?? 0) ^
+        bookingId.hashCode ^
+        status.hashCode;
   }
 }

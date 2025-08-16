@@ -69,24 +69,19 @@ class BottomNav extends StatelessWidget {
     // Don't navigate if already on the selected tab
     if (currentIndex == index) return;
 
+    // Use consistent navigation that switches between main tabs
     switch (index) {
-      case 0: // Explore
-        Navigator.of(context)
-            .pushNamedAndRemoveUntil('/home', (route) => false);
+      case 0: // Explore (Home)
+        Navigator.of(context).pushReplacementNamed('/home');
         break;
-      case 1: // Trips
-        Navigator.of(context)
-            .pushNamedAndRemoveUntil('/trips', (route) => false);
+      case 1: // Direct Charter
+        Navigator.of(context).pushReplacementNamed('/direct-charter');
         break;
-      case 2: // Contact
-        // Navigate to contact screen (placeholder)
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Contact feature coming soon!')),
-        );
+      case 2: // Trips
+        Navigator.of(context).pushReplacementNamed('/trips');
         break;
       case 3: // Settings
-        Navigator.of(context)
-            .pushNamedAndRemoveUntil('/settings', (route) => false);
+        Navigator.of(context).pushReplacementNamed('/settings');
         break;
     }
   }
@@ -98,14 +93,14 @@ class BottomNav extends StatelessWidget {
       label: 'Explore',
     ),
     CharterBottomNavItem(
+      icon: LucideIcons.plane,
+      activeIcon: LucideIcons.planeTakeoff,
+      label: 'Direct Charter',
+    ),
+    CharterBottomNavItem(
       icon: LucideIcons.planeTakeoff,
       activeIcon: LucideIcons.planeLanding,
       label: 'Trips',
-    ),
-    CharterBottomNavItem(
-      icon: LucideIcons.headphones,
-      activeIcon: LucideIcons.messageSquare,
-      label: 'Contact',
     ),
     CharterBottomNavItem(
       icon: LucideIcons.settings,

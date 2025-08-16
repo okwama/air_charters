@@ -1,7 +1,4 @@
-import 'dart:developer' as dev;
-import 'package:flutter/foundation.dart';
 import 'lib/shared/utils/session_manager.dart';
-import 'lib/core/providers/auth_provider.dart';
 
 void main() {
   testTokenHandling();

@@ -1,6 +1,5 @@
 import 'package:flutter/foundation.dart';
 import '../../models/booking_model.dart';
-import '../../models/passenger_model.dart';
 import '../../providers/booking_provider.dart';
 import '../../providers/passengers_provider.dart';
 import '../../providers/auth_provider.dart';

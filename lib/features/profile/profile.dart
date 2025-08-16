@@ -8,6 +8,7 @@ import '../../shared/components/bottom_nav.dart';
 import '../../core/providers/profile_provider.dart';
 import '../../core/providers/auth_provider.dart';
 import '../../shared/utils/session_manager.dart';
+import '../../config/theme/app_theme.dart';
 import 'dart:developer' as dev;
 
 class ProfileScreen extends StatefulWidget {
@@ -40,43 +41,47 @@ class _ProfileScreenState extends State<ProfileScreen> {
           name: 'profile_screen');
     }
 
+    // Redirect to login if not authenticated
+    if (!isAuthenticated) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        Navigator.of(context).pushReplacementNamed('/login');
+      });
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
     // Fetch profile on first build, but check authentication first
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (profileProvider.profile == null && !profileProvider.loading) {
-        // Check if we have a valid session before fetching
-        if (isAuthenticated) {
-          // Set the auth provider reference in ProfileProvider
-          profileProvider.setAuthProvider(authProvider);
+        // Set the auth provider reference in ProfileProvider
+        profileProvider.setAuthProvider(authProvider);
 
-          if (profileProvider.canFetchProfile) {
-            if (kDebugMode) {
-              dev.log('ProfileScreen: Fetching profile...',
-                  name: 'profile_screen');
-            }
-            await profileProvider.fetchProfile();
+        if (profileProvider.canFetchProfile) {
+          if (kDebugMode) {
+            dev.log('ProfileScreen: Fetching profile...',
+                name: 'profile_screen');
+          }
+          await profileProvider.fetchProfile();
 
-            // Check if profile fetch failed due to auth issues
-            if (profileProvider.profile == null && !_hasShownAuthError) {
-              _hasShownAuthError = true;
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Session expired. Please login again.'),
-                    backgroundColor: Colors.orange,
-                    duration: Duration(seconds: 3),
-                  ),
-                );
-              }
-            }
-          } else {
-            if (kDebugMode) {
-              dev.log('ProfileScreen: Cannot fetch profile - auth issues',
-                  name: 'profile_screen');
+          // Check if profile fetch failed due to auth issues
+          if (profileProvider.profile == null && !_hasShownAuthError) {
+            _hasShownAuthError = true;
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Session expired. Please login again.'),
+                  backgroundColor: Colors.orange,
+                  duration: Duration(seconds: 3),
+                ),
+              );
+              // Redirect to login after showing the message
+              Navigator.of(context).pushReplacementNamed('/login');
             }
           }
         } else {
           if (kDebugMode) {
-            dev.log('ProfileScreen: User not authenticated',
+            dev.log('ProfileScreen: Cannot fetch profile - auth issues',
                 name: 'profile_screen');
           }
         }
@@ -92,14 +97,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
       );
     }
 
-    // Show login prompt if user is not authenticated OR if profile is null
-    if (!isAuthenticated || profile == null) {
-      if (kDebugMode) {
-        dev.log(
-            'ProfileScreen: Showing login prompt - isAuthenticated: $isAuthenticated, profile: ${profile != null}',
-            name: 'profile_screen');
-      }
-
+    // Show error state if profile is null (should not happen for authenticated users)
+    if (profile == null) {
       return Scaffold(
         backgroundColor: Colors.white,
         appBar: AppBar(
@@ -108,20 +107,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
           leading: IconButton(
             icon: const Icon(LucideIcons.arrowLeft, color: Colors.black),
             onPressed: () {
-              // Navigate to home screen and clear the stack
-              Navigator.of(context).pushNamedAndRemoveUntil(
-                '/home',
-                (route) => false,
-              );
+              Navigator.of(context).pushReplacementNamed('/settings');
             },
           ),
           title: Text(
             'Profile',
-            style: GoogleFonts.interTight(
-              fontWeight: FontWeight.w600,
-              color: Colors.black,
-              fontSize: 18,
-            ),
+            style: AppTheme.heading3,
           ),
           centerTitle: true,
         ),
@@ -130,29 +121,35 @@ class _ProfileScreenState extends State<ProfileScreen> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Icon(
-                LucideIcons.user,
+                LucideIcons.alertCircle,
                 size: 64,
-                color: Colors.grey,
+                color: Colors.orange,
               ),
               const SizedBox(height: 16),
               Text(
-                'Please login to view your profile',
+                'Unable to load profile',
                 style: TextStyle(
-                  fontSize: 16,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.black,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Please try again later',
+                style: TextStyle(
+                  fontSize: 14,
                   color: Colors.grey,
                 ),
               ),
               const SizedBox(height: 24),
               ElevatedButton(
                 onPressed: () {
-                  Navigator.of(context).pushNamedAndRemoveUntil(
-                    '/login',
-                    (route) => false,
-                  );
+                  profileProvider.fetchProfile();
                 },
-                child: Text('Go to Login'),
+                child: Text('Retry'),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.blue,
+                  backgroundColor: Colors.black,
                   foregroundColor: Colors.white,
                   padding:
                       const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
@@ -161,7 +158,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ],
           ),
         ),
-        bottomNavigationBar: const BottomNav(currentIndex: 3),
+        bottomNavigationBar: const BottomNav(
+            currentIndex: 3), // Settings tab (profile is part of settings)
       );
     }
 
@@ -182,11 +180,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
         title: Text(
           'Profile',
-          style: GoogleFonts.interTight(
-            fontWeight: FontWeight.w600,
-            color: Colors.black,
-            fontSize: 18,
-          ),
+          style: AppTheme.heading3,
         ),
         centerTitle: true,
         actions: [
@@ -318,7 +312,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               icon: LucideIcons.calendar,
               title: 'Date of Birth',
               value:
-                  preferences?['dateOfBirth']?.toString()?.split(' ')?.first ??
+                  preferences?['dateOfBirth']?.toString().split(' ').first ??
                       '',
               onTap: () => _showDatePicker(context, profileProvider),
             ),
@@ -393,7 +387,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ],
         ),
       ),
-      bottomNavigationBar: const BottomNav(currentIndex: 3),
+      bottomNavigationBar: const BottomNav(
+          currentIndex: 3), // Settings tab (profile is part of settings)
     );
   }
 
@@ -459,68 +454,43 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
         ),
         actions: [
-          TextButton(
+          ElevatedButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.black,
+              foregroundColor: Colors.white,
+              minimumSize: const Size(double.infinity, 48),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              elevation: 0,
+            ),
+            child: Text(
+              'Save',
+              style: GoogleFonts.inter(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: Colors.white,
+              ),
+            ),
           ),
-          TextButton(
-            onPressed: () async {
-              try {
-                // Check if session is still valid before making changes
-                if (!authProvider.isAuthenticated ||
-                    !authProvider.hasValidToken) {
-                  if (kDebugMode) {
-                    dev.log('ProfileScreen: Session expired during edit',
-                        name: 'profile_screen');
-                  }
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Session expired. Please login again.'),
-                      backgroundColor: Colors.red,
-                    ),
-                  );
-                  return;
-                }
-
-                if (isPreference) {
-                  await provider.updatePreferences(
-                      {field.toLowerCase(): controller.text});
-                } else {
-                  if (field == 'Full Name') {
-                    final parts = controller.text.split(' ');
-                    await provider.updateProfile({
-                      'firstName': parts.first,
-                      'lastName':
-                          parts.length > 1 ? parts.sublist(1).join(' ') : '',
-                    });
-                  } else {
-                    await provider
-                        .updateProfile({field.camelCase(): controller.text});
-                  }
-                }
-
-                if (kDebugMode) {
-                  dev.log('ProfileScreen: Profile updated successfully',
-                      name: 'profile_screen');
-                }
-
-                Navigator.pop(context);
-              } catch (e) {
-                if (kDebugMode) {
-                  dev.log('ProfileScreen: Error updating profile: $e',
-                      name: 'profile_screen');
-                }
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Error updating profile: $e'),
-                    backgroundColor: Colors.red,
-                  ),
-                );
-              }
-            },
-            child: const Text('Save'),
+          OutlinedButton(
+            onPressed: () => Navigator.pop(context),
+            style: OutlinedButton.styleFrom(
+              side: const BorderSide(color: Colors.black),
+              minimumSize: const Size(double.infinity, 48),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+            ),
+            child: Text(
+              'Cancel',
+              style: GoogleFonts.inter(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: Colors.black,
+              ),
+            ),
           ),
         ],
       ),
@@ -571,6 +541,46 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ))
               .toList(),
         ),
+        actions: [
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.black,
+              foregroundColor: Colors.white,
+              minimumSize: const Size(double.infinity, 48),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              elevation: 0,
+            ),
+            child: Text(
+              'Save',
+              style: GoogleFonts.inter(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: Colors.white,
+              ),
+            ),
+          ),
+          OutlinedButton(
+            onPressed: () => Navigator.pop(context),
+            style: OutlinedButton.styleFrom(
+              side: const BorderSide(color: Colors.black),
+              minimumSize: const Size(double.infinity, 48),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+            ),
+            child: Text(
+              'Cancel',
+              style: GoogleFonts.inter(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: Colors.black,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
