@@ -91,7 +91,7 @@ class DealCardShimmer extends StatelessWidget {
           ShimmerLoading(
             child: Container(
               width: double.infinity,
-              height: 160,
+              height: 140,
               decoration: BoxDecoration(
                 color: Colors.grey.shade300,
                 borderRadius: const BorderRadius.vertical(
@@ -213,4 +213,232 @@ class DealListShimmer extends StatelessWidget {
       itemBuilder: (context, index) => const DealCardShimmer(),
     );
   }
-} 
+}
+
+class ExperienceCardShimmer extends StatelessWidget {
+  const ExperienceCardShimmer({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade300, width: 1),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+            spreadRadius: 0,
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Image placeholder - Fixed height like deals
+          ShimmerLoading(
+            child: Container(
+              width: double.infinity,
+              height: 140,
+              decoration: BoxDecoration(
+                color: Colors.grey.shade300,
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(12),
+                ),
+              ),
+            ),
+          ),
+
+          // Dash separator placeholder
+          Container(
+            height: 1,
+            margin: const EdgeInsets.symmetric(horizontal: 16),
+            child: ShimmerLoading(
+              child: Container(
+                color: Colors.grey.shade300,
+              ),
+            ),
+          ),
+
+          // Content section - Horizontal layout
+          Padding(
+            padding: const EdgeInsets.all(12),
+            child: Row(
+              children: [
+                // Left side - Experience details
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Title
+                      ShimmerLoading(
+                        child: Container(
+                          height: 16,
+                          width: double.infinity,
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade300,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+
+                      // Location
+                      Row(
+                        children: [
+                          ShimmerLoading(
+                            child: Container(
+                              height: 14,
+                              width: 14,
+                              decoration: BoxDecoration(
+                                color: Colors.grey.shade300,
+                                borderRadius: BorderRadius.circular(2),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          Expanded(
+                            child: ShimmerLoading(
+                              child: Container(
+                                height: 14,
+                                decoration: BoxDecoration(
+                                  color: Colors.grey.shade300,
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 1),
+
+                      // Duration
+                      Row(
+                        children: [
+                          ShimmerLoading(
+                            child: Container(
+                              height: 14,
+                              width: 14,
+                              decoration: BoxDecoration(
+                                color: Colors.grey.shade300,
+                                borderRadius: BorderRadius.circular(2),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          ShimmerLoading(
+                            child: Container(
+                              height: 14,
+                              width: 80,
+                              decoration: BoxDecoration(
+                                color: Colors.grey.shade300,
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+
+                // Right side - Price badge
+                ShimmerLoading(
+                  child: Container(
+                    height: 24,
+                    width: 60,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade300,
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class ExperienceListShimmer extends StatelessWidget {
+  final int itemCount;
+
+  const ExperienceListShimmer({
+    super.key,
+    this.itemCount = 4,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView.builder(
+      padding: const EdgeInsets.symmetric(vertical: 16),
+      itemCount: itemCount,
+      itemBuilder: (context, index) => const ExperienceCardShimmer(),
+    );
+  }
+}
+
+class ExperienceCategoryShimmer extends StatelessWidget {
+  const ExperienceCategoryShimmer({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Category title
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: ShimmerLoading(
+            child: Container(
+              height: 24,
+              width: 200,
+              decoration: BoxDecoration(
+                color: Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(4),
+              ),
+            ),
+          ),
+        ),
+
+        // Horizontal scroll of experience cards
+        SizedBox(
+          height: 240,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            itemCount: 3,
+            itemBuilder: (context, index) => Container(
+              width: MediaQuery.of(context).size.width * 0.85,
+              margin: const EdgeInsets.only(right: 16),
+              child: const ExperienceCardShimmer(),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class ExperienceCategoriesShimmer extends StatelessWidget {
+  final int categoryCount;
+
+  const ExperienceCategoriesShimmer({
+    super.key,
+    this.categoryCount = 3,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView.builder(
+      padding: const EdgeInsets.symmetric(vertical: 16),
+      itemCount: categoryCount,
+      itemBuilder: (context, index) => const ExperienceCategoryShimmer(),
+    );
+  }
+}

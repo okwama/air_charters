@@ -3,6 +3,8 @@ import 'package:provider/provider.dart';
 import '../../core/providers/charter_deals_provider.dart';
 import '../../core/models/charter_deal_model.dart';
 import '../widgets/shimmer_loading.dart';
+import '../widgets/loading_system.dart';
+import '../widgets/offline_fallback_widget.dart';
 import 'deal_card.dart';
 import 'grouped_deal_card.dart';
 import '../utils/deal_grouping_utils.dart';
@@ -14,6 +16,8 @@ class DealsListWidget extends StatefulWidget {
   final String? dealType;
   final DateTime? fromDate;
   final DateTime? toDate;
+  final int? aircraftTypeId;
+  final bool groupBy;
   final VoidCallback? onDealTap;
   final bool enablePullToRefresh;
   final bool enableInfiniteScroll;
@@ -24,6 +28,8 @@ class DealsListWidget extends StatefulWidget {
     this.dealType,
     this.fromDate,
     this.toDate,
+    this.aircraftTypeId,
+    this.groupBy = false,
     this.onDealTap,
     this.enablePullToRefresh = true,
     this.enableInfiniteScroll = true,
@@ -84,6 +90,8 @@ class _DealsListWidgetState extends State<DealsListWidget> {
         dealType: widget.dealType,
         fromDate: widget.fromDate,
         toDate: widget.toDate,
+        aircraftTypeId: widget.aircraftTypeId,
+        groupBy: widget.groupBy,
       );
     } catch (e) {
       if (kDebugMode) {
@@ -212,6 +220,13 @@ class _DealsListWidgetState extends State<DealsListWidget> {
         }
         return _buildDealsListWithLoadingMore(provider);
 
+      case CharterDealsState.offline:
+        if (kDebugMode) {
+          dev.log('DealsListWidget: Showing offline state with cached data',
+              name: 'deals_list');
+        }
+        return _buildOfflineState(provider);
+
       default:
         if (kDebugMode) {
           dev.log('DealsListWidget: Unknown state, showing empty',
@@ -273,22 +288,9 @@ class _DealsListWidgetState extends State<DealsListWidget> {
           return Padding(
             padding: const EdgeInsets.all(16),
             child: Center(
-              child: Column(
-                children: [
-                  const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Loading more deals...',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey.shade600,
-                    ),
-                  ),
-                ],
+              child: LoadingSystem.inline(
+                size: 20,
+                color: Colors.grey.shade600,
               ),
             ),
           );
@@ -380,6 +382,55 @@ class _DealsListWidgetState extends State<DealsListWidget> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildOfflineState(CharterDealsProvider provider) {
+    return Column(
+      children: [
+        // Offline indicator at the top
+        OfflineIndicator(
+          lastLoadTime: provider.lastLoadTime ?? 'unknown time',
+          onRetry: () {
+            provider.loadDeals(
+              searchQuery: widget.searchQuery,
+              dealType: widget.dealType,
+              fromDate: widget.fromDate,
+              toDate: widget.toDate,
+              aircraftTypeId: widget.aircraftTypeId,
+              groupBy: widget.groupBy,
+              forceRefresh: true,
+            );
+          },
+        ),
+        
+        // Show cached deals if available
+        if (provider.deals.isNotEmpty) ...[
+          Expanded(
+            child: _buildDealsList(provider),
+          ),
+        ] else ...[
+          // No cached data available
+          Expanded(
+            child: OfflineFallbackWidget(
+              message: provider.errorMessage ?? 'No internet connection. Please check your network.',
+              onRetry: () {
+                provider.loadDeals(
+                  searchQuery: widget.searchQuery,
+                  dealType: widget.dealType,
+                  fromDate: widget.fromDate,
+                  toDate: widget.toDate,
+                  aircraftTypeId: widget.aircraftTypeId,
+                  groupBy: widget.groupBy,
+                  forceRefresh: true,
+                );
+              },
+              icon: Icons.cloud_off_outlined,
+              iconColor: Colors.orange.shade400,
+            ),
+          ),
+        ],
+      ],
     );
   }
 

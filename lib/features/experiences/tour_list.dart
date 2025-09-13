@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:air_charters/shared/components/experience_card.dart';
+import 'package:air_charters/features/experiences/tour_detail.dart';
+import 'package:air_charters/core/services/experiences_service.dart';
+import 'package:air_charters/core/network/api_client.dart';
 
-class TourListScreen extends StatelessWidget {
+class TourListScreen extends StatefulWidget {
   final String category;
   final List<Map<String, dynamic>> deals;
 
@@ -11,6 +14,19 @@ class TourListScreen extends StatelessWidget {
     required this.category,
     required this.deals,
   });
+
+  @override
+  State<TourListScreen> createState() => _TourListScreenState();
+}
+
+class _TourListScreenState extends State<TourListScreen> {
+  late ExperiencesService _experiencesService;
+
+  @override
+  void initState() {
+    super.initState();
+    _experiencesService = ExperiencesService(ApiClient());
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -24,7 +40,7 @@ class TourListScreen extends StatelessWidget {
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
-          category,
+          widget.category,
           style: GoogleFonts.inter(
             fontSize: 20,
             fontWeight: FontWeight.w700,
@@ -38,7 +54,7 @@ class TourListScreen extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Explore ${deals.length} ${category.toLowerCase()} experiences',
+              'Explore ${widget.deals.length} ${widget.category.toLowerCase()} experiences',
               style: GoogleFonts.inter(
                 fontSize: 16,
                 fontWeight: FontWeight.w500,
@@ -48,37 +64,58 @@ class TourListScreen extends StatelessWidget {
             const SizedBox(height: 20),
 
             // List of all deals
-            ...deals
-                .map((deal) => Container(
-                      margin: const EdgeInsets.only(bottom: 16),
-                      child: ExperienceCard(
-                        imageUrl: deal['imageUrl'],
-                        title: deal['title'],
-                        location: deal['location'],
-                        duration: deal['duration'],
-                        price: deal['price'],
-                        rating: deal['rating'],
-                        onTap: () => _showDealDetail(context, deal),
-                      ),
-                    ))
-                ,
+            ...widget.deals.map((deal) => Container(
+                  margin: const EdgeInsets.only(bottom: 16),
+                  child: ExperienceCard(
+                    imageUrl: deal['imageUrl'],
+                    title: deal['title'],
+                    location: deal['location'],
+                    duration: deal['duration'],
+                    price: deal['price'],
+                    rating: deal['rating'],
+                    onTap: () => _showDealDetail(context, deal),
+                  ),
+                )),
           ],
         ),
       ),
     );
   }
 
-  void _showDealDetail(BuildContext context, Map<String, dynamic> deal) {
-    // TODO: Navigate to deal detail page
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          'Selected: ${deal['title']}',
-          style: GoogleFonts.inter(color: Colors.white),
-        ),
-        backgroundColor: Colors.black,
-        duration: const Duration(seconds: 2),
-      ),
-    );
+  void _showDealDetail(BuildContext context, Map<String, dynamic> deal) async {
+    try {
+      final experienceId = deal['id'] as int;
+      final experienceDetails =
+          await _experiencesService.getExperienceDetails(experienceId);
+
+      if (mounted) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => TourDetailPage(
+              imageUrl: deal['imageUrl'],
+              title: deal['title'],
+              location: deal['location'],
+              duration: deal['duration'],
+              price: deal['price'],
+              rating: deal['rating'],
+              description: experienceDetails['description'] ??
+                  'Experience details coming soon...',
+              experienceId: deal['id'],
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to load experience details: ${e.toString()}'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    }
   }
 }

@@ -7,12 +7,13 @@ plugins {
 
 android {
     namespace = "com.example.air_charters"
-    compileSdk = flutter.compileSdkVersion
+    compileSdk = 35
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
+        coreLibraryDesugaringEnabled true
     }
 
     kotlinOptions {
@@ -24,8 +25,8 @@ android {
         applicationId = "com.cit.air_charters"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = flutter.minSdkVersion
-        targetSdk = flutter.targetSdkVersion
+        minSdk = 23
+        targetSdk = 35
         versionCode = flutter.versionCode
         versionName = flutter.versionName
     }
@@ -45,4 +46,5 @@ flutter {
 
 dependencies {
     // Backend-only dependencies - no Firebase required
+    coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.0.4'
 }

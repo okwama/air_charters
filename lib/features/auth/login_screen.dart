@@ -123,9 +123,9 @@ class _LoginScreenState extends State<LoginScreen> {
             showSuccessToast(context, authProvider.successMessage!);
           }
 
-          // Navigate to home screen
+          // Navigate to main navigation screen (which includes bottom nav)
           Navigator.of(context)
-              .pushNamedAndRemoveUntil('/home', (route) => false);
+              .pushNamedAndRemoveUntil('/', (route) => false);
         } else {
           print(
               '🔥 LOGIN SCREEN: Authentication failed - user not authenticated');
@@ -169,28 +169,28 @@ class _LoginScreenState extends State<LoginScreen> {
               return Stack(
                 children: [
                   SingleChildScrollView(
-                    padding: const EdgeInsets.all(16),
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 64),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Header Section - Compact
+                        // Header Section - More spacious
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
                               'Welcome Back',
                               style: GoogleFonts.interTight(
-                                fontSize: 26,
+                                fontSize: 32,
                                 fontWeight: FontWeight.bold,
                                 color: Colors.black,
                                 letterSpacing: -0.5,
                               ),
                             ),
-                            const SizedBox(height: 4),
+                            const SizedBox(height: 8),
                             Text(
                               'Sign in to your account to continue',
                               style: GoogleFonts.inter(
-                                fontSize: 14,
+                                fontSize: 16,
                                 fontWeight: FontWeight.normal,
                                 color: const Color(0xFF666666),
                                 letterSpacing: 0.0,
@@ -198,17 +198,17 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                           ],
                         ),
-                        const SizedBox(height: 20),
+                        const SizedBox(height: 40),
 
                         // Form Section
                         Column(
                           children: [
-                            // Input Mode Toggle - Compact
+                            // Input Mode Toggle - More spacious
                             Container(
-                              margin: const EdgeInsets.only(bottom: 12),
+                              margin: const EdgeInsets.only(bottom: 20),
                               decoration: BoxDecoration(
                                 color: const Color(0xFFF5F5F5),
-                                borderRadius: BorderRadius.circular(10),
+                                borderRadius: BorderRadius.circular(12),
                                 border: Border.all(
                                   color: const Color(0xFFE5E5E5),
                                   width: 1,
@@ -226,13 +226,13 @@ class _LoginScreenState extends State<LoginScreen> {
                                       },
                                       child: Container(
                                         padding: const EdgeInsets.symmetric(
-                                            vertical: 10),
+                                            vertical: 14),
                                         decoration: BoxDecoration(
                                           color: !_isEmailMode
                                               ? Colors.black
                                               : Colors.transparent,
                                           borderRadius:
-                                              BorderRadius.circular(10),
+                                              BorderRadius.circular(12),
                                         ),
                                         child: Row(
                                           mainAxisAlignment:
@@ -249,7 +249,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                             Text(
                                               'Phone',
                                               style: GoogleFonts.inter(
-                                                fontSize: 13,
+                                                fontSize: 14,
                                                 fontWeight: FontWeight.w600,
                                                 color: !_isEmailMode
                                                     ? Colors.white
@@ -271,13 +271,13 @@ class _LoginScreenState extends State<LoginScreen> {
                                       },
                                       child: Container(
                                         padding: const EdgeInsets.symmetric(
-                                            vertical: 10),
+                                            vertical: 14),
                                         decoration: BoxDecoration(
                                           color: _isEmailMode
                                               ? Colors.black
                                               : Colors.transparent,
                                           borderRadius:
-                                              BorderRadius.circular(10),
+                                              BorderRadius.circular(12),
                                         ),
                                         child: Row(
                                           mainAxisAlignment:
@@ -294,7 +294,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                             Text(
                                               'Email',
                                               style: GoogleFonts.inter(
-                                                fontSize: 13,
+                                                fontSize: 14,
                                                 fontWeight: FontWeight.w600,
                                                 color: _isEmailMode
                                                     ? Colors.white
@@ -312,7 +312,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
                             // Phone/Email Input Field
                             if (!_isEmailMode) ...[
-                              // Phone Input with Country Code Selector - Compact
+                              // Phone Input with Country Code Selector - More spacious
                               Row(
                                 children: [
                                   // Country Code Selector
@@ -320,10 +320,10 @@ class _LoginScreenState extends State<LoginScreen> {
                                     onTap: _selectCountry,
                                     child: Container(
                                       padding: const EdgeInsets.symmetric(
-                                          horizontal: 10, vertical: 12),
+                                          horizontal: 12, vertical: 16),
                                       decoration: BoxDecoration(
                                         color: const Color(0xFFF5F5F5),
-                                        borderRadius: BorderRadius.circular(10),
+                                        borderRadius: BorderRadius.circular(12),
                                         border: Border.all(
                                           color: const Color(0xFFE5E5E5),
                                           width: 1,
@@ -356,7 +356,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                       ),
                                     ),
                                   ),
-                                  const SizedBox(width: 8),
+                                  const SizedBox(width: 12),
                                   // Phone Number Input Field
                                   Expanded(
                                     child: TextFormField(
@@ -367,14 +367,14 @@ class _LoginScreenState extends State<LoginScreen> {
                                       cursorColor: Colors.black,
                                       enabled: !authProvider.isLoading,
                                       style: GoogleFonts.inter(
-                                        fontSize: 14,
+                                        fontSize: 16,
                                         fontWeight: FontWeight.normal,
                                         color: Colors.black,
                                       ),
                                       decoration: InputDecoration(
                                         hintText: 'Phone number',
                                         hintStyle: GoogleFonts.inter(
-                                          fontSize: 14,
+                                          fontSize: 16,
                                           fontWeight: FontWeight.normal,
                                           color: const Color(0xFF888888),
                                         ),
@@ -384,7 +384,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                             width: 1,
                                           ),
                                           borderRadius:
-                                              BorderRadius.circular(10),
+                                              BorderRadius.circular(12),
                                         ),
                                         focusedBorder: OutlineInputBorder(
                                           borderSide: const BorderSide(
@@ -392,19 +392,19 @@ class _LoginScreenState extends State<LoginScreen> {
                                             width: 1,
                                           ),
                                           borderRadius:
-                                              BorderRadius.circular(10),
+                                              BorderRadius.circular(12),
                                         ),
                                         filled: true,
                                         fillColor: const Color(0xFFF5F5F5),
                                         contentPadding:
-                                            const EdgeInsets.all(12),
+                                            const EdgeInsets.all(16),
                                       ),
                                     ),
                                   ),
                                 ],
                               ),
                             ] else ...[
-                              // Email Input Field - Compact
+                              // Email Input Field - More spacious
                               TextFormField(
                                 controller: _phoneEmailController,
                                 focusNode: _phoneEmailFocus,
@@ -413,14 +413,14 @@ class _LoginScreenState extends State<LoginScreen> {
                                 cursorColor: Colors.black,
                                 enabled: !authProvider.isLoading,
                                 style: GoogleFonts.inter(
-                                  fontSize: 14,
+                                  fontSize: 16,
                                   fontWeight: FontWeight.normal,
                                   color: Colors.black,
                                 ),
                                 decoration: InputDecoration(
                                   hintText: 'Email address',
                                   hintStyle: GoogleFonts.inter(
-                                    fontSize: 14,
+                                    fontSize: 16,
                                     fontWeight: FontWeight.normal,
                                     color: const Color(0xFF888888),
                                   ),
@@ -429,24 +429,24 @@ class _LoginScreenState extends State<LoginScreen> {
                                       color: Color(0xFFE5E5E5),
                                       width: 1,
                                     ),
-                                    borderRadius: BorderRadius.circular(10),
+                                    borderRadius: BorderRadius.circular(12),
                                   ),
                                   focusedBorder: OutlineInputBorder(
                                     borderSide: const BorderSide(
                                       color: Colors.black,
                                       width: 1,
                                     ),
-                                    borderRadius: BorderRadius.circular(10),
+                                    borderRadius: BorderRadius.circular(12),
                                   ),
                                   filled: true,
                                   fillColor: const Color(0xFFF5F5F5),
-                                  contentPadding: const EdgeInsets.all(12),
+                                  contentPadding: const EdgeInsets.all(16),
                                 ),
                               ),
                             ],
-                            const SizedBox(height: 12),
+                            const SizedBox(height: 20),
 
-                            // Password Field - Compact
+                            // Password Field - More spacious
                             TextFormField(
                               controller: _passwordController,
                               focusNode: _passwordFocus,
@@ -455,7 +455,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               cursorColor: Colors.black,
                               enabled: !authProvider.isLoading,
                               style: GoogleFonts.inter(
-                                fontSize: 14,
+                                fontSize: 16,
                                 fontWeight: FontWeight.normal,
                                 color: Colors.black,
                               ),
@@ -464,7 +464,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                     ? 'Password (required)'
                                     : 'Password (optional)',
                                 hintStyle: GoogleFonts.inter(
-                                  fontSize: 14,
+                                  fontSize: 16,
                                   fontWeight: FontWeight.normal,
                                   color: const Color(0xFF888888),
                                 ),
@@ -473,18 +473,18 @@ class _LoginScreenState extends State<LoginScreen> {
                                     color: Color(0xFFE5E5E5),
                                     width: 1,
                                   ),
-                                  borderRadius: BorderRadius.circular(10),
+                                  borderRadius: BorderRadius.circular(12),
                                 ),
                                 focusedBorder: OutlineInputBorder(
                                   borderSide: const BorderSide(
                                     color: Colors.black,
                                     width: 1,
                                   ),
-                                  borderRadius: BorderRadius.circular(10),
+                                  borderRadius: BorderRadius.circular(12),
                                 ),
                                 filled: true,
                                 fillColor: const Color(0xFFF5F5F5),
-                                contentPadding: const EdgeInsets.all(12),
+                                contentPadding: const EdgeInsets.all(16),
                                 suffixIcon: InkWell(
                                   onTap: () {
                                     setState(() {
@@ -502,15 +502,15 @@ class _LoginScreenState extends State<LoginScreen> {
                                 ),
                               ),
                             ),
-                            const SizedBox(height: 16),
+                            const SizedBox(height: 24),
 
-                            // Action Buttons - Compact
+                            // Action Buttons - More spacious
                             Column(
                               children: [
                                 // Send Verification Code Button
                                 SizedBox(
                                   width: double.infinity,
-                                  height: 44,
+                                  height: 52,
                                   child: ElevatedButton(
                                     onPressed:
                                         (authProvider.isLoading || _isEmailMode)
@@ -522,7 +522,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                           : Colors.black,
                                       foregroundColor: Colors.white,
                                       shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(10),
+                                        borderRadius: BorderRadius.circular(12),
                                       ),
                                       elevation: 0,
                                     ),
@@ -531,19 +531,19 @@ class _LoginScreenState extends State<LoginScreen> {
                                           ? 'Use Password Sign In Below'
                                           : 'Send Verification Code',
                                       style: GoogleFonts.interTight(
-                                        fontSize: 14,
+                                        fontSize: 16,
                                         fontWeight: FontWeight.w600,
                                         color: Colors.white,
                                       ),
                                     ),
                                   ),
                                 ),
-                                const SizedBox(height: 8),
+                                const SizedBox(height: 12),
 
                                 // Sign In with Password Button
                                 SizedBox(
                                   width: double.infinity,
-                                  height: 44,
+                                  height: 52,
                                   child: _isEmailMode
                                       ? ElevatedButton(
                                           onPressed: authProvider.isLoading
@@ -554,14 +554,14 @@ class _LoginScreenState extends State<LoginScreen> {
                                             foregroundColor: Colors.white,
                                             shape: RoundedRectangleBorder(
                                               borderRadius:
-                                                  BorderRadius.circular(10),
+                                                  BorderRadius.circular(12),
                                             ),
                                             elevation: 0,
                                           ),
                                           child: Text(
                                             'Sign In',
                                             style: GoogleFonts.interTight(
-                                              fontSize: 14,
+                                              fontSize: 16,
                                               fontWeight: FontWeight.w600,
                                               color: Colors.white,
                                             ),
@@ -579,13 +579,13 @@ class _LoginScreenState extends State<LoginScreen> {
                                             ),
                                             shape: RoundedRectangleBorder(
                                               borderRadius:
-                                                  BorderRadius.circular(10),
+                                                  BorderRadius.circular(12),
                                             ),
                                           ),
                                           child: Text(
                                             'Sign In with Password',
                                             style: GoogleFonts.interTight(
-                                              fontSize: 14,
+                                              fontSize: 16,
                                               fontWeight: FontWeight.w600,
                                               color: Colors.black,
                                             ),
@@ -594,32 +594,32 @@ class _LoginScreenState extends State<LoginScreen> {
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 12),
+                            const SizedBox(height: 16),
 
-                            // Error message - Compact
+                            // Error message - More spacious
                             if (authProvider.errorMessage != null)
                               Container(
                                 width: double.infinity,
-                                padding: const EdgeInsets.all(8),
+                                padding: const EdgeInsets.all(12),
                                 decoration: BoxDecoration(
                                   color: Colors.red.shade50,
-                                  borderRadius: BorderRadius.circular(8),
+                                  borderRadius: BorderRadius.circular(12),
                                   border:
                                       Border.all(color: Colors.red.shade200),
                                 ),
                                 child: Text(
                                   authProvider.errorMessage!,
                                   style: GoogleFonts.inter(
-                                    fontSize: 12,
+                                    fontSize: 14,
                                     color: Colors.red.shade700,
                                   ),
                                   textAlign: TextAlign.center,
                                 ),
                               ),
 
-                            const SizedBox(height: 16),
+                            const SizedBox(height: 24),
 
-                            // OR Divider - Compact
+                            // OR Divider - More spacious
                             Row(
                               children: [
                                 Expanded(
@@ -630,11 +630,11 @@ class _LoginScreenState extends State<LoginScreen> {
                                 ),
                                 Padding(
                                   padding: const EdgeInsets.symmetric(
-                                      horizontal: 12),
+                                      horizontal: 16),
                                   child: Text(
                                     'OR',
                                     style: GoogleFonts.inter(
-                                      fontSize: 12,
+                                      fontSize: 14,
                                       fontWeight: FontWeight.w500,
                                       color: const Color(0xFF888888),
                                     ),
@@ -648,15 +648,15 @@ class _LoginScreenState extends State<LoginScreen> {
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 16),
+                            const SizedBox(height: 20),
 
-                            // Social Login Buttons - Compact
+                            // Social Login Buttons - More spacious
                             Column(
                               children: [
                                 // Google Button
                                 SizedBox(
                                   width: double.infinity,
-                                  height: 44,
+                                  height: 52,
                                   child: OutlinedButton.icon(
                                     onPressed: authProvider.isLoading
                                         ? null
@@ -671,7 +671,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                     label: Text(
                                       'Continue with Google',
                                       style: GoogleFonts.interTight(
-                                        fontSize: 14,
+                                        fontSize: 16,
                                         fontWeight: FontWeight.w600,
                                         color: Colors.black,
                                       ),
@@ -684,17 +684,17 @@ class _LoginScreenState extends State<LoginScreen> {
                                         width: 1,
                                       ),
                                       shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(10),
+                                        borderRadius: BorderRadius.circular(12),
                                       ),
                                     ),
                                   ),
                                 ),
-                                const SizedBox(height: 8),
+                                const SizedBox(height: 12),
 
                                 // Apple Button
                                 SizedBox(
                                   width: double.infinity,
-                                  height: 44,
+                                  height: 52,
                                   child: OutlinedButton.icon(
                                     onPressed: authProvider.isLoading
                                         ? null
@@ -709,7 +709,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                     label: Text(
                                       'Continue with Apple',
                                       style: GoogleFonts.interTight(
-                                        fontSize: 14,
+                                        fontSize: 16,
                                         fontWeight: FontWeight.w600,
                                         color: Colors.black,
                                       ),
@@ -722,7 +722,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                         width: 1,
                                       ),
                                       shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(10),
+                                        borderRadius: BorderRadius.circular(12),
                                       ),
                                     ),
                                   ),
@@ -732,9 +732,9 @@ class _LoginScreenState extends State<LoginScreen> {
                           ],
                         ),
 
-                        const SizedBox(height: 20),
+                        const SizedBox(height: 32),
 
-                        // Bottom Section - Compact
+                        // Bottom Section - More spacious
                         Column(
                           children: [
                             TextButton(
@@ -746,25 +746,25 @@ class _LoginScreenState extends State<LoginScreen> {
                               child: Text(
                                 'Forgot your password?',
                                 style: GoogleFonts.inter(
-                                  fontSize: 13,
+                                  fontSize: 15,
                                   fontWeight: FontWeight.w500,
                                   color: Colors.black,
                                 ),
                               ),
                             ),
-                            const SizedBox(height: 8),
+                            const SizedBox(height: 16),
                             Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
                                 Text(
                                   'Don\'t have an account?',
                                   style: GoogleFonts.inter(
-                                    fontSize: 14,
+                                    fontSize: 15,
                                     fontWeight: FontWeight.normal,
                                     color: const Color(0xFF666666),
                                   ),
                                 ),
-                                const SizedBox(width: 4),
+                                const SizedBox(width: 6),
                                 GestureDetector(
                                   onTap: authProvider.isLoading
                                       ? null
@@ -775,7 +775,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                   child: Text(
                                     'Sign Up',
                                     style: GoogleFonts.inter(
-                                      fontSize: 14,
+                                      fontSize: 15,
                                       fontWeight: FontWeight.w600,
                                       color: Colors.black,
                                     ),

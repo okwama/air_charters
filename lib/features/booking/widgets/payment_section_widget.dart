@@ -7,11 +7,11 @@ class PaymentSectionWidget extends StatefulWidget {
   final VoidCallback onChangePaymentMethod;
 
   const PaymentSectionWidget({
-    Key? key,
+    super.key,
     required this.selectedPaymentMethod,
     required this.savedCards,
     required this.onChangePaymentMethod,
-  }) : super(key: key);
+  });
 
   @override
   State<PaymentSectionWidget> createState() => _PaymentSectionWidgetState();

@@ -1,11 +1,10 @@
 import 'package:flutter/foundation.dart';
 import '../models/user_trip_model.dart';
-import '../models/booking_model.dart';
-import '../controllers/trips.controller/trips_controller.dart';
+import '../services/trips_service.dart';
 import 'auth_provider.dart';
 
 class TripsProvider extends ChangeNotifier {
-  final TripsController _tripsController = TripsController();
+  final TripsService _tripsService = TripsService();
   AuthProvider? _authProvider;
 
   List<UserTripModel> _trips = [];
@@ -60,14 +59,23 @@ class TripsProvider extends ChangeNotifier {
 
   // Group trips by status
   void _groupTripsByStatus() {
+    // Pending trips are now fetched separately from the backend
+    // They include bookings that are pending/priced but not paid yet
     _pendingTrips = _trips
-        .where((trip) => trip.booking?.paymentStatus == PaymentStatus.pending)
+        .where((trip) => trip.status == UserTripStatus.pending)
         .toList();
-    _upcomingTrips =
-        _trips.where((trip) => trip.status == UserTripStatus.upcoming).toList();
+    
+    // Upcoming trips are confirmed bookings with future flight dates
+    _upcomingTrips = _trips
+        .where((trip) => trip.status == UserTripStatus.upcoming)
+        .toList();
+    
+    // Completed trips are confirmed bookings with past flight dates
     _completedTrips = _trips
         .where((trip) => trip.status == UserTripStatus.completed)
         .toList();
+    
+    // Cancelled trips are cancelled bookings
     _cancelledTrips = _trips
         .where((trip) => trip.status == UserTripStatus.cancelled)
         .toList();
@@ -90,7 +98,18 @@ class TripsProvider extends ChangeNotifier {
       _setLoading(true);
       _setError(null);
 
-      _trips = await _tripsController.getUserTrips();
+      // Fetch both regular trips and pending bookings
+      final List<Future<List<UserTripModel>>> futures = [
+        _tripsService.fetchUserTrips(),
+        _tripsService.fetchPendingBookings(),
+      ];
+
+      final results = await Future.wait(futures);
+      final regularTrips = results[0];
+      final pendingBookings = results[1];
+
+      // Combine all trips (regular trips + pending bookings)
+      _trips = [...regularTrips, ...pendingBookings];
       _groupTripsByStatus();
 
       _setLoading(false);
@@ -113,7 +132,7 @@ class TripsProvider extends ChangeNotifier {
       _setLoading(true);
       _setError(null);
 
-      final trip = await _tripsController.getTripById(tripId);
+      final trip = await _tripsService.fetchTripById(tripId);
       setSelectedTrip(trip);
 
       _setLoading(false);
@@ -129,9 +148,12 @@ class TripsProvider extends ChangeNotifier {
       _setLoading(true);
       _setError(null);
 
-      final trips = await _tripsController.getTripsByStatus(status);
+      final trips = await _tripsService.fetchTripsByStatus(status);
 
       switch (status) {
+        case UserTripStatus.pending:
+          _pendingTrips = trips;
+          break;
         case UserTripStatus.upcoming:
           _upcomingTrips = trips;
           break;
@@ -156,7 +178,7 @@ class TripsProvider extends ChangeNotifier {
       _setLoading(true);
       _setError(null);
 
-      final newTrip = await _tripsController.createTrip(trip);
+      final newTrip = await _tripsService.createTrip(trip);
       _trips.add(newTrip);
       _groupTripsByStatus();
 
@@ -176,7 +198,7 @@ class TripsProvider extends ChangeNotifier {
       _setError(null);
 
       final updatedTrip =
-          await _tripsController.updateTripStatus(tripId, status);
+          await _tripsService.updateTripStatus(tripId, status);
 
       // Update the trip in the list
       final index = _trips.indexWhere((trip) => trip.id == tripId);
@@ -206,7 +228,7 @@ class TripsProvider extends ChangeNotifier {
       _setLoading(true);
       _setError(null);
 
-      final cancelledTrip = await _tripsController.cancelTrip(tripId);
+      final cancelledTrip = await _tripsService.cancelTrip(tripId);
 
       // Update the trip in the list
       final index = _trips.indexWhere((trip) => trip.id == tripId);
@@ -236,7 +258,7 @@ class TripsProvider extends ChangeNotifier {
       _setLoading(true);
       _setError(null);
 
-      final completedTrip = await _tripsController.completeTrip(tripId);
+      final completedTrip = await _tripsService.completeTrip(tripId);
 
       // Update the trip in the list
       final index = _trips.indexWhere((trip) => trip.id == tripId);
@@ -272,7 +294,7 @@ class TripsProvider extends ChangeNotifier {
       _setLoading(true);
       _setError(null);
 
-      final updatedTrip = await _tripsController.addTripReview(
+      final updatedTrip = await _tripsService.addTripReview(
         tripId,
         rating: rating,
         review: review,
@@ -314,7 +336,7 @@ class TripsProvider extends ChangeNotifier {
       _setLoading(true);
       _setError(null);
 
-      final updatedTrip = await _tripsController.updateTripReview(
+      final updatedTrip = await _tripsService.updateTripReview(
         tripId,
         rating: rating,
         review: review,
@@ -350,7 +372,7 @@ class TripsProvider extends ChangeNotifier {
       _setLoading(true);
       _setError(null);
 
-      final updatedTrip = await _tripsController.deleteTripReview(tripId);
+      final updatedTrip = await _tripsService.deleteTripReview(tripId);
 
       // Update the trip in the list
       final index = _trips.indexWhere((trip) => trip.id == tripId);
@@ -380,7 +402,7 @@ class TripsProvider extends ChangeNotifier {
       _setLoading(true);
       _setError(null);
 
-      _statistics = await _tripsController.getTripStatistics();
+      _statistics = await _tripsService.getTripStatistics();
 
       _setLoading(false);
     } catch (e) {

@@ -1,46 +1,37 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
-import 'package:flutter_stripe/flutter_stripe.dart';
+// Stripe handled server-side - no client import needed
 
 // Core imports
 import 'core/providers/auth_provider.dart';
-import 'core/providers/profile_provider.dart';
-import 'core/providers/charter_deals_provider.dart';
-import 'core/providers/passengers_provider.dart';
-import 'core/providers/booking_provider.dart';
-import 'core/providers/trips_provider.dart';
-import 'core/controllers/booking.controller/booking_controller.dart';
-import 'core/controllers/booking_inquiry_controller.dart';
-import 'shared/utils/session_manager.dart';
+import 'core/providers/theme_provider.dart';
+import 'core/providers/navigation_provider.dart';
+import 'core/services/dependency_injection_service.dart';
+import 'core/services/notification_service.dart';
 
 // Theme
-import 'config/theme/app_theme.dart';
 
 // Features
 import 'features/auth/login_screen.dart';
-import 'features/auth/signup_screen.dart';
-import 'features/auth/verifycode.dart';
-import 'features/auth/country_selection_screen.dart';
+import 'features/main_navigation_screen.dart';
 import 'features/home/home_screen.dart';
-import 'features/profile/profile.dart';
-import 'features/settings/settings.dart';
 import 'features/splash/splash_screen.dart';
 import 'features/splash/landing_screen.dart';
-import 'features/booking/booking_detail.dart';
-import 'features/booking/booking_confirmation_page.dart';
-import 'features/mytrips/trips.dart';
-import 'features/direct_charter/direct_charter_search_screen.dart';
-import 'package:air_charters/core/models/charter_deal_model.dart';
-import 'core/models/booking_inquiry_model.dart';
-import 'features/plan/inquiry/inquiry_confirmation_screen.dart';
+// Configuration
+
+// Routes
+import 'core/routes/app_pages.dart';
+import 'core/routes/route_observer.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Initialize Stripe
-  Stripe.publishableKey =
-      'pk_test_51RTguYIo90LS4Ah4PiXhCbadG1lxbzAZAvYqwtjW9qNcjGqcIvc7a5IDVhIF9H5YrOWGZ8Yvo8LrxtfU5BNvSuhm00KykUKxUF';
-  await Stripe.instance.applySettings();
+  // Payment processing is handled server-side for security
+  // No client-side Stripe initialization needed
+
+  // Initialize Notification Service
+  await NotificationService().initialize();
 
   runApp(const MyApp());
 }
@@ -48,68 +39,39 @@ void main() async {
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
+  // Create route observer instance
+  static final AppRouteObserver _routeObserver = AppRouteObserver();
+
   @override
   Widget build(BuildContext context) {
     return MultiProvider(
-      providers: [
-        ChangeNotifierProvider(create: (_) => AuthProvider()),
-        ChangeNotifierProvider(create: (_) => ProfileProvider()),
-        ChangeNotifierProvider(create: (_) => CharterDealsProvider()),
-        ChangeNotifierProvider(create: (_) => PassengerProvider()),
-        ChangeNotifierProvider(create: (_) => BookingProvider()),
-        ChangeNotifierProvider(create: (_) => TripsProvider()),
-        ChangeNotifierProvider(create: (_) => BookingInquiryController()),
-        ProxyProvider2<BookingProvider, PassengerProvider, BookingController>(
-          update: (context, bookingProvider, passengerProvider, _) =>
-              BookingController(
-            bookingProvider: bookingProvider,
-            passengerProvider: passengerProvider,
-            authProvider: Provider.of<AuthProvider>(context, listen: false),
-          ),
-        ),
-      ],
-      child: MaterialApp(
-        title: 'Air Charters',
-        theme: AppTheme.lightTheme,
-        home: const AuthWrapper(),
-        onUnknownRoute: (settings) {
-          // Fallback for unknown routes
-          return MaterialPageRoute(
-            builder: (context) => const CharterHomePage(),
+      providers: DependencyInjectionService.getProviders(),
+      child: Consumer<ThemeProvider>(
+        builder: (context, themeProvider, child) {
+          return MaterialApp(
+            title: 'Air Charters',
+            theme: themeProvider.lightTheme,
+            darkTheme: themeProvider.darkTheme,
+            themeMode: themeProvider.themeMode,
+            onUnknownRoute: (settings) {
+              // Fallback for unknown routes
+              return MaterialPageRoute(
+                builder: (context) => const CharterHomePage(),
+              );
+            },
+            navigatorKey: GlobalKey<NavigatorState>(),
+            navigatorObservers: [_routeObserver],
+            routes: AppPages.routes,
+            onGenerateRoute: AppPages.generateRoute,
+            debugShowCheckedModeBanner: false,
           );
         },
-        navigatorKey: GlobalKey<NavigatorState>(),
-        routes: {
-          '/signup': (context) => const SignupScreen(),
-          '/login': (context) => const LoginScreen(),
-          '/verify': (context) => const VerifyCodeScreen(),
-          '/country-selection': (context) => const CountrySelectionScreen(),
-          '/home': (context) => const CharterHomePage(),
-          '/settings': (context) => const SettingsScreen(),
-          '/profile': (context) => const ProfileScreen(),
-          '/booking-detail': (context) {
-            final deal =
-                ModalRoute.of(context)!.settings.arguments as CharterDealModel?;
-            return BookingDetailPage(deal: deal);
-          },
-          '/booking-confirmation': (context) {
-            final bookingData = ModalRoute.of(context)!.settings.arguments
-                as Map<String, dynamic>;
-            return BookingConfirmationPage(bookingData: bookingData);
-          },
-          '/trips': (context) => const TripsPage(),
-          '/direct-charter': (context) => const DirectCharterWrapper(),
-          '/landing': (context) => const LandingScreen(),
-          '/inquiry-confirmation': (context) {
-            final inquiry = ModalRoute.of(context)!.settings.arguments
-                as BookingInquiryModel;
-            return InquiryConfirmationScreen(inquiry: inquiry);
-          },
-        },
-        debugShowCheckedModeBanner: false,
       ),
     );
   }
+
+  // Get route observer for external access
+  static AppRouteObserver get routeObserver => _routeObserver;
 }
 
 class AuthWrapper extends StatefulWidget {
@@ -124,24 +86,34 @@ class _AuthWrapperState extends State<AuthWrapper> {
   void initState() {
     super.initState();
     // Initialize auth state when app starts
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final authProvider = context.read<AuthProvider>();
-      authProvider.initialize().then((_) {
-        // Initialize session manager (simplified - no AuthProvider dependency)
-        final sessionManager = SessionManager();
-        sessionManager.initialize();
-
-        // Set auth provider reference in other providers
-        context.read<TripsProvider>().setAuthProvider(authProvider);
-        context.read<ProfileProvider>().setAuthProvider(authProvider);
-      });
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await _initializeApp();
     });
+  }
+
+  Future<void> _initializeApp() async {
+    try {
+      // Initialize auth provider
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      await authProvider.initialize();
+
+      // Initialize navigation provider if authenticated
+      if (authProvider.isAuthenticated) {
+        final navigationProvider =
+            Provider.of<NavigationProvider>(context, listen: false);
+        navigationProvider.setCurrentIndex(0); // Set to home tab
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error initializing app: $e');
+      }
+    }
   }
 
   @override
   void dispose() {
-    // Clean up session manager
-    SessionManager().dispose();
+    // Clean up providers
+    DependencyInjectionService.disposeProviders(context);
     super.dispose();
   }
 
@@ -154,7 +126,7 @@ class _AuthWrapperState extends State<AuthWrapper> {
           case AuthState.loading:
             return const SplashScreen();
           case AuthState.authenticated:
-            return const CharterHomePage();
+            return const MainNavigationScreen();
           case AuthState.unauthenticated:
           case AuthState.error:
             return FutureBuilder<bool>(

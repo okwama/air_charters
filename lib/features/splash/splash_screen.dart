@@ -58,12 +58,8 @@ class _SplashScreenState extends State<SplashScreen>
       });
     }
 
-    // Navigate to landing after 2.5 seconds
-    Future.delayed(const Duration(milliseconds: 2500), () {
-      if (mounted) {
-        Navigator.of(context).pushReplacementNamed('/landing');
-      }
-    });
+    // Let AuthWrapper handle navigation instead of automatic navigation
+    // The AuthWrapper will determine where to navigate based on auth state
   }
 
   @override

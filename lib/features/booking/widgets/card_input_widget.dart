@@ -10,12 +10,12 @@ class CardInputWidget extends StatefulWidget {
   final bool isRequired;
 
   const CardInputWidget({
-    Key? key,
+    super.key,
     this.initialCard,
     required this.onCardSaved,
     this.showSaveCardOption = true,
     this.isRequired = true,
-  }) : super(key: key);
+  });
 
   @override
   State<CardInputWidget> createState() => _CardInputWidgetState();

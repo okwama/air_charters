@@ -112,7 +112,54 @@ class BookingProvider with ChangeNotifier {
     }
   }
 
-  /// Process payment for a booking and populate points/reference (unified payment flow)
+  /// Process payment for a booking using the unified payment system
+  /// This replaces the legacy processPayment method with automatic company routing
+  Future<UnifiedPaymentResponse?> processUnifiedPayment(
+      String bookingId, String paymentIntentId,
+      {String? paymentMethodId}) async {
+    try {
+      _state = BookingState.updating;
+      _errorMessage = null;
+      notifyListeners();
+
+      final result = await _bookingService.processUnifiedPayment(
+        bookingId,
+        paymentIntentId,
+        paymentMethodId: paymentMethodId,
+      );
+
+      // Update booking in list if returned
+      if (result.booking != null) {
+        final index = _bookings.indexWhere((b) => b.id == bookingId);
+        if (index >= 0) {
+          _bookings[index] = result.booking!;
+        }
+
+        // Update current booking if it's the same
+        if (_currentBooking?.id == bookingId) {
+          _currentBooking = result.booking!;
+        }
+      }
+
+      // Clear payment intent after successful processing
+      if (_currentBookingWithPaymentIntent?.booking.id == bookingId) {
+        _currentBookingWithPaymentIntent = null;
+      }
+
+      _state = BookingState.loaded;
+      notifyListeners();
+
+      return result;
+    } catch (e) {
+      _state = BookingState.error;
+      _errorMessage = _getErrorMessage(e);
+      notifyListeners();
+      return null;
+    }
+  }
+
+  /// Legacy method - kept for backward compatibility
+  /// @deprecated Use processUnifiedPayment instead
   Future<bool> processPayment(
       String bookingId, String transactionId, String paymentMethod) async {
     try {
@@ -532,6 +579,74 @@ class BookingProvider with ChangeNotifier {
     }
   }
 
+  /// Create Paystack payment intent
+  Future<Map<String, dynamic>?> createPaystackPaymentIntent({
+    required double amount,
+    required String bookingId,
+    required String userId,
+    required int companyId,
+    required String email,
+    String currency = 'KES',
+    String description = '',
+    String preferredPaymentMethod = 'card',
+    Map<String, dynamic>? metadata,
+  }) async {
+    try {
+      _state = BookingState.creating;
+      _errorMessage = null;
+      notifyListeners();
+
+      final response = await _bookingService.createPaystackPaymentIntent(
+        amount: amount,
+        bookingId: bookingId,
+        userId: userId,
+        companyId: companyId,
+        email: email,
+        currency: currency,
+        description: description,
+        preferredPaymentMethod: preferredPaymentMethod,
+        metadata: metadata,
+      );
+
+      _state = BookingState.loaded;
+      notifyListeners();
+
+      return response;
+    } catch (e) {
+      _state = BookingState.error;
+      _errorMessage = _getErrorMessage(e);
+      notifyListeners();
+      return null;
+    }
+  }
+
+  /// Verify Paystack payment
+  Future<Map<String, dynamic>?> verifyPaystackPayment({
+    required String reference,
+    required String bookingId,
+  }) async {
+    try {
+      _state = BookingState.updating;
+      _errorMessage = null;
+      notifyListeners();
+
+      final response = await _bookingService.verifyPaystackPayment(
+        reference: reference,
+        bookingId: bookingId,
+      );
+
+      _state = BookingState.loaded;
+      notifyListeners();
+
+      return response;
+    } catch (e) {
+      _state = BookingState.error;
+      _errorMessage = _getErrorMessage(e);
+      notifyListeners();
+      return null;
+    }
+  }
+
   /// Get payment status
   Future<PaymentConfirmationModel?> getPaymentStatus(
       String paymentIntentId) async {
@@ -579,6 +694,92 @@ class BookingProvider with ChangeNotifier {
       _errorMessage = _getErrorMessage(e);
       notifyListeners();
       return null;
+    }
+  }
+
+  /// Get transaction details from the unified payment system
+  Future<UnifiedPaymentResponse?> getTransactionDetails(
+      String transactionId) async {
+    try {
+      _state = BookingState.loading;
+      _errorMessage = null;
+      notifyListeners();
+
+      final result = await _bookingService.getTransactionDetails(transactionId);
+
+      _state = BookingState.loaded;
+      notifyListeners();
+
+      return result;
+    } catch (e) {
+      _state = BookingState.error;
+      _errorMessage = _getErrorMessage(e);
+      notifyListeners();
+      return null;
+    }
+  }
+
+  /// Get company transactions from the unified payment system
+  Future<List<TransactionLedgerEntry>> getCompanyTransactions(
+      String companyId) async {
+    try {
+      _state = BookingState.loading;
+      _errorMessage = null;
+      notifyListeners();
+
+      final result = await _bookingService.getCompanyTransactions(companyId);
+
+      _state = BookingState.loaded;
+      notifyListeners();
+
+      return result;
+    } catch (e) {
+      _state = BookingState.error;
+      _errorMessage = _getErrorMessage(e);
+      notifyListeners();
+      return [];
+    }
+  }
+
+  /// Get available payment providers for unified payments
+  Future<List<PaymentProviderInfo>> getAvailablePaymentProviders() async {
+    try {
+      _state = BookingState.loading;
+      _errorMessage = null;
+      notifyListeners();
+
+      final result = await _bookingService.getAvailablePaymentProviders();
+
+      _state = BookingState.loaded;
+      notifyListeners();
+
+      return result;
+    } catch (e) {
+      _state = BookingState.error;
+      _errorMessage = _getErrorMessage(e);
+      notifyListeners();
+      return [];
+    }
+  }
+
+  /// Get company payment accounts
+  Future<List<CompanyPaymentAccount>> getCompanyPaymentAccounts() async {
+    try {
+      _state = BookingState.loading;
+      _errorMessage = null;
+      notifyListeners();
+
+      final result = await _bookingService.getCompanyPaymentAccounts();
+
+      _state = BookingState.loaded;
+      notifyListeners();
+
+      return result;
+    } catch (e) {
+      _state = BookingState.error;
+      _errorMessage = _getErrorMessage(e);
+      notifyListeners();
+      return [];
     }
   }
 

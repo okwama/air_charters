@@ -2,11 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import '../../../core/models/booking_inquiry_model.dart';
-import '../../../core/controllers/booking_inquiry_controller.dart';
+import '../../../core/providers/booking_inquiry_provider.dart';
 import '../../../core/models/aircraft_availability_model.dart';
 import '../../../core/models/location_model.dart';
 import '../../../shared/widgets/custom_button.dart';
-import '../../../shared/widgets/calendar_selector.dart';
 import 'package:provider/provider.dart';
 
 class CreateInquiryScreen extends StatefulWidget {
@@ -41,10 +40,10 @@ class _CreateInquiryScreenState extends State<CreateInquiryScreen> {
   // Inquiry options
   bool _onboardDining = false;
   bool _groundTransportation = false;
-  String _billingRegion = '';
+  final String _billingRegion = '';
 
   // Stops management
-  List<CreateInquiryStopRequest> _stops = [];
+  final List<CreateInquiryStopRequest> _stops = [];
   int _nextStopOrder = 1;
 
   // Form validation
@@ -133,7 +132,7 @@ class _CreateInquiryScreenState extends State<CreateInquiryScreen> {
 
     try {
       final controller =
-          Provider.of<BookingInquiryController>(context, listen: false);
+          Provider.of<BookingInquiryProvider>(context, listen: false);
 
       final request = CreateBookingInquiryRequest(
         aircraftId: widget.aircraft?.aircraftId ?? 0,

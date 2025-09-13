@@ -8,6 +8,9 @@ import 'dart:developer' as dev;
 import '../../shared/utils/session_manager.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/widgets.dart'; // Added for BuildContext
+import 'package:provider/provider.dart';
+import 'navigation_provider.dart';
+import '../routes/app_routes.dart';
 
 enum AuthState {
   initial,
@@ -145,7 +148,7 @@ class AuthProvider with ChangeNotifier {
       }
       // If setting authenticated state fails, fall back to unauthenticated
       _setUnauthenticated();
-      throw e;
+      rethrow;
     }
   }
 
@@ -204,15 +207,18 @@ class AuthProvider with ChangeNotifier {
     return true;
   }
 
-  // Phone Authentication - Backend Only Implementation
+  // Phone Authentication with Twilio SMS
   Future<void> sendPhoneVerification(String phoneNumber) async {
     _setLoading(true);
     _clearError();
 
     try {
-      // For backend-only, we'll implement a simple phone verification
-      // This would typically involve sending an SMS via your backend
-      await _authRepository.testBackendConnection();
+      dev.log('Sending SMS verification to: $phoneNumber',
+          name: 'AuthProvider');
+
+      // Call the SMS verification endpoint
+      await _authRepository.sendPhoneVerification(phoneNumber);
+
       _setLoading(false);
       _setSuccess('Verification code sent to $phoneNumber');
     } catch (e) {
@@ -221,42 +227,47 @@ class AuthProvider with ChangeNotifier {
     }
   }
 
-  Future<void> verifyPhoneCode(String smsCode) async {
-    _isLoading = true;
-    _errorMessage = null;
-    _successMessage = null;
-    notifyListeners();
+  Future<void> verifyPhoneCode(String phoneNumber, String smsCode) async {
+    _setLoading(true);
+    _clearError();
 
     try {
-      // For backend-only, this would validate the SMS code
-      // For now, we'll just simulate success
-      _setSuccess('Phone verification successful!');
+      dev.log('Verifying SMS code for: $phoneNumber', name: 'AuthProvider');
+
+      // Call the SMS verification endpoint
+      final isVerified =
+          await _authRepository.verifySmsCode(phoneNumber, smsCode);
+
+      if (isVerified) {
+        _setSuccess('Phone verification successful!');
+      } else {
+        _setError('Invalid verification code');
+      }
     } catch (e) {
-      _errorMessage = _getErrorMessage(e);
+      _setError(_getErrorMessage(e));
     } finally {
-      _isLoading = false;
-      notifyListeners();
+      _setLoading(false);
     }
   }
 
   // Email/Password Authentication
   Future<void> signInWithEmail(String email, String password) async {
-    print('🔥 AUTH PROVIDER: SIGNIN STARTED');
+    // Removed debug print
     _isLoading = true;
     _errorMessage = null;
     _successMessage = null;
     notifyListeners();
 
     try {
-      print('🔥 AUTH PROVIDER: Calling _authRepository.signInWithEmail');
+      // Removed debug print
       final authData = await _authRepository.signInWithEmail(email, password);
-      print('🔥 AUTH PROVIDER: Repository signin completed successfully');
+      // Removed debug print
       await _setAuthenticatedWithToken(authData);
       _successMessage =
           'Login successful! Welcome back, ${authData.user.firstName}';
-      print('🔥 AUTH PROVIDER: SIGNIN COMPLETED SUCCESSFULLY');
+      // Removed debug print
     } catch (e) {
-      print('🔥 AUTH PROVIDER: Signin error: $e');
+      // Removed debug print
       _errorMessage = _getErrorMessage(e);
     } finally {
       _isLoading = false;
@@ -266,7 +277,7 @@ class AuthProvider with ChangeNotifier {
 
   Future<void> signUpWithEmail(
       String email, String password, String firstName, String lastName) async {
-    print('🔥 AUTH PROVIDER: SIGNUP STARTED 🔥');
+    // Removed debug print
     dev.log('=== AUTH PROVIDER: SIGNUP STARTED ===',
         name: 'AuthProvider-DEBUG');
     dev.log('Email: $email, First Name: $firstName, Last Name: $lastName',
@@ -313,8 +324,6 @@ class AuthProvider with ChangeNotifier {
       dev.log('AuthProvider: Starting sign out process', name: 'auth_provider');
     }
 
-    _setLoading(true);
-
     try {
       // Cancel any ongoing token refresh
       _tokenRefreshTimer?.cancel();
@@ -352,8 +361,8 @@ class AuthProvider with ChangeNotifier {
             name: 'auth_provider');
       }
       _setError(_getErrorMessage(e));
-    } finally {
-      _setLoading(false);
+      // Re-throw to let the calling method handle it
+      rethrow;
     }
   }
 
@@ -368,39 +377,82 @@ class AuthProvider with ChangeNotifier {
       // Show loading indicator
       _setLoading(true);
 
-      // Perform signout
-      await signOut();
-
-      // Navigate to appropriate screen based on landing page status
-      if (context.mounted) {
-        final userHasSeenLanding = await hasSeenLanding();
-        if (userHasSeenLanding) {
-          // Returning user - go to login
-          Navigator.of(context)
-              .pushNamedAndRemoveUntil('/login', (route) => false);
-        } else {
-          // New user - go to landing
-          Navigator.of(context)
-              .pushNamedAndRemoveUntil('/landing', (route) => false);
-        }
-      }
-
-      if (kDebugMode) {
-        dev.log('AuthProvider: Comprehensive logout completed',
-            name: 'auth_provider');
-      }
+      // Add timeout to prevent hanging
+      await Future.any([
+        _performLogout(context),
+        Future.delayed(const Duration(seconds: 10), () {
+          throw Exception('Logout timeout - taking too long');
+        }),
+      ]);
     } catch (e) {
       if (kDebugMode) {
         dev.log('AuthProvider: Error during comprehensive logout: $e',
             name: 'auth_provider');
       }
+
+      // Stop loading even if logout fails
+      _setLoading(false);
+
       // Even if logout fails, try to navigate to login
       if (context.mounted) {
         Navigator.of(context)
-            .pushNamedAndRemoveUntil('/login', (route) => false);
+            .pushNamedAndRemoveUntil(AppRoutes.login, (route) => false);
       }
-    } finally {
-      _setLoading(false);
+    }
+  }
+
+  // Separate method for the actual logout process
+  Future<void> _performLogout(BuildContext context) async {
+    // Clear navigation tracking data before logout
+    try {
+      final navigationProvider =
+          Provider.of<NavigationProvider>(context, listen: false);
+      navigationProvider.clearNavigationHistory();
+      if (kDebugMode) {
+        dev.log('AuthProvider: Navigation history cleared',
+            name: 'auth_provider');
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        dev.log('AuthProvider: Error clearing navigation history: $e',
+            name: 'auth_provider');
+      }
+      // Don't fail logout if navigation cleanup fails
+    }
+
+    // Perform signout
+    await signOut();
+
+    // Stop loading before navigation
+    _setLoading(false);
+
+    // Navigate to appropriate screen based on landing page status
+    if (context.mounted) {
+      try {
+        final userHasSeenLanding = await hasSeenLanding();
+        if (userHasSeenLanding) {
+          // Returning user - go to login
+          Navigator.of(context)
+              .pushNamedAndRemoveUntil(AppRoutes.login, (route) => false);
+        } else {
+          // New user - go to landing
+          Navigator.of(context)
+              .pushNamedAndRemoveUntil(AppRoutes.landing, (route) => false);
+        }
+      } catch (e) {
+        if (kDebugMode) {
+          dev.log('AuthProvider: Error during navigation: $e',
+              name: 'auth_provider');
+        }
+        // Fallback to login if navigation fails
+        Navigator.of(context)
+            .pushNamedAndRemoveUntil(AppRoutes.login, (route) => false);
+      }
+    }
+
+    if (kDebugMode) {
+      dev.log('AuthProvider: Comprehensive logout completed',
+          name: 'auth_provider');
     }
   }
 
@@ -503,15 +555,110 @@ class AuthProvider with ChangeNotifier {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool('hasSeenLanding', true);
-      if (kDebugMode) {
-        dev.log('AuthProvider: Landing page marked as seen',
-            name: 'auth_provider');
-      }
     } catch (e) {
       if (kDebugMode) {
         dev.log('AuthProvider: Error marking landing as seen: $e',
             name: 'auth_provider');
       }
+    }
+  }
+
+  // Global authentication error handler for all services
+  Future<AuthErrorResult> handleGlobalAuthError(dynamic error) async {
+    if (kDebugMode) {
+      dev.log('AuthProvider: Handling global auth error: $error',
+          name: 'auth_provider');
+    }
+
+    try {
+      if (error is AuthException) {
+        // Check if this is a 401 error that might be resolved with token refresh
+        if (error.message.contains('401') ||
+            error.message.contains('expired') ||
+            error.message.contains('Invalid')) {
+          if (kDebugMode) {
+            dev.log('AuthProvider: Attempting token refresh for auth error',
+                name: 'auth_provider');
+          }
+
+          try {
+            await refreshToken();
+            if (kDebugMode) {
+              dev.log(
+                  'AuthProvider: Token refresh successful, retry recommended',
+                  name: 'auth_provider');
+            }
+            return AuthErrorResult(
+              shouldRetry: true,
+              shouldRedirectToLogin: false,
+              message: 'Session refreshed successfully',
+              action: AuthErrorAction.retry,
+            );
+          } catch (refreshError) {
+            if (kDebugMode) {
+              dev.log('AuthProvider: Token refresh failed: $refreshError',
+                  name: 'auth_provider');
+            }
+            await signOut();
+            return AuthErrorResult(
+              shouldRetry: false,
+              shouldRedirectToLogin: true,
+              message: 'Session expired. Please login again.',
+              action: AuthErrorAction.redirectToLogin,
+            );
+          }
+        } else {
+          // Other auth errors (403, etc.)
+          return AuthErrorResult(
+            shouldRetry: false,
+            shouldRedirectToLogin: false,
+            message: error.message,
+            action: AuthErrorAction.showError,
+          );
+        }
+      } else {
+        // Non-auth errors
+        return AuthErrorResult(
+          shouldRetry: false,
+          shouldRedirectToLogin: false,
+          message: 'An unexpected error occurred',
+          action: AuthErrorAction.showError,
+        );
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        dev.log('AuthProvider: Error in global auth error handler: $e',
+            name: 'auth_provider');
+      }
+      return AuthErrorResult(
+        shouldRetry: false,
+        shouldRedirectToLogin: true,
+        message: 'Authentication error occurred',
+        action: AuthErrorAction.redirectToLogin,
+      );
+    }
+  }
+
+  // Check if user should be redirected to login
+  bool shouldRedirectToLogin() {
+    return _state == AuthState.unauthenticated || _state == AuthState.error;
+  }
+
+  // Get current authentication status for UI
+  String getAuthenticationStatusMessage() {
+    switch (_state) {
+      case AuthState.initial:
+        return 'Initializing...';
+      case AuthState.loading:
+        return 'Loading...';
+      case AuthState.authenticated:
+        return _authData?.isExpired == true
+            ? 'Session expired'
+            : 'Authenticated';
+      case AuthState.unauthenticated:
+        return 'Not authenticated';
+      case AuthState.error:
+        return _errorMessage ?? 'Authentication error';
     }
   }
 
@@ -626,4 +773,19 @@ class AuthProvider with ChangeNotifier {
   void clearError() {
     _clearError();
   }
+}
+
+// Authentication error result for global handling
+class AuthErrorResult {
+  final bool shouldRetry;
+  final bool shouldRedirectToLogin;
+  final String message;
+  final AuthErrorAction action;
+
+  const AuthErrorResult({
+    required this.shouldRetry,
+    required this.shouldRedirectToLogin,
+    required this.message,
+    required this.action,
+  });
 }

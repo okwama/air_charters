@@ -10,14 +10,14 @@ class SpecialRequestsWidget extends StatefulWidget {
   final String destination;
 
   const SpecialRequestsWidget({
-    Key? key,
+    super.key,
     required this.onboardDining,
     required this.groundTransportation,
     required this.onOnboardDiningChanged,
     required this.onGroundTransportationChanged,
     required this.departure,
     required this.destination,
-  }) : super(key: key);
+  });
 
   @override
   State<SpecialRequestsWidget> createState() => _SpecialRequestsWidgetState();

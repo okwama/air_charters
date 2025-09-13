@@ -1,92 +1,113 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:provider/provider.dart';
+import '../../core/providers/navigation_provider.dart';
 
 class BottomNav extends StatelessWidget {
-  final int currentIndex;
-  final ValueChanged<int>? onTap;
   final List<CharterBottomNavItem>? customItems;
 
   const BottomNav({
     super.key,
-    this.currentIndex = 0,
-    this.onTap,
     this.customItems,
   });
 
   @override
   Widget build(BuildContext context) {
-    final items = customItems ?? _defaultItems;
+    return Consumer<NavigationProvider>(
+      builder: (context, navigationProvider, child) {
+        final items = customItems ?? _defaultItems;
+        final currentIndex = navigationProvider.currentIndex;
 
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border(
-          top: BorderSide(color: Colors.grey.shade100, width: 0.5),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.02),
-            blurRadius: 8,
-            offset: const Offset(0, -2),
+        return Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            border: Border(
+              top: BorderSide(color: Colors.grey.shade100, width: 0.5),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.02),
+                blurRadius: 8,
+                offset: const Offset(0, -2),
+              ),
+            ],
           ),
-        ],
-      ),
-      child: BottomNavigationBar(
-        backgroundColor: Colors.white,
-        selectedItemColor: Colors.black,
-        unselectedItemColor: Colors.grey.shade500,
-        currentIndex: currentIndex,
-        onTap: onTap ?? (index) => _handleNavigation(context, index),
-        type: BottomNavigationBarType.fixed,
-        elevation: 0,
-        selectedLabelStyle: const TextStyle(
-          fontWeight: FontWeight.w600,
-          fontSize: 12,
-        ),
-        unselectedLabelStyle: const TextStyle(
-          fontWeight: FontWeight.w500,
-          fontSize: 12,
-        ),
-        items: items.asMap().entries.map((entry) {
-          final index = entry.key;
-          final item = entry.value;
-          final isSelected = currentIndex == index;
+          child: BottomNavigationBar(
+            backgroundColor: Colors.white,
+            selectedItemColor: Colors.black,
+            unselectedItemColor: Colors.grey.shade500,
+            currentIndex: currentIndex,
+            onTap: (index) =>
+                _handleNavigation(context, index, navigationProvider),
+            type: BottomNavigationBarType.fixed,
+            elevation: 0,
+            selectedLabelStyle: const TextStyle(
+              fontWeight: FontWeight.w600,
+              fontSize: 12,
+            ),
+            unselectedLabelStyle: const TextStyle(
+              fontWeight: FontWeight.w500,
+              fontSize: 12,
+            ),
+            items: items.asMap().entries.map((entry) {
+              final index = entry.key;
+              final item = entry.value;
+              final isSelected = currentIndex == index;
 
-          return BottomNavigationBarItem(
-            icon: Icon(
-                isSelected && item.activeIcon != null
-                    ? item.activeIcon
-                    : item.icon,
-                size: 24),
-            label: item.label,
-          );
-        }).toList(),
-      ),
+              return BottomNavigationBarItem(
+                icon: Icon(
+                    isSelected && item.activeIcon != null
+                        ? item.activeIcon
+                        : item.icon,
+                    size: 24),
+                label: item.label,
+              );
+            }).toList(),
+          ),
+        );
+      },
     );
   }
 
-  void _handleNavigation(BuildContext context, int index) {
-    // Don't navigate if already on the selected tab
-    if (currentIndex == index) return;
+  void _handleNavigation(
+      BuildContext context, int index, NavigationProvider navigationProvider) {
+    if (kDebugMode) {
+      print(
+          'BottomNav: Navigation requested to index $index (current: ${navigationProvider.currentIndex})');
+    }
 
-    // Use consistent navigation that switches between main tabs
-    switch (index) {
-      case 0: // Explore (Home)
-        Navigator.of(context).pushReplacementNamed('/home');
-        break;
-      case 1: // Direct Charter
-        Navigator.of(context).pushReplacementNamed('/direct-charter');
-        break;
-      case 2: // Trips
-        Navigator.of(context).pushReplacementNamed('/trips');
-        break;
-      case 3: // Settings
-        Navigator.of(context).pushReplacementNamed('/settings');
-        break;
+    // Don't navigate if already on the selected tab
+    if (navigationProvider.currentIndex == index) {
+      if (kDebugMode) {
+        print('BottomNav: Already on tab $index, ignoring navigation');
+      }
+      return;
+    }
+
+    // Validate index bounds
+    if (index < 0 || index >= _defaultItems.length) {
+      if (kDebugMode) {
+        print('BottomNav: Invalid index $index, ignoring navigation');
+      }
+      return;
+    }
+
+    // Simply update the navigation provider index
+    // The MainNavigationScreen will handle the tab switching
+    navigationProvider.setCurrentIndex(index);
+
+    if (kDebugMode) {
+      print('BottomNav: Navigation completed to index $index');
     }
   }
 
   static final List<CharterBottomNavItem> _defaultItems = [
+    CharterBottomNavItem(
+      icon: LucideIcons.home,
+      activeIcon: LucideIcons.home,
+      label: 'Home',
+    ),
     CharterBottomNavItem(
       icon: LucideIcons.globe,
       activeIcon: LucideIcons.compass,
@@ -98,8 +119,8 @@ class BottomNav extends StatelessWidget {
       label: 'Direct Charter',
     ),
     CharterBottomNavItem(
-      icon: LucideIcons.planeTakeoff,
-      activeIcon: LucideIcons.planeLanding,
+      icon: LucideIcons.briefcase,
+      activeIcon: LucideIcons.briefcase,
       label: 'Trips',
     ),
     CharterBottomNavItem(

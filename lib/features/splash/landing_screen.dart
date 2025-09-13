@@ -101,7 +101,7 @@ class _LandingScreenState extends State<LandingScreen>
               image: DecorationImage(
                 fit: BoxFit.cover,
                 image: NetworkImage(
-                  'https://ik.imagekit.io/bja2qwwdjjy/Aircharter/IMG-20250612-WA0020_-pK-NP3Ty.jpg?updatedAt=1750450999413',
+                  'https://ik.imagekit.io/bja2qwwdjjy/qr_YTtuZ9loi.png?updatedAt=1755500192573',
                 ),
               ),
             ),

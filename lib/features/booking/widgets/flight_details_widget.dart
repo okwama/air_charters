@@ -11,7 +11,7 @@ class FlightDetailsWidget extends StatelessWidget {
   final String duration;
 
   const FlightDetailsWidget({
-    Key? key,
+    super.key,
     required this.departure,
     required this.destination,
     required this.date,
@@ -19,7 +19,7 @@ class FlightDetailsWidget extends StatelessWidget {
     required this.aircraft,
     required this.seats,
     required this.duration,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

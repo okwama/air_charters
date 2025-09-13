@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../home/home_screen.dart';
 import '../booking/payment/payment_screen.dart';
-import '../../shared/components/bottom_nav.dart';
 import '../../core/models/user_trip_model.dart';
 import '../../core/models/booking_model.dart';
 import '../../core/providers/trips_provider.dart';
+import '../../core/providers/navigation_provider.dart';
 import '../../shared/widgets/app_spinner.dart';
 
 class TripsPage extends StatefulWidget {
@@ -87,9 +86,6 @@ class _TripsPageState extends State<TripsPage>
             ),
           ],
         ),
-      ),
-      bottomNavigationBar: const BottomNav(
-        currentIndex: 2, // Trips tab index (fixed)
       ),
     );
   }
@@ -624,6 +620,12 @@ class _TripsPageState extends State<TripsPage>
     IconData icon;
 
     switch (status) {
+      case UserTripStatus.pending:
+        backgroundColor = const Color(0xFFE3F2FD);
+        textColor = const Color(0xFF1976D2);
+        text = 'Pending';
+        icon = Icons.pending;
+        break;
       case UserTripStatus.upcoming:
         backgroundColor = const Color(0xFFFFF3E0);
         textColor = const Color(0xFFE65100);
@@ -1105,14 +1107,11 @@ class _TripsPageState extends State<TripsPage>
   }
 
   void _navigateToBooking() {
-    // Navigate to home screen (deals tab)
-    Navigator.pushAndRemoveUntil(
-      context,
-      MaterialPageRoute(
-        builder: (context) => const CharterHomePage(),
-      ),
-      (route) => false,
-    );
+    // Navigate to home tab within the main navigation
+    // This preserves the bottom navigation bar
+    final navigationProvider =
+        Provider.of<NavigationProvider>(context, listen: false);
+    navigationProvider.setCurrentIndex(0); // Switch to home tab (Explore)
   }
 
   String _formatDate(DateTime date) {

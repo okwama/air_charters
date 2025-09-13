@@ -4,7 +4,7 @@ import 'dart:developer' as dev;
 class CharterDealModel {
   final int id;
   final int companyId;
-  final int fixedRouteId;
+  final int? fixedRouteId;
   final int aircraftId;
   final DateTime date;
   final String time;
@@ -31,14 +31,14 @@ class CharterDealModel {
   final List<String> aircraftImages; // From aircraft_images table
   final List<String> routeImages; // From fixed_routes.imageUrl (can be split)
 
-  // ✅ Placeholder fields (not in database)
-  final String duration; // Placeholder: calculated from route
-  final List<Map<String, dynamic>> amenities; // Placeholder: hardcoded list
+  // ✅ Dynamic fields from API
+  final String duration; // Calculated by backend from route
+  final List<Map<String, dynamic>> amenities; // Real amenities from database
 
   const CharterDealModel({
     required this.id,
     required this.companyId,
-    required this.fixedRouteId,
+    this.fixedRouteId,
     required this.aircraftId,
     required this.date,
     required this.time,
@@ -60,8 +60,8 @@ class CharterDealModel {
     this.aircraftCapacity,
     this.aircraftImages = const [], // ✅ New: from aircraft_images table
     this.routeImages = const [], // ✅ New: from fixed_routes
-    this.duration = '2h 30m', // ✅ Placeholder: calculated
-    this.amenities = const [], // ✅ Placeholder: hardcoded amenities
+    this.duration = '', // Will be populated from API
+    this.amenities = const [], // Will be populated from API
   });
 
   factory CharterDealModel.fromJson(Map<String, dynamic> json) {
@@ -69,7 +69,7 @@ class CharterDealModel {
       return CharterDealModel(
         id: json['id'] as int,
         companyId: json['companyId'] as int,
-        fixedRouteId: json['fixedRouteId'] as int,
+        fixedRouteId: json['fixedRouteId'] as int?,
         aircraftId: json['aircraftId'] as int,
         date: DateTime.parse(json['date'] as String),
         time: json['time'] as String,
@@ -82,33 +82,37 @@ class CharterDealModel {
             : null,
         discountPerHour: json['discountPerHour'] as int? ?? 0,
         availableSeats: json['availableSeats'] as int,
-        dealType: json['dealType'] as String,
+        dealType: json['dealType'] as String? ??
+            'privateCharter', // Handle null dealType
         createdAt: DateTime.parse(json['createdAt'] as String),
         updatedAt: DateTime.parse(json['updatedAt'] as String),
         companyName: json['companyName'] as String?,
         companyLogo: json['companyLogo'] as String?,
-        origin: json['origin'] as String?,
-        destination: json['destination'] as String?,
-        routeImageUrl: json['routeImageUrl'] as String?,
+        origin: json['originName'] as String? ??
+            json['origin'] as String?, // Handle both field names
+        destination: json['destinationName'] as String? ??
+            json['destination'] as String?, // Handle both field names
+        routeImageUrl: json['routeImageUrl'] as String? ?? '',
         aircraftName: json['aircraftName'] as String?,
         aircraftType: json['aircraftType'] as String?,
         aircraftCapacity: json['aircraftCapacity'] as int?,
 
         // ✅ New fields from existing database
         aircraftImages: (json['aircraftImages'] as List<dynamic>?)
-                ?.map((e) => e as String)
+                ?.map((e) => e.toString()) // Convert to string safely
                 .toList() ??
             [],
         routeImages: (json['routeImages'] as List<dynamic>?)
-                ?.map((e) => e as String)
+                ?.map((e) => e.toString()) // Convert to string safely
                 .toList() ??
             [],
 
-        // ✅ Placeholder fields
-        duration: json['duration'] as String? ??
-            _calculateDuration(
-                json['origin'] as String?, json['destination'] as String?),
-        amenities: _getAircraftAmenities(json['aircraftType'] as String?),
+        // ✅ Fields from API
+        duration: json['duration'] as String? ?? '',
+        amenities: (json['amenities'] as List<dynamic>?)
+                ?.map((e) => e as Map<String, dynamic>)
+                .toList() ??
+            [],
       );
     } catch (e) {
       // Log the error and the problematic JSON
@@ -197,9 +201,18 @@ class CharterDealModel {
   }
 
   String get imageUrl {
-    // ✅ Use route image first, then fallback
-    return routeImageUrl ??
-'https://ik.imagekit.io/bja2qwwdjjy/Aircharter/Heavy%20Jet%20Luxury%20Aircraft_YA1Og-8_k.webp?updatedAt=1749146876852';
+    // Use route image first, then aircraft images, then fallback
+    if (routeImageUrl != null && routeImageUrl!.isNotEmpty) {
+      return routeImageUrl!;
+    }
+    if (aircraftImages.isNotEmpty) {
+      return aircraftImages.first;
+    }
+    if (routeImages.isNotEmpty) {
+      return routeImages.first;
+    }
+    // Fallback to a generic placeholder
+    return 'https://via.placeholder.com/400x300/4A90E2/FFFFFF?text=Aircraft';
   }
 
   bool get hasDiscount {
@@ -265,63 +278,5 @@ class CharterDealModel {
       duration: duration ?? this.duration,
       amenities: amenities ?? this.amenities,
     );
-  }
-
-  // ✅ Placeholder: Calculate duration based on route
-  static String _calculateDuration(String? origin, String? destination) {
-    if (origin == null || destination == null) return '2h 30m';
-
-    // Simple placeholder calculation based on common routes
-    final route = '$origin-$destination';
-    switch (route) {
-      case 'Nairobi-Mombasa':
-      case 'Mombasa-Nairobi':
-        return '1h 15m';
-      case 'Nairobi-Kisumu':
-      case 'Kisumu-Nairobi':
-        return '1h 5m';
-      case 'Nairobi-Kilifi':
-      case 'Kilifi-Nairobi':
-        return '1h 25m';
-      default:
-        return '2h 30m';
-    }
-  }
-
-  // ✅ Placeholder: Get amenities based on aircraft type
-  static List<Map<String, dynamic>> _getAircraftAmenities(
-      String? aircraftType) {
-    const defaultAmenities = [
-      {'icon': 'wifi', 'name': 'Wi-Fi'},
-      {'icon': 'ac_unit', 'name': 'Climate Control'},
-      {'icon': 'airline_seat_recline_normal', 'name': 'Reclining Seats'},
-      {'icon': 'luggage', 'name': 'Baggage Space'},
-    ];
-
-    if (aircraftType == null) return defaultAmenities;
-
-    // Add specific amenities based on aircraft type
-    switch (aircraftType.toLowerCase()) {
-      case 'jet':
-        return [
-          ...defaultAmenities,
-          {'icon': 'tv', 'name': 'Entertainment'},
-          {'icon': 'restaurant', 'name': 'Catering'},
-          {'icon': 'airline_seat_flat', 'name': 'Lie-flat Seats'},
-        ];
-      case 'helicopter':
-        return [
-          {'icon': 'ac_unit', 'name': 'Climate Control'},
-          {'icon': 'headset_mic', 'name': 'Communication'},
-          {'icon': 'luggage', 'name': 'Baggage Space'},
-        ];
-      case 'fixedwing':
-        return [
-          ...defaultAmenities,
-          {'icon': 'tv', 'name': 'Entertainment'},
-        ];
-      default:
-        return defaultAmenities;
-    }
   }
 }

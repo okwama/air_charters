@@ -78,7 +78,13 @@ class _VerifyCodeScreenState extends State<VerifyCodeScreen> {
     }
 
     try {
-      await context.read<AuthProvider>().verifyPhoneCode(_code);
+      final phoneNumber = widget.phoneNumber;
+      if (phoneNumber == null) {
+        _showErrorSnackBar('Phone number not available for verification.');
+        return;
+      }
+
+      await context.read<AuthProvider>().verifyPhoneCode(phoneNumber, _code);
 
       if (mounted) {
         Navigator.of(context).pushReplacementNamed('/home');

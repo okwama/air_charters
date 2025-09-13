@@ -31,6 +31,8 @@ class CharterDealsService {
     String? dealType,
     DateTime? fromDate,
     DateTime? toDate,
+    int? aircraftTypeId,
+    bool groupBy = false,
     bool forceRefresh = false,
   }) async {
     print('===========================================================');
@@ -80,6 +82,15 @@ class CharterDealsService {
         queryParams['toDate'] = toDate.toIso8601String();
       }
 
+      if (aircraftTypeId != null) {
+        queryParams['aircraftTypeImagePlaceholderId'] =
+            aircraftTypeId.toString();
+      }
+
+      if (groupBy) {
+        queryParams['groupBy'] = 'true';
+      }
+
       // Make API request
       final uri = Uri.parse('$baseUrl/charter-deals')
           .replace(queryParameters: queryParams);
@@ -92,10 +103,62 @@ class CharterDealsService {
             uri,
             headers: headers,
           )
-          .timeout(const Duration(seconds: 10));
+          .timeout(const Duration(seconds: 20));
 
       print('✅ SERVICE: API Response Status: ${response.statusCode}');
       print('✅ SERVICE: RAW RESPONSE BODY: ${response.body}');
+
+      if (response.statusCode == 401) {
+        print('❌ SERVICE: Authentication failed (401). Token may be expired.');
+        print(
+            '❌ SERVICE: This is expected for unauthenticated users or expired tokens.');
+
+        // Handle authentication error gracefully
+        final sessionManager = SessionManager();
+        final errorHandling = await sessionManager.handleAuthError(
+            401, 'Authentication required to view charter deals');
+
+        if (errorHandling.shouldRetry) {
+          print('✅ SERVICE: Token refreshed, retrying request...');
+          // Retry the request with new token
+          final retryHeaders = await _getAuthHeaders();
+          final retryResponse = await http
+              .get(
+                uri,
+                headers: retryHeaders,
+              )
+              .timeout(const Duration(seconds: 20));
+
+          if (retryResponse.statusCode == 200) {
+            // Process successful retry response
+            final data = json.decode(retryResponse.body);
+            if (data['success'] == true) {
+              final dealsList = data['data'] as List;
+              final deals = <CharterDealModel>[];
+
+              for (final dealJson in dealsList) {
+                try {
+                  final deal = CharterDealModel.fromJson(dealJson);
+                  deals.add(deal);
+                } catch (e) {
+                  print('❌ SERVICE: Error parsing deal on retry: $e');
+                }
+              }
+
+              // Update cache
+              _cachedDeals = deals;
+              _lastCacheTime = DateTime.now();
+
+              print(
+                  '✅ SERVICE: Retry successful, returning ${deals.length} deals.');
+              return deals;
+            }
+          }
+        }
+
+        // If retry failed or not possible, throw authentication exception
+        throw AuthException(errorHandling.message);
+      }
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
@@ -103,18 +166,51 @@ class CharterDealsService {
 
         if (data['success'] == true) {
           final dealsList = data['data'] as List;
-          print('✅ SERVICE: Found ${dealsList.length} deals in API response.');
+          print('✅ SERVICE: Found ${dealsList.length} items in API response.');
 
           final deals = <CharterDealModel>[];
 
-          // Parse each deal individually to catch parsing errors
-          for (int i = 0; i < dealsList.length; i++) {
-            try {
-              final deal = CharterDealModel.fromJson(dealsList[i]);
-              deals.add(deal);
-            } catch (e) {
-              print('❌ SERVICE: Error parsing deal at index $i: $e');
-              print('❌ SERVICE: Problematic deal data: ${dealsList[i]}');
+          // Check if this is a grouped response (has aircraftTypeId and deals array)
+          if (groupBy &&
+              dealsList.isNotEmpty &&
+              dealsList.first.containsKey('aircraftTypeId')) {
+            print(
+                '✅ SERVICE: Detected grouped response, extracting deals from groups...');
+
+            // Handle grouped response structure
+            for (int i = 0; i < dealsList.length; i++) {
+              try {
+                final group = dealsList[i];
+                final groupDeals = group['deals'] as List;
+
+                for (int j = 0; j < groupDeals.length; j++) {
+                  try {
+                    final deal = CharterDealModel.fromJson(groupDeals[j]);
+                    deals.add(deal);
+                  } catch (e) {
+                    print(
+                        '❌ SERVICE: Error parsing deal at group $i, deal $j: $e');
+                    print('❌ SERVICE: Problematic deal data: ${groupDeals[j]}');
+                  }
+                }
+              } catch (e) {
+                print('❌ SERVICE: Error parsing group at index $i: $e');
+                print('❌ SERVICE: Problematic group data: ${dealsList[i]}');
+              }
+            }
+          } else {
+            print(
+                '✅ SERVICE: Detected regular response, parsing deals directly...');
+
+            // Handle regular response structure
+            for (int i = 0; i < dealsList.length; i++) {
+              try {
+                final deal = CharterDealModel.fromJson(dealsList[i]);
+                deals.add(deal);
+              } catch (e) {
+                print('❌ SERVICE: Error parsing deal at index $i: $e');
+                print('❌ SERVICE: Problematic deal data: ${dealsList[i]}');
+              }
             }
           }
 
@@ -212,7 +308,7 @@ class CharterDealsService {
           uri,
           headers: headers,
         )
-        .timeout(const Duration(seconds: 10));
+        .timeout(const Duration(seconds: 20));
 
     if (response.statusCode == 200) {
       final data = json.decode(response.body);
@@ -246,7 +342,7 @@ class CharterDealsService {
           uri,
           headers: headers,
         )
-        .timeout(const Duration(seconds: 10));
+        .timeout(const Duration(seconds: 20));
 
     if (response.statusCode == 200) {
       final data = json.decode(response.body);
@@ -272,7 +368,7 @@ class CharterDealsService {
           uri,
           headers: headers,
         )
-        .timeout(const Duration(seconds: 10));
+        .timeout(const Duration(seconds: 20));
 
     if (response.statusCode == 200) {
       final data = json.decode(response.body);
@@ -369,14 +465,14 @@ class CharterDealsService {
       if (companyId != null && companyId.isNotEmpty) 'companyId': companyId,
       if (sortBy != null && sortBy.isNotEmpty) 'sortBy': sortBy,
       if (sortOrder != null && sortOrder.isNotEmpty) 'sortOrder': sortOrder,
-    };	  
+    };
 
     final uri = Uri.parse('$baseUrl/charter-deals')
         .replace(queryParameters: queryParams);
     final headers = await _getAuthHeaders();
     final response = await http
         .get(uri, headers: headers)
-        .timeout(const Duration(seconds: 10));
+        .timeout(const Duration(seconds: 20));
 
     if (response.statusCode == 200) {
       final data = json.decode(response.body);
@@ -416,7 +512,7 @@ class CharterDealsService {
     final headers = await _getAuthHeaders();
     final response = await http
         .get(uri, headers: headers)
-        .timeout(const Duration(seconds: 10));
+        .timeout(const Duration(seconds: 20));
 
     if (response.statusCode == 200) {
       final data = json.decode(response.body);
@@ -459,7 +555,7 @@ class CharterDealsService {
     final headers = await _getAuthHeaders();
     final response = await http
         .get(uri, headers: headers)
-        .timeout(const Duration(seconds: 10));
+        .timeout(const Duration(seconds: 20));
 
     if (response.statusCode == 200) {
       final data = json.decode(response.body);
@@ -479,7 +575,7 @@ class CharterDealsService {
     final headers = await _getAuthHeaders();
     final response = await http
         .get(uri, headers: headers)
-        .timeout(const Duration(seconds: 10));
+        .timeout(const Duration(seconds: 20));
 
     if (response.statusCode == 200) {
       final data = json.decode(response.body);

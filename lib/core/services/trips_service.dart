@@ -21,6 +21,22 @@ class TripsService {
     }
   }
 
+  /// Get pending bookings (bookings without user trips)
+  Future<List<UserTripModel>> fetchPendingBookings() async {
+    try {
+      final response = await _apiClient.get('/api/trips/pending');
+
+      if (response['success'] == true && response['data'] != null) {
+        final List<dynamic> tripsJson = response['data'] as List;
+        return tripsJson.map((json) => UserTripModel.fromJson(json)).toList();
+      }
+
+      return [];
+    } catch (e) {
+      throw NetworkException('Failed to fetch pending bookings: ${e.toString()}');
+    }
+  }
+
   /// Get a specific trip by ID
   Future<UserTripModel> fetchTripById(String tripId) async {
     try {

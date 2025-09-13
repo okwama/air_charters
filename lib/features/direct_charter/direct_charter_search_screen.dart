@@ -1,13 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:air_charters/features/plan/locations.dart';
-import 'package:air_charters/features/plan/aircraft_results_screen.dart';
 import 'package:air_charters/shared/widgets/calendar_selector.dart';
 import 'package:air_charters/shared/widgets/custom_button.dart';
-import 'package:air_charters/shared/components/bottom_nav.dart';
 import '../../core/models/location_model.dart';
 import '../../core/services/direct_charter_service.dart';
-import '../../core/models/direct_charter_model.dart';
 import 'direct_charter_results_screen.dart';
 
 class DirectCharterWrapper extends StatefulWidget {
@@ -18,46 +16,57 @@ class DirectCharterWrapper extends StatefulWidget {
 }
 
 class _DirectCharterWrapperState extends State<DirectCharterWrapper> {
-  int _currentIndex = 1; // Direct Charter tab
+  @override
+  void initState() {
+    super.initState();
+    if (kDebugMode) {
+      print('DirectCharterWrapper: initState called');
+    }
+  }
+
+  @override
+  void dispose() {
+    if (kDebugMode) {
+      print('DirectCharterWrapper: dispose called');
+    }
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
-          onPressed: () => Navigator.pop(context),
+      backgroundColor: Colors.white,
+      body: SafeArea(
+        child: Column(
+          children: [
+            // Custom header without back button
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                border: Border(
+                  bottom: BorderSide(color: Colors.grey[200]!),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Text(
+                    'Direct Charter',
+                    style: GoogleFonts.inter(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.black,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            // Content
+            const Expanded(
+              child: DirectCharterSearchScreen(),
+            ),
+          ],
         ),
-        title: Text(
-          'Direct Charter',
-          style: GoogleFonts.inter(
-            fontSize: 18,
-            fontWeight: FontWeight.w600,
-            color: Colors.black,
-          ),
-        ),
-      ),
-      body: const DirectCharterSearchScreen(),
-      bottomNavigationBar: BottomNav(
-        currentIndex: _currentIndex,
-        onTap: (index) {
-          // Handle navigation to other main tabs
-          if (index != _currentIndex) {
-            switch (index) {
-              case 0: // Explore (Home)
-                Navigator.of(context).pushReplacementNamed('/home');
-                break;
-              case 2: // Trips
-                Navigator.of(context).pushReplacementNamed('/trips');
-                break;
-              case 3: // Settings
-                Navigator.of(context).pushReplacementNamed('/settings');
-                break;
-            }
-          }
-        },
       ),
     );
   }
@@ -80,6 +89,22 @@ class _DirectCharterSearchScreenState extends State<DirectCharterSearchScreen> {
   bool _isLoadingDeals = false;
   int _passengerCount = 1;
   final _directCharterService = DirectCharterService();
+
+  @override
+  void initState() {
+    super.initState();
+    if (kDebugMode) {
+      print('DirectCharterSearchScreen: initState called');
+    }
+  }
+
+  @override
+  void dispose() {
+    if (kDebugMode) {
+      print('DirectCharterSearchScreen: dispose called');
+    }
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {

@@ -1,4 +1,3 @@
-import '../models/location_model.dart';
 import '../models/google_earth_location_model.dart';
 import '../network/api_client.dart';
 

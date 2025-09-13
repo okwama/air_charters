@@ -4,8 +4,6 @@ import '../../core/models/direct_charter_model.dart';
 import '../../core/models/aircraft_availability_model.dart';
 import '../../core/models/location_model.dart';
 import '../plan/inquiry/create_inquiry_screen.dart';
-import '../../shared/widgets/loading_widget.dart';
-import '../../shared/components/bottom_nav.dart';
 import 'direct_charter_booking_screen.dart';
 
 class DirectCharterResultsScreen extends StatelessWidget {

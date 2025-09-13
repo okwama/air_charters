@@ -1,6 +1,7 @@
 import 'booking_model.dart';
 
 enum UserTripStatus {
+  pending,
   upcoming,
   completed,
   cancelled,
@@ -131,6 +132,8 @@ class UserTripModel {
 
   static UserTripStatus _parseUserTripStatus(String? status) {
     switch (status?.toLowerCase()) {
+      case 'pending':
+        return UserTripStatus.pending;
       case 'upcoming':
         return UserTripStatus.upcoming;
       case 'completed':

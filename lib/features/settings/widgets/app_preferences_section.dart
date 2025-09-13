@@ -1,24 +1,29 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import '../../../core/controllers/settings.controller/settings_controller.dart';
 
 class AppPreferencesSection extends StatelessWidget {
-  final SettingsController settingsController;
   final Function(BuildContext) onThemeTap;
   final Function(BuildContext) onLanguageTap;
   final Function(BuildContext) onCurrencyTap;
   final Function(BuildContext) onNotificationsTap;
   final Function(BuildContext) onPrivacyTap;
 
+  // Add current values as parameters
+  final String currentTheme;
+  final String currentLanguage;
+  final String currentCurrency;
+
   const AppPreferencesSection({
     super.key,
-    required this.settingsController,
     required this.onThemeTap,
     required this.onLanguageTap,
     required this.onCurrencyTap,
     required this.onNotificationsTap,
     required this.onPrivacyTap,
+    required this.currentTheme,
+    required this.currentLanguage,
+    required this.currentCurrency,
   });
 
   @override
@@ -171,10 +176,9 @@ class AppPreferencesSection extends StatelessWidget {
     );
   }
 
-  // Helper methods for getting display names
+  // Helper methods for getting display names - now using actual values
   String _getThemeDisplayName() {
-    final theme = settingsController.currentTheme;
-    switch (theme) {
+    switch (currentTheme) {
       case 'light':
         return 'Light Mode';
       case 'dark':
@@ -187,24 +191,38 @@ class AppPreferencesSection extends StatelessWidget {
   }
 
   String _getLanguageDisplayName() {
-    final language = settingsController.currentLanguage;
-    switch (language) {
+    switch (currentLanguage) {
       case 'en':
         return 'English';
       case 'es':
-        return 'Español';
+        return 'Spanish';
       case 'fr':
-        return 'Français';
+        return 'French';
       case 'de':
-        return 'Deutsch';
+        return 'German';
+      case 'pt':
+        return 'Portuguese';
+      case 'it':
+        return 'Italian';
+      case 'ja':
+        return 'Japanese';
+      case 'ko':
+        return 'Korean';
+      case 'zh':
+        return 'Chinese (Simplified)';
+      case 'ar':
+        return 'Arabic';
+      case 'ru':
+        return 'Russian';
+      case 'hi':
+        return 'Hindi';
       default:
         return 'English';
     }
   }
 
   String _getCurrencyDisplayName() {
-    final currency = settingsController.currentCurrency;
-    switch (currency) {
+    switch (currentCurrency) {
       case 'USD':
         return 'US Dollar (\$)';
       case 'EUR':
@@ -213,6 +231,28 @@ class AppPreferencesSection extends StatelessWidget {
         return 'British Pound (£)';
       case 'CAD':
         return 'Canadian Dollar (C\$)';
+      case 'AUD':
+        return 'Australian Dollar (A\$)';
+      case 'JPY':
+        return 'Japanese Yen (¥)';
+      case 'CHF':
+        return 'Swiss Franc (CHF)';
+      case 'CNY':
+        return 'Chinese Yuan (¥)';
+      case 'INR':
+        return 'Indian Rupee (₹)';
+      case 'BRL':
+        return 'Brazilian Real (R\$)';
+      case 'MXN':
+        return 'Mexican Peso (MX\$)';
+      case 'SGD':
+        return 'Singapore Dollar (S\$)';
+      case 'HKD':
+        return 'Hong Kong Dollar (HK\$)';
+      case 'KRW':
+        return 'South Korean Won (₩)';
+      case 'THB':
+        return 'Thai Baht (฿)';
       default:
         return 'US Dollar (\$)';
     }

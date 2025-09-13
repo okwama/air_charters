@@ -286,11 +286,11 @@ class BookingModel {
       'dealId': dealId,
       'totalPrice': totalPrice,
       'onboardDining': onboardDining,
-      'groundTransportation': groundTransportation,
+      // Removed groundTransportation - not in database schema
       if (specialRequirements != null)
         'specialRequirements': specialRequirements,
       if (billingRegion != null) 'billingRegion': billingRegion,
-      if (paymentMethod != null) 'paymentMethod': paymentMethod!.name,
+      // Removed paymentMethod - not in database schema
       'passengers': passengerJsonList,
     };
 
@@ -511,9 +511,9 @@ class BookingModel {
       if (value is List) {
         print('Value is List, processing ${value.length} items');
         final passengers =
-            value.where((item) => item is Map<String, dynamic>).map((p) {
+            value.whereType<Map<String, dynamic>>().map((p) {
           print('Parsing passenger: $p');
-          return PassengerModel.fromJson(p as Map<String, dynamic>);
+          return PassengerModel.fromJson(p);
         }).toList();
         print('Successfully parsed ${passengers.length} passengers');
         return passengers;

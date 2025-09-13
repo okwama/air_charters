@@ -49,33 +49,34 @@ class ApiClient {
     return headers;
   }
 
-  // GET Request
-  Future<dynamic> get(String endpoint) async {
-    try {
-      print('🔥 API: GET $endpoint');
+  // GET Request with retry logic
+  Future<dynamic> get(String endpoint, {int maxRetries = 3}) async {
+    return await _retryRequest(() async {
+      print('🔍 ApiClient: Making GET request to $_baseUrl$endpoint');
       final headers = await _authHeaders;
+      print('🔍 ApiClient: Headers: $headers');
+
       final response = await _client
           .get(Uri.parse('$_baseUrl$endpoint'), headers: headers)
           .timeout(const Duration(seconds: 30));
-      print('🔥 API: GET $endpoint - Status: ${response.statusCode}');
+
+      print('🔍 ApiClient: Response status: ${response.statusCode}');
+      print('🔍 ApiClient: Response body: ${response.body}');
 
       return _handleResponse(response);
-    } catch (e) {
-      print('🔥 API: GET $endpoint - Error: $e');
-      throw _handleError(e);
-    }
+    }, maxRetries: maxRetries);
   }
 
   // POST Request
   Future<dynamic> post(String endpoint, Map<String, dynamic> data) async {
     try {
-      print('🔥 API: POST $endpoint');
-      print('🔥 API: Request data: $data');
-      print('🔥 API: Request data type: ${data.runtimeType}');
+      // Removed debug print
+      // Removed debug print
+      // Removed debug print
 
       final headers = await _authHeaders;
       final jsonBody = jsonEncode(data);
-      print('🔥 API: JSON body: $jsonBody');
+      // Removed debug print
 
       final response = await _client
           .post(
@@ -85,12 +86,12 @@ class ApiClient {
           )
           .timeout(const Duration(seconds: 30));
 
-      print('🔥 API: POST $endpoint - Status: ${response.statusCode}');
-      print('🔥 API: Response body: ${response.body}');
+      // Removed debug print
+      // Removed debug print
 
       return _handleResponse(response);
     } catch (e) {
-      print('🔥 API: POST $endpoint - Error: $e');
+      // Removed debug print
       throw _handleError(e);
     }
   }
@@ -154,17 +155,17 @@ class ApiClient {
       case 201:
         return body;
       case 401:
-        // Use the actual error message from backend for better UX
-        final errorMessage =
-            body['message'] ?? 'Authentication failed. Please login again.';
-        _clearStoredAuth();
-        throw AuthException(errorMessage);
+        // Enhanced authentication error handling with retry logic
+        return _handleAuthenticationError(response, body);
       case 403:
         final errorMessage = body['message'] ??
             'Access denied. You don\'t have permission to perform this action.';
         throw AuthException(errorMessage);
       case 404:
         final errorMessage = body['message'] ?? 'Resource not found.';
+        throw ServerException(errorMessage);
+      case 400:
+        final errorMessage = body['message'] ?? 'Bad request. Please check your input.';
         throw ServerException(errorMessage);
       case 422:
         throw ValidationException(body['message'] ?? 'Validation failed.');
@@ -175,6 +176,64 @@ class ApiClient {
       default:
         throw ServerException(
             body['message'] ?? 'An unexpected error occurred.');
+    }
+  }
+
+  // Enhanced authentication error handling with retry logic
+  Future<dynamic> _handleAuthenticationError(
+      http.Response response, Map<String, dynamic> body) async {
+    final sessionManager = SessionManager();
+    final errorMessage =
+        body['message'] ?? 'Authentication failed. Please login again.';
+
+    if (kDebugMode) {
+      dev.log('ApiClient: Handling 401 authentication error: $errorMessage',
+          name: 'api_client');
+    }
+
+    // Use SessionManager to handle the authentication error
+    final errorHandling =
+        await sessionManager.handleAuthError(401, errorMessage);
+
+    if (errorHandling.shouldRetry) {
+      if (kDebugMode) {
+        dev.log(
+            'ApiClient: Token refreshed, but retry not implemented for this request type',
+            name: 'api_client');
+      }
+
+      // For now, we'll throw the auth exception since retrying with body data is complex
+      // In a production app, you might want to implement a request queue or store request details
+      throw AuthException(
+          '${errorHandling.message} (Retry not available for this request type)');
+    } else {
+      // No retry possible, throw authentication exception
+      if (kDebugMode) {
+        dev.log('ApiClient: No retry possible, throwing auth exception',
+            name: 'api_client');
+      }
+      throw AuthException(errorHandling.message);
+    }
+  }
+
+  // Retry logic with exponential backoff
+  Future<dynamic> _retryRequest(Future<dynamic> Function() request, {int maxRetries = 3}) async {
+    for (int attempt = 0; attempt < maxRetries; attempt++) {
+      try {
+        return await request();
+      } catch (e) {
+        print('🔄 ApiClient: Attempt ${attempt + 1}/$maxRetries failed: $e');
+        
+        if (attempt == maxRetries - 1) {
+          print('❌ ApiClient: All retry attempts failed, throwing error');
+          throw _handleError(e);
+        }
+        
+        // Exponential backoff: 1s, 2s, 4s
+        final delay = Duration(seconds: 1 << attempt);
+        print('⏳ ApiClient: Waiting ${delay.inSeconds}s before retry...');
+        await Future.delayed(delay);
+      }
     }
   }
 

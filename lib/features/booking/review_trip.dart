@@ -8,9 +8,9 @@ import '../../core/models/charter_deal_model.dart';
 import '../../core/models/booking_model.dart' show BookingModel, PaymentMethod;
 import '../../core/providers/passengers_provider.dart';
 import '../../core/providers/auth_provider.dart';
-import '../../core/controllers/booking.controller/booking_controller.dart';
+import '../../core/services/booking_business_service.dart';
 import '../../shared/widgets/passenger_list_widget.dart';
-import '../../shared/widgets/app_spinner.dart';
+import '../../shared/widgets/loading_system.dart';
 
 // Import modular widgets
 import 'widgets/flight_details_widget.dart';
@@ -680,7 +680,8 @@ class _ReviewTripPageState extends State<ReviewTripPage> {
                   color: Colors.blue[50],
                   shape: BoxShape.circle,
                 ),
-                child: const AppSpinner(),
+                child:
+                    LoadingSystem.inline(size: 24, color: Colors.blue.shade600),
               ),
               const SizedBox(height: 20),
 
@@ -727,15 +728,15 @@ class _ReviewTripPageState extends State<ReviewTripPage> {
 
       print('=== GETTING BOOKING CONTROLLER ===');
       // Create booking without payment intent (request only)
-      final bookingController =
-          Provider.of<BookingController>(context, listen: false);
-      print('Booking controller obtained: ${bookingController != null}');
+      final bookingService =
+          Provider.of<BookingBusinessService>(context, listen: false);
+      print('Booking service obtained: ${bookingService != null}');
 
       print('=== CALLING CREATE BOOKING (REQUEST ONLY) ===');
       print('Deal ID: ${widget.deal?.id ?? 0}');
       print('Total price: $totalPrice');
 
-      final result = await bookingController.createBookingWithPaymentIntent(
+      final result = await bookingService.createBookingWithPaymentIntent(
         dealId: widget.deal?.id ?? 0,
         totalPrice: totalPrice.toDouble(),
         onboardDining: _onboardDining,

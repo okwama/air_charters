@@ -1,16 +1,41 @@
 import 'package:flutter/material.dart';
-import 'package:air_charters/shared/components/bottom_nav.dart';
+import 'package:flutter/foundation.dart';
+import 'package:provider/provider.dart';
 import 'package:air_charters/shared/widgets/searchbar.dart' as custom;
-import 'package:air_charters/shared/components/deal_card.dart';
 import 'package:air_charters/shared/components/deals_list_widget.dart';
 import 'package:air_charters/features/booking/booking_detail.dart';
 import 'package:air_charters/features/plan/flight_search_screen.dart';
 import 'package:air_charters/features/experiences/experience_tours.dart';
-import 'package:provider/provider.dart';
 import 'package:air_charters/core/providers/charter_deals_provider.dart';
+import 'package:air_charters/shared/widgets/deals_filter_dialog.dart';
+import 'package:air_charters/shared/widgets/filter_chips_widget.dart';
+import 'package:air_charters/shared/models/deals_filter_options.dart';
 
-class CharterHomePage extends StatelessWidget {
+class CharterHomePage extends StatefulWidget {
   const CharterHomePage({super.key});
+
+  @override
+  State<CharterHomePage> createState() => _CharterHomePageState();
+}
+
+class _CharterHomePageState extends State<CharterHomePage> {
+  DealsFilterOptions _filters = const DealsFilterOptions();
+
+  @override
+  void initState() {
+    super.initState();
+    if (kDebugMode) {
+      print('CharterHomePage: initState called');
+    }
+  }
+
+  @override
+  void dispose() {
+    if (kDebugMode) {
+      print('CharterHomePage: dispose called');
+    }
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -36,18 +61,11 @@ class CharterHomePage extends StatelessWidget {
               hintText: 'Plan your charter flight',
               enabled: false,
               onFilterTap: () {
-                // Handle filter tap
+                _showFilterDialog(context);
               },
             ),
           ),
-          actions: [
-            IconButton(
-              onPressed: () {
-                Navigator.pushNamed(context, '/test-grouped-deals');
-              },
-              icon: const Icon(Icons.bug_report, color: Colors.black),
-            ),
-          ],
+          actions: [],
           bottom: PreferredSize(
             preferredSize: const Size.fromHeight(60),
             child: Container(
@@ -88,9 +106,6 @@ class CharterHomePage extends StatelessWidget {
             const ExperienceToursScreen(),
           ],
         ),
-        bottomNavigationBar: const BottomNav(
-          currentIndex: 0,
-        ),
       ),
     );
   }
@@ -104,11 +119,70 @@ class CharterHomePage extends StatelessWidget {
           print('HOME: First deal: ${provider.deals.first.routeDisplay}');
         }
 
-        return const DealsListWidget(
-          enablePullToRefresh: true,
-          enableInfiniteScroll: true,
+        return Column(
+          children: [
+            // Filter chips
+            FilterChipsWidget(
+              filters: _filters,
+              onFilterRemoved: _onFilterRemoved,
+              onClearAll: _onClearAllFilters,
+            ),
+
+            // Deals list
+            Expanded(
+              child: DealsListWidget(
+                enablePullToRefresh: true,
+                enableInfiniteScroll: true,
+                aircraftTypeId: _filters.aircraftTypeId,
+                groupBy: _filters.groupBy,
+                searchQuery: _filters.searchQuery,
+              ),
+            ),
+          ],
         );
       },
+    );
+  }
+
+  void _onFilterRemoved(DealsFilterOptions newFilters) {
+    setState(() {
+      _filters = newFilters;
+    });
+    _applyFilters();
+  }
+
+  void _onClearAllFilters() {
+    setState(() {
+      _filters = const DealsFilterOptions();
+    });
+    _applyFilters();
+  }
+
+  void _applyFilters() {
+    // Use debounced loading to prevent rapid successive calls
+    context.read<CharterDealsProvider>().debouncedLoadDeals(
+          aircraftTypeId: _filters.aircraftTypeId,
+          groupBy: _filters.groupBy,
+          searchQuery: _filters.searchQuery,
+          forceRefresh: true,
+        );
+  }
+
+  void _showFilterDialog(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => DealsFilterDialog(
+        initialFilters: _filters,
+        onApplyFilters: (newFilters) {
+          setState(() {
+            _filters = newFilters;
+          });
+          _applyFilters();
+        },
+        onClearAll: _onClearAllFilters,
+      ),
     );
   }
 

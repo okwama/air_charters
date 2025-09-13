@@ -2,16 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/providers/booking_provider.dart';
 import '../../core/providers/auth_provider.dart';
-import '../../shared/widgets/app_spinner.dart';
-import 'payment/payment_screen.dart';
+import '../../shared/widgets/loading_system.dart';
+import 'payment/paystack_payment_screen.dart';
 
 class BookingConfirmationPage extends StatefulWidget {
   final Map<String, dynamic> bookingData;
 
   const BookingConfirmationPage({
-    Key? key,
+    super.key,
     required this.bookingData,
-  }) : super(key: key);
+  });
 
   @override
   State<BookingConfirmationPage> createState() =>
@@ -19,7 +19,7 @@ class BookingConfirmationPage extends StatefulWidget {
 }
 
 class _BookingConfirmationPageState extends State<BookingConfirmationPage> {
-  bool _isLoading = false;
+  final bool _isLoading = false;
 
   @override
   Widget build(BuildContext context) {
@@ -47,7 +47,7 @@ class _BookingConfirmationPageState extends State<BookingConfirmationPage> {
         centerTitle: true,
       ),
       body: _isLoading
-          ? const Center(child: AppSpinner())
+          ? LoadingSystem.fullScreen(message: 'Loading your booking...')
           : SingleChildScrollView(
               padding: const EdgeInsets.all(20),
               child: Column(
@@ -968,15 +968,15 @@ class _BookingConfirmationPageState extends State<BookingConfirmationPage> {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => const Dialog(
+      builder: (context) => Dialog(
         child: Padding(
-          padding: EdgeInsets.all(20),
+          padding: const EdgeInsets.all(20),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              CircularProgressIndicator(),
-              SizedBox(width: 20),
-              Text('Creating payment...'),
+              LoadingSystem.inline(size: 20),
+              const SizedBox(width: 20),
+              const Text('Creating payment...'),
             ],
           ),
         ),
@@ -987,44 +987,34 @@ class _BookingConfirmationPageState extends State<BookingConfirmationPage> {
       final bookingProvider = context.read<BookingProvider>();
       final authProvider = context.read<AuthProvider>();
 
-      // Create payment intent
-      final paymentIntent = await bookingProvider.createPaymentIntent(
-        amount: widget.bookingData['totalAmount'] ?? 0.0,
-        bookingId: widget.bookingData['id'] ??
-            widget.bookingData['reference'] ??
-            'booking_${DateTime.now().millisecondsSinceEpoch}',
-        userId: authProvider.currentUser?.id ?? '',
-        currency: 'USD',
-        description: 'Payment for booking ${widget.bookingData['reference']}',
-      );
-
       // Close loading dialog
       if (mounted) {
         Navigator.of(context).pop();
       }
 
-      if (paymentIntent != null) {
-        // Navigate to Stripe payment screen with client secret
-        if (mounted) {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => PaymentScreen(
-                bookingId: widget.bookingData['id'] ??
-                    widget.bookingData['reference'] ??
-                    'booking_${DateTime.now().millisecondsSinceEpoch}',
-                clientSecret: paymentIntent.clientSecret,
-                amount: widget.bookingData['totalAmount'] ?? 0.0,
-                currency: 'USD',
-                paymentIntentId: paymentIntent.id,
-              ),
+      // Navigate to Paystack payment screen
+      if (mounted) {
+        final result = await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => PaystackPaymentScreen(
+              bookingId: widget.bookingData['id'] ??
+                  widget.bookingData['reference'] ??
+                  'booking_${DateTime.now().millisecondsSinceEpoch}',
+              amount: widget.bookingData['totalAmount'] ?? 0.0,
+              currency: 'KES', // Changed to KES for Kenya
+              email: authProvider.currentUser?.email ?? 'customer@example.com',
+              companyId: widget.bookingData['companyId'] ?? 1,
+              preferredPaymentMethod: 'card',
             ),
-          );
-        }
-      } else {
-        // Show error dialog
-        if (mounted) {
-          _showErrorDialog('Failed to create payment. Please try again.');
+          ),
+        );
+
+        // Handle payment result
+        if (result != null && result['success'] == true) {
+          _showPaymentSuccessDialog('Card Payment');
+        } else if (result != null && result['success'] == false) {
+          _showErrorDialog(result['message'] ?? 'Payment failed');
         }
       }
     } catch (e) {
@@ -1045,9 +1035,71 @@ class _BookingConfirmationPageState extends State<BookingConfirmationPage> {
     _showWalletPaymentDialog();
   }
 
-  void _processMpesaPayment() {
-    // Show M-Pesa payment dialog
-    _showMpesaPaymentDialog();
+  void _processMpesaPayment() async {
+    // Show loading dialog
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => Dialog(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              LoadingSystem.inline(size: 20),
+              const SizedBox(width: 20),
+              const Text('Creating payment...'),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    try {
+      final bookingProvider = context.read<BookingProvider>();
+      final authProvider = context.read<AuthProvider>();
+
+      // Close loading dialog
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
+
+      // Navigate to Paystack payment screen for M-Pesa
+      if (mounted) {
+        final result = await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => PaystackPaymentScreen(
+              bookingId: widget.bookingData['id'] ??
+                  widget.bookingData['reference'] ??
+                  'booking_${DateTime.now().millisecondsSinceEpoch}',
+              amount: widget.bookingData['totalAmount'] ?? 0.0,
+              currency: 'KES',
+              email: authProvider.currentUser?.email ?? 'customer@example.com',
+              companyId: widget.bookingData['companyId'] ?? 1,
+              preferredPaymentMethod: 'mpesa',
+            ),
+          ),
+        );
+
+        // Handle payment result
+        if (result != null && result['success'] == true) {
+          _showPaymentSuccessDialog('Card Payment');
+        } else if (result != null && result['success'] == false) {
+          _showErrorDialog(result['message'] ?? 'Payment failed');
+        }
+      }
+    } catch (e) {
+      // Close loading dialog
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
+
+      // Show error dialog
+      if (mounted) {
+        _showErrorDialog('Payment setup failed: ${e.toString()}');
+      }
+    }
   }
 
   void _showBankTransferDetails() {

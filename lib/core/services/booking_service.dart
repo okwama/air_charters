@@ -51,7 +51,56 @@ class BookingService {
     }
   }
 
-  /// Process payment for a booking and populate points/reference (unified payment flow)
+  /// Process payment for a booking using the unified payment system
+  /// This replaces the legacy processPayment method with automatic company routing
+  Future<UnifiedPaymentResponse> processUnifiedPayment(
+      String bookingId, String paymentIntentId,
+      {String? paymentMethodId}) async {
+    try {
+      print('=== BOOKING SERVICE: PROCESSING UNIFIED PAYMENT ===');
+      print('Booking ID: $bookingId');
+      print('Payment Intent ID: $paymentIntentId');
+      print('Payment Method ID: $paymentMethodId');
+
+      final request = UnifiedPaymentRequest(
+        bookingId: bookingId,
+        paymentIntentId: paymentIntentId,
+        paymentMethodId: paymentMethodId,
+      );
+
+      final response = await _apiClient.post(
+        '/api/unified-payments/process',
+        request.toJson(),
+      );
+
+      print('=== BOOKING SERVICE: UNIFIED PAYMENT RESPONSE ===');
+      print('Response: $response');
+
+      if (response['success'] == true && response['data'] != null) {
+        final result = UnifiedPaymentResponse.fromJson(response['data']);
+        print('=== BOOKING SERVICE: UNIFIED PAYMENT SUCCESS ===');
+        print('Transaction ID: ${result.transactionId}');
+        print('Provider: ${result.paymentProvider}');
+        print('Company: ${result.companyName}');
+        print('Total Amount: ${result.totalAmount}');
+        print('Platform Fee: ${result.platformFee}');
+        print('Company Amount: ${result.companyAmount}');
+        return result;
+      }
+
+      throw ServerException(
+          response['message'] ?? 'Failed to process unified payment');
+    } catch (e) {
+      print('=== BOOKING SERVICE: UNIFIED PAYMENT ERROR ===');
+      print('Error: $e');
+      if (e is AppException) rethrow;
+      throw NetworkException(
+          'Failed to process unified payment: ${e.toString()}');
+    }
+  }
+
+  /// Legacy method - kept for backward compatibility
+  /// @deprecated Use processUnifiedPayment instead
   Future<BookingModel> processPayment(
       String bookingId, String transactionId, String paymentMethod) async {
     try {
@@ -365,6 +414,68 @@ class BookingService {
     }
   }
 
+  /// Create Paystack payment intent
+  Future<Map<String, dynamic>> createPaystackPaymentIntent({
+    required double amount,
+    required String bookingId,
+    required String userId,
+    required int companyId,
+    required String email,
+    String currency = 'KES',
+    String description = '',
+    String preferredPaymentMethod = 'card',
+    Map<String, dynamic>? metadata,
+  }) async {
+    try {
+      final response = await _apiClient.post(
+        '/api/payments/paystack/initialize',
+        {
+          'amount': amount,
+          'currency': currency,
+          'bookingId': bookingId,
+          'userId': userId,
+          'companyId': companyId,
+          'email': email,
+          'description': description,
+          'preferredPaymentMethod': preferredPaymentMethod,
+          if (metadata != null) 'metadata': metadata,
+        },
+      );
+
+      if (response['success'] == true && response['data'] != null) {
+        return response['data'];
+      }
+
+      throw ServerException('Failed to create Paystack payment intent');
+    } catch (e) {
+      if (e is AppException) rethrow;
+      throw NetworkException(
+          'Failed to create Paystack payment intent: ${e.toString()}');
+    }
+  }
+
+  /// Verify Paystack payment
+  Future<Map<String, dynamic>> verifyPaystackPayment({
+    required String reference,
+    required String bookingId,
+  }) async {
+    try {
+      final response = await _apiClient.get(
+        '/api/payments/paystack/verify/$reference?bookingId=$bookingId',
+      );
+
+      if (response['success'] == true && response['data'] != null) {
+        return response['data'];
+      }
+
+      throw ServerException('Failed to verify Paystack payment');
+    } catch (e) {
+      if (e is AppException) rethrow;
+      throw NetworkException(
+          'Failed to verify Paystack payment: ${e.toString()}');
+    }
+  }
+
   /// Get payment status
   Future<PaymentConfirmationModel> getPaymentStatus(
       String paymentIntentId) async {
@@ -405,6 +516,85 @@ class BookingService {
     } catch (e) {
       if (e is AppException) rethrow;
       throw NetworkException('Failed to confirm payment: ${e.toString()}');
+    }
+  }
+
+  /// Get transaction details from the unified payment system
+  Future<UnifiedPaymentResponse> getTransactionDetails(
+      String transactionId) async {
+    try {
+      final response = await _apiClient
+          .get('/api/unified-payments/transaction/$transactionId');
+
+      if (response['success'] == true && response['data'] != null) {
+        return UnifiedPaymentResponse.fromJson(response['data']);
+      }
+
+      throw ServerException('Failed to get transaction details');
+    } catch (e) {
+      if (e is AppException) rethrow;
+      throw NetworkException(
+          'Failed to get transaction details: ${e.toString()}');
+    }
+  }
+
+  /// Get company transactions from the unified payment system
+  Future<List<TransactionLedgerEntry>> getCompanyTransactions(
+      String companyId) async {
+    try {
+      final response = await _apiClient
+          .get('/api/unified-payments/company/$companyId/transactions');
+
+      if (response['success'] == true && response['data'] != null) {
+        final List<dynamic> transactionsJson = response['data'] as List;
+        return transactionsJson
+            .map((json) => TransactionLedgerEntry.fromJson(json))
+            .toList();
+      }
+
+      return [];
+    } catch (e) {
+      throw NetworkException(
+          'Failed to get company transactions: ${e.toString()}');
+    }
+  }
+
+  /// Get available payment providers for unified payments
+  Future<List<PaymentProviderInfo>> getAvailablePaymentProviders() async {
+    try {
+      final response = await _apiClient.get('/api/unified-payments/providers');
+
+      if (response['success'] == true && response['data'] != null) {
+        final List<dynamic> providersJson = response['data'] as List;
+        return providersJson
+            .map((json) => PaymentProviderInfo.fromJson(json))
+            .toList();
+      }
+
+      return [];
+    } catch (e) {
+      throw NetworkException(
+          'Failed to get payment providers: ${e.toString()}');
+    }
+  }
+
+  /// Get company payment accounts
+  Future<List<CompanyPaymentAccount>> getCompanyPaymentAccounts() async {
+    try {
+      final response =
+          await _apiClient.get('/api/unified-payments/company-accounts');
+
+      if (response['success'] == true && response['data'] != null) {
+        final List<dynamic> accountsJson = response['data'] as List;
+        return accountsJson
+            .map((json) => CompanyPaymentAccount.fromJson(json))
+            .toList();
+      }
+
+      return [];
+    } catch (e) {
+      throw NetworkException(
+          'Failed to get company payment accounts: ${e.toString()}');
     }
   }
 }

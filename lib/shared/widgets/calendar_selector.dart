@@ -11,6 +11,7 @@ class CalendarSelector extends StatefulWidget {
   final DateTime? initialStartDate;
   final DateTime? initialEndDate;
   final Function(DateTime, DateTime?)? onRangeSelected;
+  final List<DateTime>? availableDates;
 
   const CalendarSelector({
     super.key,
@@ -23,6 +24,7 @@ class CalendarSelector extends StatefulWidget {
     this.initialStartDate,
     this.initialEndDate,
     this.onRangeSelected,
+    this.availableDates,
   });
 
   @override
@@ -252,6 +254,8 @@ class _CalendarSelectorState extends State<CalendarSelector> {
     final isStartDate =
         widget.allowRangeSelection && _isSameDay(date, _startDate);
     final isEndDate = widget.allowRangeSelection && _isSameDay(date, _endDate);
+    final hasAvailableSchedules =
+        widget.availableDates?.any((d) => _isSameDay(d, date)) ?? false;
 
     Color backgroundColor = Colors.transparent;
     Color textColor = Colors.black;
@@ -275,6 +279,11 @@ class _CalendarSelectorState extends State<CalendarSelector> {
     } else if (isToday) {
       borderColor = Colors.black;
       textColor = Colors.black;
+    } else if (hasAvailableSchedules) {
+      // Show available dates with a subtle indicator
+      backgroundColor = const Color(0xFFE8F5E8);
+      borderColor = const Color(0xFF4CAF50);
+      textColor = const Color(0xFF2E7D32);
     }
 
     return GestureDetector(
@@ -462,6 +471,7 @@ Future<DateTime?> showCalendarSelector({
   DateTime? firstDate,
   DateTime? lastDate,
   String title = 'Select Date',
+  List<DateTime>? availableDates,
 }) {
   return showModalBottomSheet<DateTime>(
     context: context,
@@ -477,6 +487,7 @@ Future<DateTime?> showCalendarSelector({
         lastDate: lastDate,
         title: title,
         onDateSelected: (date) => Navigator.pop(context, date),
+        availableDates: availableDates,
       ),
     ),
   );

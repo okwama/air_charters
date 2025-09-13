@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import '../../providers/booking_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/booking_service.dart';
+import '../../models/payment_models.dart';
 
 /// Controller to handle all payment-related operations
 /// Centralizes payment logic including Stripe integration, payment processing, and payment method management
@@ -15,8 +16,62 @@ class PaymentController {
   })  : _bookingProvider = bookingProvider,
         _authProvider = authProvider;
 
-  /// Process payment for a booking using the unified payment flow
-  /// This method handles the complete payment process including Stripe integration
+  /// Process payment for a booking using the unified payment system
+  /// This method handles the complete payment process with automatic company routing
+  Future<UnifiedPaymentResult> processUnifiedPayment({
+    required String bookingId,
+    required String paymentIntentId,
+    String? paymentMethodId,
+  }) async {
+    try {
+      // Validate user is authenticated
+      if (!_authProvider.isAuthenticated) {
+        return UnifiedPaymentResult.failure(
+            'User must be authenticated to process payment');
+      }
+
+      // Validate required parameters
+      if (bookingId.isEmpty) {
+        return UnifiedPaymentResult.failure('Booking ID is required');
+      }
+      if (paymentIntentId.isEmpty) {
+        return UnifiedPaymentResult.failure('Payment Intent ID is required');
+      }
+
+      // Process payment through booking provider using unified system
+      final result = await _bookingProvider.processUnifiedPayment(
+        bookingId,
+        paymentIntentId,
+        paymentMethodId: paymentMethodId,
+      );
+
+      if (result != null) {
+        return UnifiedPaymentResult.success(
+          transactionId: result.transactionId,
+          paymentProvider: result.paymentProvider,
+          totalAmount: result.totalAmount,
+          platformFee: result.platformFee,
+          companyAmount: result.companyAmount,
+          companyName: result.companyName,
+          ledgerEntries: result.ledgerEntries,
+        );
+      } else {
+        return UnifiedPaymentResult.failure(
+          _bookingProvider.errorMessage ?? 'Failed to process unified payment',
+        );
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('PaymentController.processUnifiedPayment error: $e');
+      }
+      return UnifiedPaymentResult.failure(
+        'An unexpected error occurred: ${e.toString()}',
+      );
+    }
+  }
+
+  /// Legacy method - kept for backward compatibility
+  /// @deprecated Use processUnifiedPayment instead
   Future<PaymentProcessingResult> processBookingPayment({
     required String bookingId,
     required String transactionId,
@@ -302,6 +357,59 @@ enum PaymentState {
   ready,
   processing,
   error,
+}
+
+/// Result of unified payment processing operation
+class UnifiedPaymentResult {
+  final bool isSuccess;
+  final String? transactionId;
+  final String? paymentProvider;
+  final double? totalAmount;
+  final double? platformFee;
+  final double? companyAmount;
+  final String? companyName;
+  final List<TransactionLedgerEntry>? ledgerEntries;
+  final String? errorMessage;
+
+  UnifiedPaymentResult._({
+    required this.isSuccess,
+    this.transactionId,
+    this.paymentProvider,
+    this.totalAmount,
+    this.platformFee,
+    this.companyAmount,
+    this.companyName,
+    this.ledgerEntries,
+    this.errorMessage,
+  });
+
+  factory UnifiedPaymentResult.success({
+    String? transactionId,
+    String? paymentProvider,
+    double? totalAmount,
+    double? platformFee,
+    double? companyAmount,
+    String? companyName,
+    List<TransactionLedgerEntry>? ledgerEntries,
+  }) {
+    return UnifiedPaymentResult._(
+      isSuccess: true,
+      transactionId: transactionId,
+      paymentProvider: paymentProvider,
+      totalAmount: totalAmount,
+      platformFee: platformFee,
+      companyAmount: companyAmount,
+      companyName: companyName,
+      ledgerEntries: ledgerEntries,
+    );
+  }
+
+  factory UnifiedPaymentResult.failure(String errorMessage) {
+    return UnifiedPaymentResult._(
+      isSuccess: false,
+      errorMessage: errorMessage,
+    );
+  }
 }
 
 /// Result of payment processing operation

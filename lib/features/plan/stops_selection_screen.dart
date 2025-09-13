@@ -1,14 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:lucide_icons/lucide_icons.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:geocoding/geocoding.dart';
 import '../../core/models/location_model.dart';
 import '../../core/models/google_earth_location_model.dart';
 import '../../core/services/google_earth_engine_service.dart';
-import '../../shared/widgets/custom_button.dart';
-import '../../shared/widgets/loading_widget.dart';
 
 class StopsSelectionScreen extends StatefulWidget {
   final List<LocationModel>? existingStops;
@@ -30,16 +26,16 @@ class _StopsSelectionScreenState extends State<StopsSelectionScreen> {
 
   List<LocationModel> _stops = [];
   List<GoogleEarthLocationModel> _searchResults = [];
-  bool _isLoading = false;
+  final bool _isLoading = false;
   bool _isSearching = false;
 
   GoogleMapController? _mapController;
-  Set<Marker> _markers = {};
-  Set<Polyline> _polylines = {};
+  final Set<Marker> _markers = {};
+  final Set<Polyline> _polylines = {};
 
   // Map position
   LatLng _center = const LatLng(0, 0);
-  double _zoom = 10.0;
+  final double _zoom = 10.0;
 
   @override
   void initState() {

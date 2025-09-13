@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../../core/models/passenger_model.dart';
 import '../../core/providers/passengers_provider.dart';
+import '../../shared/widgets/loading_system.dart';
 
 class PassengerFormPage extends StatefulWidget {
   final PassengerModel?
@@ -399,13 +400,9 @@ class _PassengerFormPageState extends State<PassengerFormPage> {
               ),
             ),
             child: _isLoading
-                ? const SizedBox(
-                    height: 20,
-                    width: 20,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                    ),
+                ? LoadingSystem.inline(
+                    size: 20,
+                    color: Colors.white,
                   )
                 : Text(
                     widget.passenger != null

@@ -73,6 +73,7 @@ class PassengerModel {
       if (age != null) 'age': age,
       if (nationality != null) 'nationality': nationality,
       if (idPassportNumber != null) 'idPassportNumber': idPassportNumber,
+      'isUser': isUser, // Add missing isUser field
     };
 
     print('Passenger JSON: $json');

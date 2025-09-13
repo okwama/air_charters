@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../shared/widgets/calendar_selector.dart';
+import '../../shared/widgets/loading_system.dart';
 import '../../core/models/charter_deal_model.dart';
 import 'confirm_booking.dart';
 
@@ -300,14 +301,11 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
                       fit: BoxFit.cover,
                       width: double.infinity,
                       height: double.infinity,
-                      placeholder: (context, url) => Container(
-                        color: const Color(0xFFF5F5F5),
-                        child: const Center(
-                          child: CircularProgressIndicator(
-                            color: Colors.black,
-                            strokeWidth: 2,
-                          ),
-                        ),
+                      placeholder: (context, url) =>
+                          LoadingSystem.imagePlaceholder(
+                        width: double.infinity,
+                        height: double.infinity,
+                        backgroundColor: const Color(0xFFF5F5F5),
                       ),
                       errorWidget: (context, url, error) => Container(
                         color: const Color(0xFFF5F5F5),
@@ -669,14 +667,10 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
               child: CachedNetworkImage(
                 imageUrl: flight['image'],
                 fit: BoxFit.cover,
-                placeholder: (context, url) => Container(
-                  color: const Color(0xFFF5F5F5),
-                  child: const Center(
-                    child: CircularProgressIndicator(
-                      color: Colors.black,
-                      strokeWidth: 1.5,
-                    ),
-                  ),
+                placeholder: (context, url) => LoadingSystem.imagePlaceholder(
+                  width: 80,
+                  height: 60,
+                  backgroundColor: const Color(0xFFF5F5F5),
                 ),
                 errorWidget: (context, url, error) => Container(
                   color: const Color(0xFFF5F5F5),

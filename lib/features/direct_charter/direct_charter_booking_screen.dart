@@ -6,7 +6,6 @@ import '../../core/models/location_model.dart';
 import '../../core/services/direct_charter_service.dart';
 import '../../shared/widgets/loading_widget.dart';
 import '../../shared/utils/app_utils.dart';
-import '../plan/locations.dart';
 import '../plan/stops_selection_screen.dart';
 import '../booking/booking_confirmation_page.dart';
 import '../booking/payment/payment_screen.dart';

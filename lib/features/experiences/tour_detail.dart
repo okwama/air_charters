@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:air_charters/shared/widgets/calendar_selector.dart';
+import 'package:air_charters/core/services/experiences_service.dart';
+import 'package:air_charters/core/network/api_client.dart';
+import 'experience_booking_page.dart';
 
 class TourDetailPage extends StatefulWidget {
   final String imageUrl;
@@ -11,6 +15,7 @@ class TourDetailPage extends StatefulWidget {
   final String price;
   final String? rating;
   final String description;
+  final int? experienceId;
 
   const TourDetailPage({
     super.key,
@@ -21,6 +26,7 @@ class TourDetailPage extends StatefulWidget {
     required this.price,
     this.rating,
     required this.description,
+    this.experienceId,
   });
 
   @override
@@ -31,6 +37,16 @@ class _TourDetailPageState extends State<TourDetailPage> {
   DateTime? _selectedDate;
   int _passengersCount = 1;
   bool _showCalendar = false;
+
+  // Experience details with all images
+  Map<String, dynamic>? _experienceDetails;
+  List<String> _allImages = [];
+  bool _isLoadingDetails = false;
+  String? _errorMessage;
+
+  // Page controller for image carousel
+  final PageController _pageController = PageController();
+  int _currentImageIndex = 0;
 
   // Sample amenities for the tour
   final List<Map<String, dynamic>> _amenities = [
@@ -43,10 +59,73 @@ class _TourDetailPageState extends State<TourDetailPage> {
   ];
 
   // Price breakdown
-  double get basePrice =>
-      double.parse(widget.price.replaceAll(RegExp(r'[^\d.]'), ''));
+  double get basePrice {
+    try {
+      return double.parse(widget.price.replaceAll(RegExp(r'[^\d.]'), ''));
+    } catch (e) {
+      return 0.0;
+    }
+  }
+
   double get pricePerMinute => basePrice / 30; // Assuming 30 minutes default
   double get totalPrice => basePrice * _passengersCount;
+
+  @override
+  void initState() {
+    super.initState();
+    // Initialize with the passed image
+    _allImages = [widget.imageUrl];
+    // Fetch full experience details if we have an experience ID
+    if (widget.experienceId != null) {
+      _fetchExperienceDetails();
+    }
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _fetchExperienceDetails() async {
+    if (widget.experienceId == null) return;
+
+    setState(() {
+      _isLoadingDetails = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final experiencesService = ExperiencesService(ApiClient());
+      final details =
+          await experiencesService.getExperienceDetails(widget.experienceId!);
+
+      setState(() {
+        _experienceDetails = details;
+        // Extract all images from the response
+        final images = details['images'] as List<dynamic>? ?? [];
+        _allImages = images.map((img) => img['url'] as String).toList();
+        // If no images found, keep the original image
+        if (_allImages.isEmpty) {
+          _allImages = [widget.imageUrl];
+        }
+        _isLoadingDetails = false;
+      });
+
+      // Debug: Print the images we found
+      if (kDebugMode) {
+        print('🖼️ Found ${_allImages.length} images:');
+        for (int i = 0; i < _allImages.length; i++) {
+          print('  Image $i: ${_allImages[i]}');
+        }
+      }
+    } catch (e) {
+      setState(() {
+        _errorMessage = 'Failed to load experience details';
+        _isLoadingDetails = false;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -54,9 +133,8 @@ class _TourDetailPageState extends State<TourDetailPage> {
       backgroundColor: Colors.white,
       body: CustomScrollView(
         slivers: [
-          // Hero Image App Bar
+          // App Bar (Simple)
           SliverAppBar(
-            expandedHeight: 300,
             pinned: true,
             backgroundColor: Colors.white,
             leading: IconButton(
@@ -92,48 +170,19 @@ class _TourDetailPageState extends State<TourDetailPage> {
               ),
               const SizedBox(width: 8),
             ],
-            flexibleSpace: FlexibleSpaceBar(
-              background: Stack(
-                fit: StackFit.expand,
+          ),
+
+          // Image Carousel Section
+          SliverToBoxAdapter(
+            child: SizedBox(
+              height: 300,
+              child: Stack(
                 children: [
-                  CachedNetworkImage(
-                    imageUrl: widget.imageUrl,
-                    fit: BoxFit.cover,
-                    placeholder: (context, url) => Container(
-                      color: Colors.grey.shade200,
-                      child: const Center(
-                        child: CircularProgressIndicator(
-                          color: Colors.black,
-                          strokeWidth: 2,
-                        ),
-                      ),
-                    ),
-                    errorWidget: (context, url, error) => Container(
-                      color: Colors.grey.shade200,
-                      child: const Icon(
-                        Icons.image_not_supported,
-                        color: Colors.grey,
-                        size: 48,
-                      ),
-                    ),
-                  ),
-                  // Gradient overlay
-                  Container(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          Colors.transparent,
-                          Colors.black.withValues(alpha: 0.3),
-                        ],
-                      ),
-                    ),
-                  ),
+                  _buildImageCarousel(),
                   // Rating badge
                   if (widget.rating != null)
                     Positioned(
-                      top: 100,
+                      top: 20,
                       right: 20,
                       child: Container(
                         padding: const EdgeInsets.symmetric(
@@ -700,7 +749,7 @@ class _TourDetailPageState extends State<TourDetailPage> {
       width: double.infinity,
       height: 56,
       child: ElevatedButton(
-        onPressed: _selectedDate != null ? _showBookingConfirmation : null,
+        onPressed: widget.experienceId != null ? _navigateToBooking : null,
         style: ElevatedButton.styleFrom(
           backgroundColor: Colors.black,
           disabledBackgroundColor: const Color(0xFFE5E5E5),
@@ -722,491 +771,175 @@ class _TourDetailPageState extends State<TourDetailPage> {
     );
   }
 
-  void _showBookingConfirmation() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => DraggableScrollableSheet(
-        initialChildSize: 0.9,
-        minChildSize: 0.5,
-        maxChildSize: 0.9,
-        builder: (context, scrollController) => Container(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: const BorderRadius.only(
-              topLeft: Radius.circular(20),
-              topRight: Radius.circular(20),
+  void _navigateToBooking() {
+    if (widget.experienceId == null) return;
+
+    // Extract price from string (remove $ and convert to double)
+    final priceString = widget.price.replaceAll(RegExp(r'[^\d.]'), '');
+    final price = double.tryParse(priceString) ?? 0.0;
+
+    // Extract duration in minutes
+    final durationText = widget.duration.toLowerCase();
+    int durationMinutes = 0;
+    if (durationText.contains('hour')) {
+      final hours =
+          double.tryParse(durationText.replaceAll(RegExp(r'[^\d.]'), '')) ?? 0;
+      durationMinutes = (hours * 60).round();
+    } else if (durationText.contains('minute')) {
+      durationMinutes =
+          int.tryParse(durationText.replaceAll(RegExp(r'[^\d.]'), '')) ?? 0;
+    } else if (durationText.contains('day')) {
+      final days =
+          double.tryParse(durationText.replaceAll(RegExp(r'[^\d.]'), '')) ?? 0;
+      durationMinutes = (days * 24 * 60).round();
+    }
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ExperienceBookingPage(
+          experienceId: widget.experienceId!,
+          title: widget.title,
+          location: widget.location,
+          imageUrl: widget.imageUrl,
+          price: price,
+          priceUnit: 'per_person',
+          durationMinutes: durationMinutes,
+          description: widget.description,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildImageCarousel() {
+    if (kDebugMode) {
+      print('🖼️ Building carousel with ${_allImages.length} images');
+      print('🖼️ Current index: $_currentImageIndex');
+    }
+
+    if (_isLoadingDetails) {
+      return Container(
+        color: Colors.grey.shade200,
+        child: const Center(
+          child: CircularProgressIndicator(
+            color: Colors.black,
+            strokeWidth: 2,
+          ),
+        ),
+      );
+    }
+
+    if (_allImages.length == 1) {
+      // Single image display
+      return CachedNetworkImage(
+        imageUrl: _allImages.first,
+        fit: BoxFit.cover,
+        placeholder: (context, url) => Container(
+          color: Colors.grey.shade200,
+          child: const Center(
+            child: CircularProgressIndicator(
+              color: Colors.black,
+              strokeWidth: 2,
             ),
           ),
-          child: Column(
-            children: [
-              // Handle bar
-              Container(
-                margin: const EdgeInsets.only(top: 12, bottom: 8),
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFE0E0E0),
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
+        ),
+        errorWidget: (context, url, error) => Container(
+          color: Colors.grey.shade200,
+          child: const Icon(
+            Icons.image_not_supported,
+            color: Colors.grey,
+            size: 48,
+          ),
+        ),
+      );
+    }
 
-              // Header
-              Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Confirm Booking',
-                      style: GoogleFonts.inter(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.black,
-                      ),
-                    ),
-                    IconButton(
-                      onPressed: () => Navigator.pop(context),
-                      icon: const Icon(
-                        Icons.close_rounded,
-                        color: Color(0xFF666666),
-                        size: 24,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              // Content
-              Expanded(
-                child: SingleChildScrollView(
-                  controller: scrollController,
-                  padding: const EdgeInsets.all(20),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Tour Details
-                      _buildBookingTourDetails(),
-                      const SizedBox(height: 24),
-
-                      // Date and Passengers
-                      _buildBookingDateTime(),
-                      const SizedBox(height: 24),
-
-                      // Amenities
-                      _buildBookingAmenities(),
-                      const SizedBox(height: 24),
-
-                      // Price Summary
-                      _buildBookingPriceSummary(),
-                      const SizedBox(height: 24),
-
-                      // Confirm Button
-                      _buildConfirmButton(),
-                    ],
+    // Multiple images - use PageView for carousel
+    return Stack(
+      children: [
+        PageView.builder(
+          controller: _pageController,
+          itemCount: _allImages.length,
+          onPageChanged: (index) {
+            if (kDebugMode) {
+              print('🖼️ Page changed to: $index');
+            }
+            setState(() {
+              _currentImageIndex = index;
+            });
+          },
+          physics:
+              const BouncingScrollPhysics(), // Use bouncing physics for better gesture handling
+          itemBuilder: (context, index) {
+            return CachedNetworkImage(
+              imageUrl: _allImages[index],
+              fit: BoxFit.cover,
+              placeholder: (context, url) => Container(
+                color: Colors.grey.shade200,
+                child: const Center(
+                  child: CircularProgressIndicator(
+                    color: Colors.black,
+                    strokeWidth: 2,
                   ),
                 ),
               ),
-            ],
-          ),
+              errorWidget: (context, url, error) => Container(
+                color: Colors.grey.shade200,
+                child: const Icon(
+                  Icons.image_not_supported,
+                  color: Colors.grey,
+                  size: 48,
+                ),
+              ),
+            );
+          },
         ),
-      ),
-    );
-  }
-
-  Widget _buildBookingTourDetails() {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF8F9FA),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: const Color(0xFFE8E8E8),
-          width: 1,
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Tour Details',
-            style: GoogleFonts.inter(
-              fontSize: 18,
-              fontWeight: FontWeight.w700,
-              color: Colors.black,
+        // Page indicators
+        if (_allImages.length > 1) ...[
+          Positioned(
+            bottom: 20,
+            left: 0,
+            right: 0,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: List.generate(
+                _allImages.length,
+                (index) => Container(
+                  width: 8,
+                  height: 8,
+                  margin: const EdgeInsets.symmetric(horizontal: 4),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: _currentImageIndex == index
+                        ? Colors.white
+                        : Colors.white.withValues(alpha: 0.5),
+                  ),
+                ),
+              ),
             ),
           ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: CachedNetworkImage(
-                  imageUrl: widget.imageUrl,
-                  width: 80,
-                  height: 80,
-                  fit: BoxFit.cover,
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      widget.title,
-                      style: GoogleFonts.inter(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.black,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      widget.location,
-                      style: GoogleFonts.inter(
-                        fontSize: 14,
-                        color: const Color(0xFF666666),
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      widget.duration,
-                      style: GoogleFonts.inter(
-                        fontSize: 14,
-                        color: const Color(0xFF666666),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildBookingDateTime() {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: const Color(0xFFE8E8E8),
-          width: 1,
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Booking Details',
-            style: GoogleFonts.inter(
-              fontSize: 18,
-              fontWeight: FontWeight.w700,
-              color: Colors.black,
-            ),
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Date',
-                      style: GoogleFonts.inter(
-                        fontSize: 12,
-                        color: const Color(0xFF666666),
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      _selectedDate != null
-                          ? '${_selectedDate!.day}/${_selectedDate!.month}/${_selectedDate!.year}'
-                          : 'Not selected',
-                      style: GoogleFonts.inter(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.black,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text(
-                      'Passengers',
-                      style: GoogleFonts.inter(
-                        fontSize: 12,
-                        color: const Color(0xFF666666),
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      '$_passengersCount',
-                      style: GoogleFonts.inter(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.black,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildBookingAmenities() {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: const Color(0xFFE8E8E8),
-          width: 1,
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Included Amenities',
-            style: GoogleFonts.inter(
-              fontSize: 18,
-              fontWeight: FontWeight.w700,
-              color: Colors.black,
-            ),
-          ),
-          const SizedBox(height: 16),
-          ..._amenities.take(4).map((amenity) => Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: Row(
-                  children: [
-                    Icon(
-                      amenity['icon'],
-                      size: 18,
-                      color: const Color(0xFF666666),
-                    ),
-                    const SizedBox(width: 12),
-                    Text(
-                      amenity['name'],
-                      style: GoogleFonts.inter(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                        color: Colors.black,
-                      ),
-                    ),
-                  ],
-                ),
-              )),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildBookingPriceSummary() {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF8F9FA),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: const Color(0xFFE8E8E8),
-          width: 1,
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Price Summary',
-            style: GoogleFonts.inter(
-              fontSize: 18,
-              fontWeight: FontWeight.w700,
-              color: Colors.black,
-            ),
-          ),
-          const SizedBox(height: 16),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Base Price',
-                style: GoogleFonts.inter(
-                  fontSize: 14,
-                  color: const Color(0xFF666666),
-                ),
-              ),
-              Text(
-                widget.price,
-                style: GoogleFonts.inter(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.black,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Passengers',
-                style: GoogleFonts.inter(
-                  fontSize: 14,
-                  color: const Color(0xFF666666),
-                ),
-              ),
-              Text(
-                'x$_passengersCount',
-                style: GoogleFonts.inter(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.black,
-                ),
-              ),
-            ],
-          ),
-          const Divider(height: 24, color: Color(0xFFE8E8E8)),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Total',
-                style: GoogleFonts.inter(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                  color: Colors.black,
-                ),
-              ),
-              Text(
-                '\$${totalPrice.toStringAsFixed(2)}',
-                style: GoogleFonts.inter(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w700,
-                  color: Colors.black,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildConfirmButton() {
-    return SizedBox(
-      width: double.infinity,
-      height: 56,
-      child: ElevatedButton(
-        onPressed: () {
-          Navigator.pop(context);
-          _showPaymentSuccess();
-        },
-        style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.black,
-          elevation: 0,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-        ),
-        child: Text(
-          'Confirm & Pay \$${totalPrice.toStringAsFixed(2)}',
-          style: GoogleFonts.inter(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-            color: Colors.white,
-          ),
-        ),
-      ),
-    );
-  }
-
-  void _showPaymentSuccess() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
-        title: Column(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(16),
+          // Image counter
+          Positioned(
+            top: 20,
+            right: 20,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
-                color: const Color(0xFFE8F5E8),
-                borderRadius: BorderRadius.circular(50),
+                color: Colors.black.withValues(alpha: 0.7),
+                borderRadius: BorderRadius.circular(20),
               ),
-              child: const Icon(
-                Icons.check_circle_rounded,
-                color: Color(0xFF2E7D32),
-                size: 48,
-              ),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'Booking Confirmed!',
-              style: GoogleFonts.inter(
-                fontSize: 20,
-                fontWeight: FontWeight.w700,
-                color: Colors.black,
-              ),
-            ),
-          ],
-        ),
-        content: Text(
-          'Your ${widget.title} has been successfully booked for ${_selectedDate!.day}/${_selectedDate!.month}/${_selectedDate!.year}. You will receive a confirmation email shortly.',
-          style: GoogleFonts.inter(
-            fontSize: 14,
-            color: const Color(0xFF666666),
-          ),
-          textAlign: TextAlign.center,
-        ),
-        actions: [
-          SizedBox(
-            width: double.infinity,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: ElevatedButton(
-                onPressed: () {
-                  Navigator.of(context).pop();
-                  Navigator.of(context).pop();
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.black,
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                child: Text(
-                  'Done',
-                  style: GoogleFonts.inter(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.white,
-                  ),
+              child: Text(
+                '${_currentImageIndex + 1}/${_allImages.length}',
+                style: GoogleFonts.inter(
+                  color: Colors.white,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
             ),
           ),
         ],
-      ),
+      ],
     );
   }
 }

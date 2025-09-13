@@ -26,24 +26,21 @@ class AuthRepository {
   // Email/Password Authentication (Backend-Only)
   Future<AuthModel> signInWithEmail(String email, String password) async {
     try {
-      print('🔥 LOGIN: Starting backend authentication...');
       dev.log('Starting backend authentication for: $email',
           name: 'AuthRepository');
 
       // Use backend-only authentication
-      print('🔥 LOGIN: Using backend authentication...');
       return await _loginBackendOnly(email, password);
     } catch (e, s) {
-      print('🔥 LOGIN: Authentication error: $e');
       dev.log('Error during signInWithEmail: $e', name: 'AuthRepository-ERROR');
       dev.log('Stack trace: $s', name: 'AuthRepository-ERROR');
 
       // Re-throw the original exception to preserve specific error messages
       if (e is AuthException || e is ValidationException) {
-        throw e;
+        rethrow;
       } else {
-      throw AuthException(
-          'An unexpected error occurred during sign-in. Please try again.');
+        throw AuthException(
+            'An unexpected error occurred during sign-in. Please try again.');
       }
     }
   }
@@ -51,18 +48,14 @@ class AuthRepository {
   // Email/Password Signup
   Future<AuthModel> signUpWithEmail(
       String email, String password, String firstName, String lastName) async {
-    print('🔥 SIGNUP METHOD CALLED 🔥');
     dev.log('=== SIGNUP METHOD CALLED ===', name: 'AuthRepository-DEBUG');
     try {
-      print('🔥 === STARTING BACKEND SIGNUP PROCESS ===');
       dev.log('=== STARTING BACKEND SIGNUP PROCESS ===',
           name: 'AuthRepository-DEBUG');
-      print('🔥 Email: $email, First Name: $firstName, Last Name: $lastName');
       dev.log('Email: $email, First Name: $firstName, Last Name: $lastName',
           name: 'AuthRepository-DEBUG');
 
       // Use backend-only registration
-      print('🔥 SIGNUP: Using backend registration...');
       return await _registerBackendOnly(email, password, firstName, lastName);
     } catch (e, stackTrace) {
       dev.log('Unexpected error during sign up: $e',
@@ -72,9 +65,9 @@ class AuthRepository {
 
       // Re-throw the original exception to preserve specific error messages
       if (e is AuthException || e is ValidationException) {
-        throw e;
+        rethrow;
       } else {
-      throw AuthException('Failed to sign up: ${e.toString()}');
+        throw AuthException('Failed to sign up: ${e.toString()}');
       }
     }
   }
@@ -163,14 +156,14 @@ class AuthRepository {
   // Backend-only login
   Future<AuthModel> _loginBackendOnly(String email, String password) async {
     try {
-      print('🔥 LOGIN: Backend-only authentication...');
+      // Removed debug print
 
       final response = await _apiClient.post('/api/auth/login', {
         'email': email,
         'password': password,
       });
 
-      print('🔥 LOGIN: Backend-only login successful');
+      // Removed debug print
 
       // Create auth data from backend response using fromBackendJson
       final authData = AuthModel.fromBackendJson(response);
@@ -194,15 +187,15 @@ class AuthRepository {
         }
       }
 
-      print('🔥 LOGIN: Backend-only authentication completed');
+      // Removed debug print
       return authData;
     } catch (e) {
-      print('🔥 LOGIN: Backend-only login failed: $e');
+      // Removed debug print
       // Re-throw the original exception to preserve the specific error message
       if (e is AuthException) {
-        throw e;
+        rethrow;
       } else {
-      throw AuthException('Login failed: $e');
+        throw AuthException('Login failed: $e');
       }
     }
   }
@@ -211,7 +204,7 @@ class AuthRepository {
   Future<AuthModel> _registerBackendOnly(
       String email, String password, String firstName, String lastName) async {
     try {
-      print('🔥 Starting backend-only registration...');
+      // Removed debug print
 
       // Create user directly in backend
       final response = await _apiClient.post('/api/auth/register', {
@@ -222,21 +215,21 @@ class AuthRepository {
         'authProvider': 'email', // Email/password authentication
       });
 
-      print('🔥 Backend-only registration successful');
+      // Removed debug print
 
       // Create auth data from backend response using fromBackendJson
       final authData = AuthModel.fromBackendJson(response);
       await _apiClient.saveAuth(authData);
 
-      print('🔥 Backend-only registration completed successfully');
+      // Removed debug print
       return authData;
     } catch (e) {
-      print('🔥 Backend-only registration failed: $e');
+      // Removed debug print
       // Re-throw the original exception to preserve the specific error message
       if (e is AuthException || e is ValidationException) {
-        throw e;
+        rethrow;
       } else {
-      throw AuthException('Failed to register user: $e');
+        throw AuthException('Failed to register user: $e');
       }
     }
   }
@@ -295,6 +288,57 @@ class AuthRepository {
           name: 'AuthRepository-ERROR');
       // If we can't check, assume user doesn't exist to allow signup
       return false;
+    }
+  }
+
+  // Phone Authentication with Twilio SMS
+  Future<void> sendPhoneVerification(String phoneNumber) async {
+    try {
+      dev.log('Sending SMS verification to: $phoneNumber', name: 'AuthRepository');
+      
+      final response = await _apiClient.post(AppConfig.sendSmsVerificationEndpoint, {
+        'phoneNumber': phoneNumber,
+      });
+
+      if (response['success'] == true) {
+        dev.log('SMS verification sent successfully', name: 'AuthRepository');
+        return; // Success - no exception thrown
+      } else {
+        throw AuthException(response['message'] ?? 'Failed to send verification code');
+      }
+    } catch (e) {
+      dev.log('SMS verification error: $e', name: 'AuthRepository-ERROR');
+      if (e is AuthException || e is ValidationException) {
+        rethrow;
+      } else {
+        throw AuthException('Failed to send verification code: $e');
+      }
+    }
+  }
+
+  // Verify SMS Code
+  Future<bool> verifySmsCode(String phoneNumber, String code) async {
+    try {
+      dev.log('Verifying SMS code for: $phoneNumber', name: 'AuthRepository');
+      
+      final response = await _apiClient.post(AppConfig.verifySmsCodeEndpoint, {
+        'phoneNumber': phoneNumber,
+        'code': code,
+      });
+
+      if (response['success'] == true) {
+        dev.log('SMS code verified successfully', name: 'AuthRepository');
+        return true;
+      } else {
+        throw AuthException(response['message'] ?? 'Invalid verification code');
+      }
+    } catch (e) {
+      dev.log('SMS verification error: $e', name: 'AuthRepository-ERROR');
+      if (e is AuthException || e is ValidationException) {
+        rethrow;
+      } else {
+        throw AuthException('Failed to verify code: $e');
+      }
     }
   }
 }

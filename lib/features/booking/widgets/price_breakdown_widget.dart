@@ -9,13 +9,13 @@ class PriceBreakdownWidget extends StatelessWidget {
   final String destination;
 
   const PriceBreakdownWidget({
-    Key? key,
+    super.key,
     required this.basePrice,
     required this.onboardDining,
     required this.groundTransportation,
     required this.departure,
     required this.destination,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:provider/provider.dart';
 import '../../../core/providers/auth_provider.dart';
+import '../../profile/profile.dart';
 
 class UserInfoSection extends StatelessWidget {
   const UserInfoSection({super.key});
@@ -18,7 +19,11 @@ class UserInfoSection extends StatelessWidget {
 
         return GestureDetector(
           onTap: () {
-            Navigator.of(context).pushNamed('/profile');
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (context) => const ProfileScreen(),
+              ),
+            );
           },
           child: Container(
             margin: const EdgeInsets.symmetric(horizontal: 16),

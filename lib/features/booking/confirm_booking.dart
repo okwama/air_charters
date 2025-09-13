@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import '../../shared/widgets/loading_system.dart';
 import 'review_trip.dart';
 import '../../core/models/charter_deal_model.dart';
 
@@ -428,14 +429,11 @@ class _ConfirmBookingPageState extends State<ConfirmBookingPage> {
                       fit: BoxFit.cover,
                       width: double.infinity,
                       height: double.infinity,
-                      placeholder: (context, url) => Container(
-                        color: const Color(0xFFF5F5F5),
-                        child: const Center(
-                          child: CircularProgressIndicator(
-                            color: Colors.black,
-                            strokeWidth: 2,
-                          ),
-                        ),
+                      placeholder: (context, url) =>
+                          LoadingSystem.imagePlaceholder(
+                        width: double.infinity,
+                        height: double.infinity,
+                        backgroundColor: const Color(0xFFF5F5F5),
                       ),
                       errorWidget: (context, url, error) => Container(
                         color: const Color(0xFFF5F5F5),
@@ -571,69 +569,99 @@ class _ConfirmBookingPageState extends State<ConfirmBookingPage> {
             ),
           ),
           const SizedBox(height: 12),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Left column
-              Expanded(
-                child: Column(
-                  children: _amenities
-                      .where((amenity) => _amenities.indexOf(amenity) % 2 == 0)
-                      .map((amenity) => _buildAmenityItem(amenity))
-                      .toList(),
-                ),
-              ),
 
-              const SizedBox(width: 16),
+          // True responsive grid layout
+          LayoutBuilder(
+            builder: (context, constraints) {
+              // Determine optimal column count based on screen width and content
+              int columns = _getOptimalColumnCount(
+                  constraints.maxWidth, _amenities.length);
 
-              // Right column
-              Expanded(
-                child: Column(
-                  children: _amenities
-                      .where((amenity) => _amenities.indexOf(amenity) % 2 == 1)
-                      .map((amenity) => _buildAmenityItem(amenity))
-                      .toList(),
+              return GridView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: columns,
+                  crossAxisSpacing: 12,
+                  mainAxisSpacing: 8,
+                  childAspectRatio:
+                      _getChildAspectRatio(constraints.maxWidth, columns),
                 ),
-              ),
-            ],
+                itemCount: _amenities.length,
+                itemBuilder: (context, index) =>
+                    _buildAmenityItem(_amenities[index]),
+              );
+            },
           ),
         ],
       ),
     );
   }
 
+  // Determine optimal column count based on screen width and content
+  int _getOptimalColumnCount(double screenWidth, int itemCount) {
+    if (screenWidth > 600 && itemCount > 6) {
+      return 3; // 3 columns for tablets/desktop with many items
+    } else if (itemCount > 1) {
+      return 2; // Always 2 columns when we have more than 1 item
+    }
+    return 1; // Single column only for 1 item
+  }
+
+  // Calculate child aspect ratio based on screen width and columns
+  double _getChildAspectRatio(double screenWidth, int columns) {
+    if (columns == 1) {
+      return 4.0; // Wider for single column
+    } else if (columns == 2) {
+      return 3.5; // Standard for two columns
+    } else {
+      return 3.0; // Slightly taller for three columns
+    }
+  }
+
   Widget _buildAmenityItem(Map<String, dynamic> amenity) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF8F9FA),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: const Color(0xFFE8E8E8),
-          width: 1,
-        ),
-      ),
-      child: Row(
-        children: [
-          Icon(
-            amenity['icon'],
-            size: 18,
-            color: const Color(0xFF666666),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // Responsive font size based on available width
+        double fontSize = constraints.maxWidth > 200 ? 13 : 12;
+
+        return Container(
+          padding: EdgeInsets.symmetric(
+            horizontal: constraints.maxWidth > 200 ? 12 : 8,
+            vertical: constraints.maxWidth > 200 ? 10 : 8,
           ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              amenity['name'],
-              style: GoogleFonts.inter(
-                fontSize: 13,
-                fontWeight: FontWeight.w500,
-                color: Colors.black,
-              ),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF8F9FA),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: const Color(0xFFE8E8E8),
+              width: 1,
             ),
           ),
-        ],
-      ),
+          child: Row(
+            children: [
+              Icon(
+                amenity['icon'],
+                size: constraints.maxWidth > 200 ? 18 : 16,
+                color: const Color(0xFF666666),
+              ),
+              SizedBox(width: constraints.maxWidth > 200 ? 8 : 6),
+              Expanded(
+                child: Text(
+                  amenity['name'],
+                  style: GoogleFonts.inter(
+                    fontSize: fontSize,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.black,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 2,
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 

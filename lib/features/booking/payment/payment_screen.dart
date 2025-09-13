@@ -6,6 +6,7 @@ import '../../../core/providers/booking_provider.dart';
 import '../../../core/providers/auth_provider.dart';
 import '../../../core/models/saved_card_model.dart';
 import '../../../shared/widgets/custom_button.dart';
+import '../../../shared/widgets/loading_system.dart';
 
 class PaymentScreen extends StatefulWidget {
   final String bookingId;
@@ -16,14 +17,14 @@ class PaymentScreen extends StatefulWidget {
   final SavedCardModel? savedCard;
 
   const PaymentScreen({
-    Key? key,
+    super.key,
     required this.bookingId,
     this.clientSecret,
     required this.amount,
     this.currency = 'USD',
     this.paymentIntentId,
     this.savedCard,
-  }) : super(key: key);
+  });
 
   @override
   State<PaymentScreen> createState() => _PaymentScreenState();
@@ -146,19 +147,28 @@ class _PaymentScreenState extends State<PaymentScreen> {
         print('Extracted payment intent ID: $paymentIntentId');
         print('Using payment method ID: ${paymentResult.paymentMethodId}');
 
-        final success = await bookingProvider.completePayment(
+        // Use unified payment system instead of legacy completion
+        final unifiedResult = await bookingProvider.processUnifiedPayment(
           widget.bookingId,
-          paymentIntentId, // Use extracted ID from client secret
+          paymentIntentId,
           paymentMethodId: paymentResult.paymentMethodId,
         );
 
-        if (success) {
-          print('=== BOOKING COMPLETED SUCCESSFULLY ===');
+        if (unifiedResult != null) {
+          print('=== UNIFIED PAYMENT COMPLETED SUCCESSFULLY ===');
+          print('Transaction ID: ${unifiedResult.transactionId}');
+          print('Payment Provider: ${unifiedResult.paymentProvider}');
+          print('Company: ${unifiedResult.companyName}');
+          print('Total Amount: ${unifiedResult.totalAmount}');
+          print('Platform Fee: ${unifiedResult.platformFee}');
+          print('Company Amount: ${unifiedResult.companyAmount}');
+          print('Ledger Entries: ${unifiedResult.ledgerEntries.length}');
+
           if (mounted) {
             _showSuccessDialog();
           }
         } else {
-          print('=== BOOKING COMPLETION FAILED ===');
+          print('=== UNIFIED PAYMENT FAILED ===');
           print('Error message: ${bookingProvider.errorMessage}');
           setState(() {
             _errorMessage = bookingProvider.errorMessage ?? 'Payment failed';
@@ -315,390 +325,406 @@ class _PaymentScreenState extends State<PaymentScreen> {
           onPressed: () => Navigator.pop(context),
         ),
       ),
-      body: Consumer<BookingProvider>(
-        builder: (context, bookingProvider, child) {
-          return SingleChildScrollView(
-            padding: EdgeInsets.all(padding),
-            child: Center(
-              child: ConstrainedBox(
-                constraints: BoxConstraints(
-                  maxWidth: isDesktop ? 600 : double.infinity,
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    // Payment Summary
-                    Material(
-                      elevation: 2,
-                      borderRadius: BorderRadius.circular(8),
-                      child: Container(
-                        padding: const EdgeInsets.all(16.0),
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(8),
-                          color: Colors.white,
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'Payment Summary',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(height: 16),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                const Text('Amount:'),
-                                Text(
-                                  '\$${widget.amount.toStringAsFixed(2)} ${widget.currency}',
-                                  style: const TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.green,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
+      body: _isProcessing
+          ? LoadingSystem.payment(
+              message: 'Processing your payment securely...',
+              showSecurityBadge: true,
+            )
+          : Consumer<BookingProvider>(
+              builder: (context, bookingProvider, child) {
+                return SingleChildScrollView(
+                  padding: EdgeInsets.all(padding),
+                  child: Center(
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(
+                        maxWidth: isDesktop ? 600 : double.infinity,
                       ),
-                    ),
-                    const SizedBox(height: 24),
-
-                    // Saved Card Information (if available)
-                    if (widget.savedCard != null)
-                      Container(
-                        margin: const EdgeInsets.only(bottom: 16),
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: Colors.green.shade50,
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: Colors.green.shade200),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(Icons.check_circle,
-                                color: Colors.green, size: 20),
-                            const SizedBox(width: 12),
-                            Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          // Payment Summary
+                          Material(
+                            elevation: 2,
+                            borderRadius: BorderRadius.circular(8),
+                            child: Container(
+                              padding: const EdgeInsets.all(16.0),
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(8),
+                                color: Colors.white,
+                              ),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text(
-                                    'Using saved card',
+                                  const Text(
+                                    'Payment Summary',
                                     style: TextStyle(
+                                      fontSize: 18,
                                       fontWeight: FontWeight.bold,
-                                      color: Colors.green.shade700,
                                     ),
                                   ),
-                                  Text(
-                                    '${widget.savedCard!.cardTypeDisplay} •••• ${widget.savedCard!.cardNumber.substring(widget.savedCard!.cardNumber.length - 4)}',
-                                    style: TextStyle(
-                                      color: Colors.green.shade600,
-                                      fontSize: 12,
+                                  const SizedBox(height: 16),
+                                  Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      const Text('Amount:'),
+                                      Text(
+                                        '\$${widget.amount.toStringAsFixed(2)} ${widget.currency}',
+                                        style: const TextStyle(
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.green,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 24),
+
+                          // Saved Card Information (if available)
+                          if (widget.savedCard != null)
+                            Container(
+                              margin: const EdgeInsets.only(bottom: 16),
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color: Colors.green.shade50,
+                                borderRadius: BorderRadius.circular(8),
+                                border:
+                                    Border.all(color: Colors.green.shade200),
+                              ),
+                              child: Row(
+                                children: [
+                                  Icon(Icons.check_circle,
+                                      color: Colors.green, size: 20),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          'Using saved card',
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.green.shade700,
+                                          ),
+                                        ),
+                                        Text(
+                                          '${widget.savedCard!.cardTypeDisplay} •••• ${widget.savedCard!.cardNumber.substring(widget.savedCard!.cardNumber.length - 4)}',
+                                          style: TextStyle(
+                                            color: Colors.green.shade600,
+                                            fontSize: 12,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  TextButton(
+                                    onPressed: () {
+                                      setState(() {
+                                        // Clear saved card logic here
+                                      });
+                                    },
+                                    child: Text(
+                                      'Change',
+                                      style: TextStyle(
+                                        color: Colors.green.shade700,
+                                        fontWeight: FontWeight.w600,
+                                      ),
                                     ),
                                   ),
                                 ],
                               ),
                             ),
-                            TextButton(
-                              onPressed: () {
-                                setState(() {
-                                  // Clear saved card logic here
-                                });
-                              },
-                              child: Text(
-                                'Change',
-                                style: TextStyle(
-                                  color: Colors.green.shade700,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
 
-                    // Card Form - FIXED VERSION
-                    Container(
-                      padding: const EdgeInsets.all(20.0),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(16),
-                        border:
-                            Border.all(color: Colors.grey.shade300, width: 1),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.05),
-                            blurRadius: 10,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.all(8),
-                                decoration: BoxDecoration(
-                                  color: Colors.black,
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: const Icon(
-                                  Icons.credit_card,
-                                  color: Colors.white,
-                                  size: 20,
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              const Text(
-                                'Card Details',
-                                style: TextStyle(
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.w700,
-                                  color: Colors.black,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 20),
-
-                          // Debug info for development
-                          if (kDebugMode)
-                            Container(
-                              padding: const EdgeInsets.all(8),
-                              margin: const EdgeInsets.only(bottom: 16),
-                              decoration: BoxDecoration(
-                                color: Colors.yellow.shade50,
-                                border:
-                                    Border.all(color: Colors.yellow.shade200),
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              child: Text(
-                                'Card form complete: $_isCardFormComplete',
-                                style: TextStyle(
-                                    fontSize: 12, color: Colors.grey.shade700),
-                              ),
-                            ),
-
-                          // FIXED CARD FORM WITH BETTER STYLING
+                          // Card Form - FIXED VERSION
                           Container(
-                            constraints: const BoxConstraints(
-                              minHeight:
-                                  120, // Minimum height for better visibility
-                            ),
-                            padding: const EdgeInsets.all(20),
+                            padding: const EdgeInsets.all(20.0),
                             decoration: BoxDecoration(
-                              color: Colors.white, // White background
-                              border: Border.all(
-                                  color: Colors.grey.shade300, width: 1.5),
+                              color: Colors.white,
                               borderRadius: BorderRadius.circular(16),
+                              border: Border.all(
+                                  color: Colors.grey.shade300, width: 1),
                               boxShadow: [
                                 BoxShadow(
-                                  color: Colors.black.withOpacity(0.08),
-                                  blurRadius: 8,
-                                  offset: const Offset(0, 4),
+                                  color: Colors.black.withOpacity(0.05),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 2),
                                 ),
                               ],
                             ),
-                            child: CardFormField(
-                              controller: _cardController,
-                              style: CardFormStyle(
-                                fontSize: 18, // Larger font size
-                                textColor: Colors.black, // Pure black text
-                                placeholderColor:
-                                    Colors.black, // Black placeholder color
-                                borderColor: Colors
-                                    .transparent, // Remove internal borders
-                                backgroundColor: Colors
-                                    .transparent, // Transparent background
-                                cursorColor: Colors.black, // Black cursor
-                                textErrorColor: Colors.red.shade700,
-                                borderRadius: 0, // No border radius conflicts
-                                borderWidth: 0, // No border width conflicts
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(8),
+                                      decoration: BoxDecoration(
+                                        color: Colors.black,
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: const Icon(
+                                        Icons.credit_card,
+                                        color: Colors.white,
+                                        size: 20,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    const Text(
+                                      'Card Details',
+                                      style: TextStyle(
+                                        fontSize: 20,
+                                        fontWeight: FontWeight.w700,
+                                        color: Colors.black,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 20),
+
+                                // Debug info for development
+                                if (kDebugMode)
+                                  Container(
+                                    padding: const EdgeInsets.all(8),
+                                    margin: const EdgeInsets.only(bottom: 16),
+                                    decoration: BoxDecoration(
+                                      color: Colors.yellow.shade50,
+                                      border: Border.all(
+                                          color: Colors.yellow.shade200),
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: Text(
+                                      'Card form complete: $_isCardFormComplete',
+                                      style: TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.grey.shade700),
+                                    ),
+                                  ),
+
+                                // FIXED CARD FORM WITH BETTER STYLING
+                                Container(
+                                  constraints: const BoxConstraints(
+                                    minHeight:
+                                        120, // Minimum height for better visibility
+                                  ),
+                                  padding: const EdgeInsets.all(20),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white, // White background
+                                    border: Border.all(
+                                        color: Colors.grey.shade300,
+                                        width: 1.5),
+                                    borderRadius: BorderRadius.circular(16),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black.withOpacity(0.08),
+                                        blurRadius: 8,
+                                        offset: const Offset(0, 4),
+                                      ),
+                                    ],
+                                  ),
+                                  child: CardFormField(
+                                    controller: _cardController,
+                                    style: CardFormStyle(
+                                      fontSize: 18, // Larger font size
+                                      textColor:
+                                          Colors.black, // Pure black text
+                                      placeholderColor: Colors
+                                          .black, // Black placeholder color
+                                      borderColor: Colors
+                                          .transparent, // Remove internal borders
+                                      backgroundColor: Colors
+                                          .transparent, // Transparent background
+                                      cursorColor: Colors.black, // Black cursor
+                                      textErrorColor: Colors.red.shade700,
+                                      borderRadius:
+                                          0, // No border radius conflicts
+                                      borderWidth:
+                                          0, // No border width conflicts
+                                    ),
+                                  ),
+                                ),
+
+                                const SizedBox(height: 16),
+
+                                // Status indicator
+                                Row(
+                                  children: [
+                                    Icon(
+                                      _isCardFormComplete
+                                          ? Icons.check_circle
+                                          : Icons.credit_card,
+                                      size: 16,
+                                      color: _isCardFormComplete
+                                          ? Colors.green
+                                          : Colors.grey.shade600,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      _isCardFormComplete
+                                          ? 'Card details are complete'
+                                          : 'Enter your card details above',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: _isCardFormComplete
+                                            ? Colors.green.shade700
+                                            : Colors.grey.shade600,
+                                        fontStyle: FontStyle.italic,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+
+                          const SizedBox(height: 24),
+
+                          // Error Message
+                          if (_errorMessage != null)
+                            Container(
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color: Colors.red[50],
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: Colors.red[200]!),
+                              ),
+                              child: Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(8),
+                                    decoration: BoxDecoration(
+                                      color: Colors.red[100],
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Icon(
+                                      Icons.error_outline,
+                                      color: Colors.red[600],
+                                      size: 20,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          'Payment Error',
+                                          style: TextStyle(
+                                            color: Colors.red[700],
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.w600,
+                                            fontFamily: 'Inter',
+                                          ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          _errorMessage!,
+                                          style: TextStyle(
+                                            color: Colors.red[600],
+                                            fontSize: 14,
+                                            fontFamily: 'Inter',
+                                            height: 1.3,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
+
+                          const SizedBox(height: 24),
+
+                          // Test Card Information (for development)
+                          if (kDebugMode)
+                            Container(
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color: Colors.orange.shade50,
+                                borderRadius: BorderRadius.circular(8),
+                                border:
+                                    Border.all(color: Colors.orange.shade200),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Icon(Icons.info_outline,
+                                          color: Colors.orange.shade600,
+                                          size: 20),
+                                      const SizedBox(width: 8),
+                                      Text(
+                                        'Test Card Information',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 14,
+                                          color: Colors.orange.shade800,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    'Card: 4242 4242 4242 4242\nExpiry: Any future date (e.g., 12/25)\nCVC: Any 3 digits (e.g., 123)\nZIP: Any 5 digits (e.g., 12345)',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.orange.shade700,
+                                      fontFamily: 'Consolas',
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+
+                          const SizedBox(height: 24),
+
+                          // Process Payment Button
+                          CustomButton(
+                            onPressed: _isProcessing ? null : _processPayment,
+                            text: _isProcessing ? 'Processing...' : 'Pay Now',
+                            isLoading: _isProcessing,
                           ),
 
                           const SizedBox(height: 16),
 
-                          // Status indicator
-                          Row(
-                            children: [
-                              Icon(
-                                _isCardFormComplete
-                                    ? Icons.check_circle
-                                    : Icons.credit_card,
-                                size: 16,
-                                color: _isCardFormComplete
-                                    ? Colors.green
-                                    : Colors.grey.shade600,
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                _isCardFormComplete
-                                    ? 'Card details are complete'
-                                    : 'Enter your card details above',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: _isCardFormComplete
-                                      ? Colors.green.shade700
-                                      : Colors.grey.shade600,
-                                  fontStyle: FontStyle.italic,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    const SizedBox(height: 24),
-
-                    // Error Message
-                    if (_errorMessage != null)
-                      Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: Colors.red[50],
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.red[200]!),
-                        ),
-                        child: Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: Colors.red[100],
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Icon(
-                                Icons.error_outline,
-                                color: Colors.red[600],
-                                size: 20,
-                              ),
+                          // Security Notice
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Colors.blue.shade50,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: Colors.blue.shade200),
                             ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Payment Error',
-                                    style: TextStyle(
-                                      color: Colors.red[700],
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w600,
-                                      fontFamily: 'Inter',
-                                    ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    _errorMessage!,
-                                    style: TextStyle(
-                                      color: Colors.red[600],
-                                      fontSize: 14,
-                                      fontFamily: 'Inter',
-                                      height: 1.3,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-
-                    const SizedBox(height: 24),
-
-                    // Test Card Information (for development)
-                    if (kDebugMode)
-                      Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: Colors.orange.shade50,
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: Colors.orange.shade200),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
+                            child: Row(
                               children: [
-                                Icon(Icons.info_outline,
-                                    color: Colors.orange.shade600, size: 20),
+                                Icon(Icons.security,
+                                    color: Colors.blue.shade600, size: 20),
                                 const SizedBox(width: 8),
-                                Text(
-                                  'Test Card Information',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 14,
-                                    color: Colors.orange.shade800,
+                                Expanded(
+                                  child: Text(
+                                    'Your payment is secured by Stripe. We never store your card details.',
+                                    style: TextStyle(
+                                      color: Colors.blue.shade700,
+                                      fontSize: 12,
+                                    ),
                                   ),
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 8),
-                            Text(
-                              'Card: 4242 4242 4242 4242\nExpiry: Any future date (e.g., 12/25)\nCVC: Any 3 digits (e.g., 123)\nZIP: Any 5 digits (e.g., 12345)',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.orange.shade700,
-                                fontFamily: 'Consolas',
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-
-                    const SizedBox(height: 24),
-
-                    // Process Payment Button
-                    CustomButton(
-                      onPressed: _isProcessing ? null : _processPayment,
-                      text: _isProcessing ? 'Processing...' : 'Pay Now',
-                      isLoading: _isProcessing,
-                    ),
-
-                    const SizedBox(height: 16),
-
-                    // Security Notice
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.blue.shade50,
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.blue.shade200),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(Icons.security,
-                              color: Colors.blue.shade600, size: 20),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              'Your payment is secured by Stripe. We never store your card details.',
-                              style: TextStyle(
-                                color: Colors.blue.shade700,
-                                fontSize: 12,
-                              ),
-                            ),
                           ),
                         ],
                       ),
                     ),
-                  ],
-                ),
-              ),
+                  ),
+                );
+              },
             ),
-          );
-        },
-      ),
     );
   }
 }

@@ -1,15 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:provider/provider.dart';
 import '../../shared/components/virtual_card.dart';
-import '../../shared/components/bottom_nav.dart';
 import '../../core/providers/profile_provider.dart';
 import '../../core/providers/auth_provider.dart';
-import '../../shared/utils/session_manager.dart';
 import '../../config/theme/app_theme.dart';
-import 'dart:developer' as dev;
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -30,17 +26,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final isAuthenticated =
         authProvider.isAuthenticated && authProvider.hasValidToken;
 
-    if (kDebugMode) {
-      dev.log(
-          'ProfileScreen: AuthProvider.isAuthenticated: ${authProvider.isAuthenticated}',
-          name: 'profile_screen');
-      dev.log(
-          'ProfileScreen: AuthProvider.hasValidToken: ${authProvider.hasValidToken}',
-          name: 'profile_screen');
-      dev.log('ProfileScreen: Final isAuthenticated: $isAuthenticated',
-          name: 'profile_screen');
-    }
-
     // Redirect to login if not authenticated
     if (!isAuthenticated) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -58,10 +43,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
         profileProvider.setAuthProvider(authProvider);
 
         if (profileProvider.canFetchProfile) {
-          if (kDebugMode) {
-            dev.log('ProfileScreen: Fetching profile...',
-                name: 'profile_screen');
-          }
           await profileProvider.fetchProfile();
 
           // Check if profile fetch failed due to auth issues
@@ -78,11 +59,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
               // Redirect to login after showing the message
               Navigator.of(context).pushReplacementNamed('/login');
             }
-          }
-        } else {
-          if (kDebugMode) {
-            dev.log('ProfileScreen: Cannot fetch profile - auth issues',
-                name: 'profile_screen');
           }
         }
       }
@@ -147,19 +123,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 onPressed: () {
                   profileProvider.fetchProfile();
                 },
-                child: Text('Retry'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.black,
                   foregroundColor: Colors.white,
                   padding:
                       const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                 ),
+                child: Text('Retry'),
               ),
             ],
           ),
         ),
-        bottomNavigationBar: const BottomNav(
-            currentIndex: 3), // Settings tab (profile is part of settings)
       );
     }
 
@@ -171,11 +145,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
         leading: IconButton(
           icon: const Icon(LucideIcons.arrowLeft, color: Colors.black),
           onPressed: () {
-            // Navigate to home screen and clear the stack
-            Navigator.of(context).pushNamedAndRemoveUntil(
-              '/home',
-              (route) => false,
-            );
+            // Simply go back to the previous screen (settings)
+            Navigator.of(context).pop();
           },
         ),
         title: Text(
@@ -183,76 +154,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
           style: AppTheme.heading3,
         ),
         centerTitle: true,
-        actions: [
-          // Add a refresh button for debugging
-          if (kDebugMode)
-            IconButton(
-              icon: const Icon(Icons.refresh, color: Colors.black),
-              onPressed: () async {
-                // Refresh profile
-                await profileProvider.fetchProfile();
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Profile refreshed'),
-                    duration: Duration(seconds: 2),
-                  ),
-                );
-
-                // Force refresh profile
-                await profileProvider.fetchProfile();
-              },
-              tooltip: 'Refresh Session Status',
-            ),
-        ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Session Status Indicator (for debugging)
-            if (kDebugMode) ...[
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color:
-                      isAuthenticated // Changed from sessionStatus['hasValidToken']
-                          ? Colors.green.shade50
-                          : Colors.orange.shade50,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                    color:
-                        isAuthenticated // Changed from sessionStatus['hasValidToken']
-                            ? Colors.green.shade200
-                            : Colors.orange.shade200,
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      isAuthenticated ? Icons.security : Icons.warning,
-                      color: isAuthenticated ? Colors.green : Colors.orange,
-                      size: 16,
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        isAuthenticated ? 'Session Active' : 'Session Issues',
-                        style: GoogleFonts.interTight(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w500,
-                          color: isAuthenticated
-                              ? Colors.green.shade700
-                              : Colors.orange.shade700,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 16),
-            ],
-
             // Virtual Card
             VirtualCard(
               points: profile['loyaltyPoints']?.toString() ?? '0',
@@ -311,9 +218,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
             _buildInfoRow(
               icon: LucideIcons.calendar,
               title: 'Date of Birth',
-              value:
-                  preferences?['dateOfBirth']?.toString().split(' ').first ??
-                      '',
+              value: preferences?['dateOfBirth']?.toString().split(' ').first ??
+                  '',
               onTap: () => _showDatePicker(context, profileProvider),
             ),
 
@@ -387,8 +293,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ],
         ),
       ),
-      bottomNavigationBar: const BottomNav(
-          currentIndex: 3), // Settings tab (profile is part of settings)
     );
   }
 
