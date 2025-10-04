@@ -3,8 +3,11 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/models/direct_charter_model.dart';
 import '../../core/models/location_model.dart';
+import '../../core/models/booking_stop_model.dart' as booking_stop;
 import '../../core/services/direct_charter_service.dart';
+import '../../core/error/network_error_handler.dart';
 import '../../shared/widgets/loading_widget.dart';
+import '../../shared/widgets/aircraft_slot_conflict_modal.dart';
 import '../../shared/utils/app_utils.dart';
 import '../plan/stops_selection_screen.dart';
 import '../booking/booking_confirmation_page.dart';
@@ -114,6 +117,27 @@ class _DirectCharterBookingScreenState
         }
       }
 
+      // Convert stops to BookingStopModel objects
+      List<booking_stop.BookingStopModel> bookingStops = [];
+      if (_stops.isNotEmpty) {
+        for (int i = 0; i < _stops.length; i++) {
+          final stop = _stops[i];
+          bookingStops.add(booking_stop.BookingStopModel(
+            id: 0, // Will be set by backend
+            bookingId: 0, // Will be set by backend
+            stopName: stop['name'] ?? 'Stop ${i + 1}',
+            longitude: stop['longitude']?.toDouble() ?? 0.0,
+            latitude: stop['latitude']?.toDouble() ?? 0.0,
+            datetime: departureDateTime.add(Duration(hours: i + 1)), // Estimate stop time
+            stopOrder: i + 1,
+            locationType: booking_stop.LocationType.custom,
+            locationCode: null,
+            createdAt: DateTime.now(),
+            updatedAt: DateTime.now(),
+          ));
+        }
+      }
+
       final result = await _directCharterService.bookDirectCharter(
         aircraftId: widget.aircraft.id,
         origin: widget.searchData['origin'],
@@ -128,6 +152,7 @@ class _DirectCharterBookingScreenState
         specialRequests: _specialRequestsController.text.trim().isEmpty
             ? null
             : _specialRequestsController.text.trim(),
+        stops: bookingStops.isNotEmpty ? bookingStops : null,
       );
 
       setState(() => _isLoading = false);
@@ -178,6 +203,7 @@ class _DirectCharterBookingScreenState
           'aircraftId': widget.aircraft.id,
           'aircraftType': widget.aircraft.model,
           'capacity': widget.aircraft.capacity,
+          'companyId': widget.aircraft.companyId,
           'companyName': widget.aircraft.companyName,
 
           // Additional info
@@ -196,11 +222,44 @@ class _DirectCharterBookingScreenState
     } catch (e) {
       setState(() => _isLoading = false);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Booking failed: ${e.toString()}')),
-        );
+        final errorResult = NetworkErrorResult.fromException(e);
+
+        // Show special modal for aircraft slot conflicts
+        if (errorResult.type == NetworkErrorType.aircraftSlotBooked) {
+          _showAircraftSlotConflictModal();
+        } else {
+          // Show regular error for other issues
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Booking failed: ${errorResult.message}'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
       }
     }
+  }
+
+  void _showAircraftSlotConflictModal() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AircraftSlotConflictModal(
+        aircraftName: widget.aircraft.name,
+        selectedDate: DateTime.parse(widget.searchData['departureDateTime']),
+        onSelectDifferentDate: () {
+          Navigator.of(context).pop(); // Close modal
+          Navigator.of(context).pop(); // Go back to search screen
+        },
+        onSelectDifferentAircraft: () {
+          Navigator.of(context).pop(); // Close modal
+          Navigator.of(context).pop(); // Go back to search screen
+        },
+        onClose: () {
+          Navigator.of(context).pop(); // Close modal
+        },
+      ),
+    );
   }
 
   void _addStop() {

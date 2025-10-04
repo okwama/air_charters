@@ -44,3 +44,10 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 /charter-api/.gitignore
+
+# Android signing keys - NEVER commit these to version control
+*.jks
+*.keystore
+key.properties
+upload-keystore.jks
+release-key.keystore

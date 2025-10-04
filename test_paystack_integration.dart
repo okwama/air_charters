@@ -58,48 +58,50 @@ class _PaystackTestPageState extends State<PaystackTestPage> {
                 ),
                 child: SingleChildScrollView(
                   child: Text(
-                    _testResults.isEmpty ? 'Click a test button to run tests...' : _testResults,
+                    _testResults.isEmpty
+                        ? 'Click a test button to run tests...'
+                        : _testResults,
                     style: TextStyle(fontFamily: 'monospace'),
                   ),
                 ),
               ),
             ),
-            
+
             SizedBox(height: 16),
-            
+
             // Test Buttons
             _buildTestButton(
               'Test Backend Connection',
               _testBackendConnection,
               Colors.blue,
             ),
-            
+
             SizedBox(height: 8),
-            
+
             _buildTestButton(
               'Test Payment Initialization',
               _testPaymentInitialization,
               Colors.green,
             ),
-            
+
             SizedBox(height: 8),
-            
+
             _buildTestButton(
               'Test Card Payment Widget',
               _testCardPaymentWidget,
               Colors.orange,
             ),
-            
+
             SizedBox(height: 8),
-            
+
             _buildTestButton(
               'Test M-Pesa Payment Widget',
               _testMpesaPaymentWidget,
               Colors.purple,
             ),
-            
+
             SizedBox(height: 16),
-            
+
             // Loading Indicator
             if (_isLoading)
               Center(
@@ -127,7 +129,8 @@ class _PaystackTestPageState extends State<PaystackTestPage> {
 
   void _addTestResult(String result) {
     setState(() {
-      _testResults += '${DateTime.now().toString().substring(11, 19)}: $result\n';
+      _testResults +=
+          '${DateTime.now().toString().substring(11, 19)}: $result\n';
     });
   }
 
@@ -145,10 +148,10 @@ class _PaystackTestPageState extends State<PaystackTestPage> {
 
     try {
       _addTestResult('Testing backend connection...');
-      
+
       // Test getting Paystack info from backend
       final publicKey = await _paystackService._getPublicKeyFromBackend();
-      
+
       if (publicKey.isNotEmpty) {
         _addTestResult('✅ Backend connection successful');
         _addTestResult('Public Key: ${publicKey.substring(0, 20)}...');
@@ -171,7 +174,7 @@ class _PaystackTestPageState extends State<PaystackTestPage> {
 
     try {
       _addTestResult('Testing payment initialization...');
-      
+
       final paymentData = await _paystackService.initializePayment(
         amount: 100.0,
         currency: 'KES',
@@ -181,7 +184,7 @@ class _PaystackTestPageState extends State<PaystackTestPage> {
         userId: 'test_user_456',
         description: 'Test payment initialization',
       );
-      
+
       _addTestResult('✅ Payment initialization successful');
       _addTestResult('Reference: ${paymentData['reference'] ?? 'N/A'}');
       _addTestResult('Amount: ${paymentData['amount'] ?? 'N/A'}');
@@ -197,7 +200,7 @@ class _PaystackTestPageState extends State<PaystackTestPage> {
 
   void _testCardPaymentWidget() {
     _addTestResult('Opening Card Payment Widget...');
-    
+
     ExistingPaymentPageIntegration.showPaystackPayment(
       context: context,
       bookingId: 'test_booking_123',
@@ -223,7 +226,7 @@ class _PaystackTestPageState extends State<PaystackTestPage> {
 
   void _testMpesaPaymentWidget() {
     _addTestResult('Opening M-Pesa Payment Widget...');
-    
+
     ExistingPaymentPageIntegration.showPaystackPayment(
       context: context,
       bookingId: 'test_booking_456',

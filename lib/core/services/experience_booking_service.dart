@@ -11,8 +11,17 @@ class ExperienceBookingService {
   Future<Map<String, dynamic>> createBooking(
       ExperienceBookingModel booking) async {
     try {
-      final response = await _apiClient.post(
-          AppConfig.experienceBookingsEndpoint, booking.toJson());
+      // Use the standardized bookings endpoint with experience data
+      final response = await _apiClient.post('/api/bookings', {
+        'dealId': 0, // No deal for experiences
+        'experienceScheduleId':
+            booking.experienceId, // Use experienceId as experienceScheduleId
+        'totalPrice': booking.totalPrice,
+        'onboardDining': false, // Default for experiences
+        'specialRequirements': booking.specialRequests,
+        'billingRegion': 'US', // Default billing region
+        'passengers': booking.passengers.map((p) => p.toJson()).toList(),
+      });
 
       if (response['success']) {
         return Map<String, dynamic>.from(response['data']);

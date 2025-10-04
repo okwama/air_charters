@@ -14,7 +14,7 @@ class NotificationSettingsPage extends StatefulWidget {
 
 class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
   final NotificationService _notificationService = NotificationService();
-  
+
   // Notification channel toggles
   bool _emailNotifications = true;
   bool _pushNotifications = true;
@@ -41,7 +41,7 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
   Future<void> _loadSettings() async {
     try {
       final settings = await _notificationService.loadNotificationSettings();
-      
+
       setState(() {
         _emailNotifications = settings['emailNotifications'] ?? true;
         _pushNotifications = settings['pushNotifications'] ?? true;
@@ -52,7 +52,7 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
         _securityNotifications = settings['securityNotifications'] ?? true;
         _marketingNotifications = settings['marketingNotifications'] ?? false;
         _quietHoursEnabled = settings['quietHoursEnabled'] ?? false;
-        
+
         // Parse quiet hours times
         final startTime = settings['quietHoursStart'] ?? '22:00';
         final endTime = settings['quietHoursEnd'] ?? '08:00';

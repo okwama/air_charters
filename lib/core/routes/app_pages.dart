@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:air_charters/core/routes/app_routes.dart';
 import 'package:air_charters/core/models/charter_deal_model.dart';
-import 'package:air_charters/core/models/booking_inquiry_model.dart';
 
 // Main app imports
 import '../../main.dart';
@@ -21,7 +20,7 @@ import '../../features/direct_charter/direct_charter_search_screen.dart';
 import '../../features/booking/booking_detail.dart';
 import '../../features/booking/booking_confirmation_page.dart';
 import '../../features/booking/aircraft_selection_page.dart';
-import '../../features/booking/passenger_form_page.dart';
+import '../../shared/widgets/passenger_form.dart';
 import '../../features/booking/review_trip.dart';
 import '../../features/booking/confirm_booking.dart';
 
@@ -43,8 +42,6 @@ import '../../features/plan/flight_search_screen.dart';
 import '../../features/plan/aircraft_results_screen.dart';
 import '../../features/plan/locations.dart';
 import '../../features/plan/stops_selection_screen.dart';
-import '../../features/plan/inquiry/create_inquiry_screen.dart';
-import '../../features/plan/inquiry/inquiry_confirmation_screen.dart';
 
 // Direct charter imports
 import '../../features/direct_charter/direct_charter_results_screen.dart';
@@ -112,7 +109,8 @@ class AppPages {
         AppRoutes.passengerForm: (context) {
           final args = ModalRoute.of(context)!.settings.arguments
               as Map<String, dynamic>?;
-          return PassengerFormPage(
+          return PassengerForm(
+            mode: PassengerFormMode.single,
             passenger: args?['passenger'],
             onSuccess: args?['onSuccess'],
           );
@@ -254,23 +252,6 @@ class AppPages {
             onStopsSelected: args['onStopsSelected'],
           );
         },
-        AppRoutes.createInquiry: (context) {
-          final args = ModalRoute.of(context)!.settings.arguments
-              as Map<String, dynamic>;
-          return CreateInquiryScreen(
-            origin: args['origin'],
-            destination: args['destination'],
-            departureDate: args['departureDate'],
-            returnDate: args['returnDate'],
-            passengerCount: args['passengerCount'],
-            isRoundTrip: args['isRoundTrip'],
-          );
-        },
-        AppRoutes.inquiryConfirmation: (context) {
-          final inquiry =
-              ModalRoute.of(context)!.settings.arguments as BookingInquiryModel;
-          return InquiryConfirmationScreen(inquiry: inquiry);
-        },
 
         // Direct charter sub-routes
         AppRoutes.directCharterSearch: (context) =>
@@ -382,8 +363,6 @@ class AppPages {
         return arguments is CharterDealModel?;
       case AppRoutes.bookingConfirmation:
         return arguments is Map<String, dynamic>;
-      case AppRoutes.inquiryConfirmation:
-        return arguments is BookingInquiryModel;
       default:
         return true; // Most routes don't require specific arguments
     }

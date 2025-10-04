@@ -30,17 +30,17 @@ class OfflineFallbackWidget extends StatelessWidget {
             color: iconColor ?? Colors.orange.shade400,
           ),
           const SizedBox(height: 16),
-          
+
           // Message
           Text(
             message,
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: Colors.grey.shade600,
-            ),
+                  color: Colors.grey.shade600,
+                ),
           ),
           const SizedBox(height: 16),
-          
+
           // Retry Button
           if (showRetryButton && onRetry != null)
             ElevatedButton.icon(
@@ -112,4 +112,3 @@ class OfflineIndicator extends StatelessWidget {
     );
   }
 }
-

@@ -309,39 +309,18 @@ class PaymentProvider with ChangeNotifier {
     }
   }
 
-  /// Load saved payment methods (mock implementation)
+  /// Load saved payment methods from backend
   Future<void> loadPaymentMethods() async {
     try {
       _state = PaymentState.loading;
       _errorMessage = null;
       notifyListeners();
 
-      // Mock payment methods - in real app, this would come from backend
-      await Future.delayed(const Duration(milliseconds: 500));
+      // TODO: Replace with real API call to backend
+      // For now, return empty list - payment methods will be handled by Paystack
+      await Future.delayed(const Duration(milliseconds: 300));
 
-      _paymentMethods = [
-        PaymentMethod(
-          id: 'pm_1',
-          type: PaymentMethodType.card,
-          brand: 'visa',
-          last4: '4242',
-          expiryMonth: 12,
-          expiryYear: 2025,
-          isDefault: true,
-        ),
-        PaymentMethod(
-          id: 'pm_2',
-          type: PaymentMethodType.card,
-          brand: 'mastercard',
-          last4: '5555',
-          expiryMonth: 10,
-          expiryYear: 2026,
-          isDefault: false,
-        ),
-      ];
-
-      // Set default selected method
-      _selectedPaymentMethod = _paymentMethods.firstWhere((pm) => pm.isDefault);
+      _paymentMethods = []; // Empty list - using Paystack's payment methods
 
       _state = PaymentState.success;
       notifyListeners();
@@ -352,34 +331,18 @@ class PaymentProvider with ChangeNotifier {
     }
   }
 
-  /// Load payment history (mock implementation)
+  /// Load payment history from backend
   Future<void> loadPaymentHistory() async {
     try {
       _state = PaymentState.loading;
       _errorMessage = null;
       notifyListeners();
 
-      // Mock payment history - in real app, this would come from backend
+      // TODO: Replace with real API call to backend
+      // GET /api/payments/history
       await Future.delayed(const Duration(milliseconds: 300));
 
-      _paymentHistory = [
-        {
-          'bookingId': 'BK-16JUL25-131023-LPX01',
-          'transactionId': 'txn_123456789',
-          'paymentMethod': 'card',
-          'amount': 1500.00,
-          'status': 'success',
-          'timestamp': '2025-01-15T10:30:00Z',
-        },
-        {
-          'bookingId': 'BK-14JUL25-091523-MNX02',
-          'transactionId': 'txn_987654321',
-          'paymentMethod': 'wallet',
-          'amount': 750.00,
-          'status': 'success',
-          'timestamp': '2025-01-10T14:15:00Z',
-        },
-      ];
+      _paymentHistory = []; // Empty list - will be populated from backend
 
       _state = PaymentState.success;
       notifyListeners();

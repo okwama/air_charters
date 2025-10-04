@@ -3,6 +3,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:air_charters/core/providers/auth_provider.dart';
 import 'package:air_charters/shared/widgets/success_toast.dart';
+import 'package:air_charters/config/theme/app_theme.dart';
+import 'widgets/biometric_setup_wizard.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -21,6 +23,16 @@ class _LoginScreenState extends State<LoginScreen> {
   String _selectedCountryFlag = '🇰🇪';
   bool _isEmailMode = false; // Toggle between phone and email modes
 
+  // Form validation errors
+  String? _phoneEmailError;
+  String? _passwordError;
+  
+  // Biometric authentication state
+  bool _biometricAvailable = false;
+  bool _biometricEnabled = false;
+  String _biometricIcon = '🔐';
+  String _biometricName = 'Biometric';
+
   @override
   void initState() {
     super.initState();
@@ -32,7 +44,38 @@ class _LoginScreenState extends State<LoginScreen> {
         // Clear the success message after showing it
         authProvider.clear();
       }
+      
+      // Check biometric availability
+      _checkBiometricAvailability();
     });
+  }
+
+  void _checkBiometricAvailability() async {
+    final authProvider = context.read<AuthProvider>();
+    
+    try {
+      final isAvailable = await authProvider.isBiometricAvailable();
+      final isEnabled = await authProvider.isBiometricEnabled();
+      final availableTypes = await authProvider.getAvailableBiometrics();
+      
+      if (mounted) {
+        setState(() {
+          _biometricAvailable = isAvailable;
+          _biometricEnabled = isEnabled;
+          if (isAvailable && availableTypes.isNotEmpty) {
+            _biometricName = authProvider.getBiometricTypeName(availableTypes);
+            _biometricIcon = authProvider.getBiometricIcon(availableTypes);
+          }
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _biometricAvailable = false;
+          _biometricEnabled = false;
+        });
+      }
+    }
   }
 
   @override
@@ -44,70 +87,123 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  void _handleSendVerificationCode() async {
-    final phoneEmail = _phoneEmailController.text.trim();
-    if (phoneEmail.isEmpty) {
-      // Clear any previous errors and don't set new ones for empty fields
-      // The inline error container will handle this through AuthProvider
-      return;
-    }
-
-    if (_isEmailMode) {
-      // For email mode, we'll use the existing email/password authentication
-      // Don't show error - just return silently since this button is disabled in email mode
-      return;
-    } else {
-      // Handle phone number validation and verification
-      if (!_isValidPhoneNumberFormat(phoneEmail)) {
-        // Let the AuthProvider handle the error state
-        return;
-      }
-
-      // Combine country code with phone number
-      final fullPhoneNumber = _selectedCountryCode + phoneEmail;
-      try {
-        await context
-            .read<AuthProvider>()
-            .sendPhoneVerification(fullPhoneNumber);
-        if (mounted) {
-          Navigator.of(context)
-              .pushNamed('/verify', arguments: fullPhoneNumber);
-        }
-      } catch (e) {
-        // Error will be handled by AuthProvider and shown in inline container
-        // No need to show snackbar
-      }
-    }
-  }
-
   // Removed unused method: _isPhoneNumber
 
-  bool _isValidPhoneNumberFormat(String phoneNumber) {
-    // Remove all non-digit characters
-    final digitsOnly = phoneNumber.replaceAll(RegExp(r'[^\d]'), '');
-
-    // For phone numbers without country code, check if it's a reasonable length
-    // Most phone numbers are 7-15 digits when including country code
-    // Since we're adding country code separately, check for 7-12 digits
-    return digitsOnly.length >= 7 && digitsOnly.length <= 12;
+  void _clearFieldError(String fieldName) {
+    setState(() {
+      switch (fieldName) {
+        case 'phoneEmail':
+          _phoneEmailError = null;
+          break;
+        case 'password':
+          _passwordError = null;
+          break;
+      }
+    });
   }
 
-  // Removed unused method: _isValidEmail
+  void _validateForm() {
+    setState(() {
+      // Clear previous errors
+      _phoneEmailError = null;
+      _passwordError = null;
+
+    final phoneEmail = _phoneEmailController.text.trim();
+      final password = _passwordController.text.trim();
+
+      // Validate phone/email field
+    if (phoneEmail.isEmpty) {
+        _phoneEmailError =
+            _isEmailMode ? 'Email is required' : 'Phone number is required';
+      } else if (_isEmailMode &&
+          !RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(phoneEmail)) {
+        _phoneEmailError = 'Please enter a valid email address';
+      }
+
+      // Validate password
+      if (password.isEmpty) {
+        _passwordError = 'Password is required';
+      }
+    });
+  }
+
+  bool _isFormValid() {
+    return _phoneEmailController.text.trim().isNotEmpty &&
+        _passwordController.text.trim().isNotEmpty &&
+        _phoneEmailError == null &&
+        _passwordError == null;
+  }
+
+  InputDecoration _inputDecoration({
+    required String hintText,
+    String? errorText,
+    Widget? suffixIcon,
+  }) {
+    return AppTheme.inputDecoration.copyWith(
+      hintText: hintText,
+      errorText: errorText,
+      suffixIcon: suffixIcon,
+      hintStyle:
+          AppTheme.bodyMedium.copyWith(color: AppTheme.textSecondaryColor),
+      errorStyle: AppTheme.bodySmall.copyWith(color: AppTheme.errorColor),
+    );
+  }
 
   void _handleSignInWithPassword() async {
-    final email = _phoneEmailController.text.trim();
+    final phoneEmail = _phoneEmailController.text.trim();
     final password = _passwordController.text.trim();
 
-    if (email.isEmpty || password.isEmpty) {
-      // Don't show error for empty fields - let form validation handle it
+    // Quick validation without setState to avoid flickering
+    String? phoneEmailError;
+    String? passwordError;
+
+    // Validate phone/email field
+    if (phoneEmail.isEmpty) {
+      phoneEmailError =
+          _isEmailMode ? 'Email is required' : 'Phone number is required';
+    } else if (_isEmailMode &&
+        !RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(phoneEmail)) {
+      phoneEmailError = 'Please enter a valid email address';
+    }
+
+    // Validate password
+    if (password.isEmpty) {
+      passwordError = 'Password is required';
+    }
+
+    // Only show validation errors if there are any
+    if (phoneEmailError != null || passwordError != null) {
+      setState(() {
+        _phoneEmailError = phoneEmailError;
+        _passwordError = passwordError;
+      });
       return;
     }
 
-    print('🔥 LOGIN SCREEN: Attempting to sign in with email: $email');
+    // Clear any existing errors before proceeding
+    if (_phoneEmailError != null || _passwordError != null) {
+      setState(() {
+        _phoneEmailError = null;
+        _passwordError = null;
+      });
+    }
+
+    print(
+        '🔥 LOGIN SCREEN: Attempting to sign in with ${_isEmailMode ? 'email' : 'phone'}: $phoneEmail');
 
     try {
+      if (_isEmailMode) {
       print('🔥 LOGIN SCREEN: Calling authProvider.signInWithEmail');
-      await context.read<AuthProvider>().signInWithEmail(email, password);
+        await context
+            .read<AuthProvider>()
+            .signInWithEmail(phoneEmail, password);
+      } else {
+        print('🔥 LOGIN SCREEN: Calling authProvider.signInWithPhone');
+        final fullPhoneNumber = _formatPhoneNumber(phoneEmail);
+        await context
+            .read<AuthProvider>()
+            .signInWithPhone(fullPhoneNumber, password);
+      }
 
       // Check if authentication was successful
       if (mounted) {
@@ -124,8 +220,10 @@ class _LoginScreenState extends State<LoginScreen> {
           }
 
           // Navigate to main navigation screen (which includes bottom nav)
-          Navigator.of(context)
-              .pushNamedAndRemoveUntil('/', (route) => false);
+          Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
+          
+          // Show biometric setup wizard if biometric is available but not enabled
+          _showBiometricSetupIfNeeded();
         } else {
           print(
               '🔥 LOGIN SCREEN: Authentication failed - user not authenticated');
@@ -152,8 +250,84 @@ class _LoginScreenState extends State<LoginScreen> {
   void _toggleInputMode() {
     setState(() {
       _isEmailMode = !_isEmailMode;
-      _phoneEmailController.clear(); // Clear input when switching modes
+      // Don't clear input when switching modes - preserve user input
+      _clearFieldError('phoneEmail'); // Clear any validation errors
     });
+  }
+
+  String _formatPhoneNumber(String phoneNumber) {
+    // Remove any spaces, dashes, or parentheses
+    String cleanNumber = phoneNumber.replaceAll(RegExp(r'[\s\-\(\)]'), '');
+    
+    // Remove leading 0 if present (Kenya format: 0706166875 -> 706166875)
+    if (cleanNumber.startsWith('0')) {
+      cleanNumber = cleanNumber.substring(1);
+    }
+    
+    // Combine with country code
+    return _selectedCountryCode + cleanNumber;
+  }
+
+  void _handleBiometricLogin() async {
+    final authProvider = context.read<AuthProvider>();
+    
+    try {
+      await authProvider.authenticateWithBiometric();
+      
+      // Check if authentication was successful
+      if (mounted) {
+        if (authProvider.isAuthenticated) {
+          // Login successful
+          print('🔥 LOGIN SCREEN: Biometric login successful');
+          
+          // Show success message
+          if (authProvider.successMessage != null) {
+            showSuccessToast(context, authProvider.successMessage!);
+          }
+          
+          // Navigate to main navigation screen
+          Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
+        } else {
+          print('🔥 LOGIN SCREEN: Biometric authentication failed');
+          // Error message will be shown in the inline container via AuthProvider
+        }
+      }
+    } catch (e) {
+      print('🔥 LOGIN SCREEN: Biometric authentication error: $e');
+      // Error will be handled by AuthProvider and shown in inline container
+    }
+  }
+
+  void _showBiometricSetupIfNeeded() async {
+    final authProvider = context.read<AuthProvider>();
+    
+    try {
+      final isAvailable = await authProvider.isBiometricAvailable();
+      final isEnabled = await authProvider.isBiometricEnabled();
+      
+      if (isAvailable && !isEnabled) {
+        // Show biometric setup wizard after a short delay
+        Future.delayed(const Duration(seconds: 1), () {
+          if (mounted) {
+            showDialog(
+              context: context,
+              barrierDismissible: false,
+              builder: (context) => BiometricSetupWizard(
+                onComplete: () {
+                  Navigator.of(context).pop();
+                },
+                onSkip: () {
+                  Navigator.of(context).pop();
+                },
+              ),
+            );
+          }
+        });
+      }
+    } catch (e) {
+      // Don't show biometric setup if there's an error
+      print('🔥 LOGIN SCREEN: Error checking biometric setup: $e');
+    }
   }
 
   @override
@@ -169,7 +343,8 @@ class _LoginScreenState extends State<LoginScreen> {
               return Stack(
                 children: [
                   SingleChildScrollView(
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 64),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 24, vertical: 64),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -462,7 +637,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               decoration: InputDecoration(
                                 hintText: _isEmailMode
                                     ? 'Password (required)'
-                                    : 'Password (optional)',
+                                    : 'Password (required)',
                                 hintStyle: GoogleFonts.inter(
                                   fontSize: 16,
                                   fontWeight: FontWeight.normal,
@@ -507,38 +682,61 @@ class _LoginScreenState extends State<LoginScreen> {
                             // Action Buttons - More spacious
                             Column(
                               children: [
-                                // Send Verification Code Button
+                                // Biometric Login Button (if available and enabled)
+                                if (_biometricAvailable && _biometricEnabled) ...[
                                 SizedBox(
                                   width: double.infinity,
                                   height: 52,
-                                  child: ElevatedButton(
-                                    onPressed:
-                                        (authProvider.isLoading || _isEmailMode)
+                                    child: OutlinedButton.icon(
+                                      onPressed: authProvider.isLoading
                                             ? null
-                                            : _handleSendVerificationCode,
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: _isEmailMode
-                                          ? Colors.grey.shade400
-                                          : Colors.black,
-                                      foregroundColor: Colors.white,
+                                          : _handleBiometricLogin,
+                                      icon: Text(
+                                        _biometricIcon,
+                                        style: const TextStyle(fontSize: 18),
+                                      ),
+                                      label: Text(
+                                        'Sign in with $_biometricName',
+                                        style: GoogleFonts.interTight(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w600,
+                                          color: Colors.black,
+                                        ),
+                                      ),
+                                      style: OutlinedButton.styleFrom(
+                                        foregroundColor: Colors.black,
+                                        backgroundColor: Colors.white,
+                                        side: const BorderSide(
+                                          color: Colors.black,
+                                          width: 1.5,
+                                        ),
                                       shape: RoundedRectangleBorder(
                                         borderRadius: BorderRadius.circular(12),
                                       ),
-                                      elevation: 0,
-                                    ),
-                                    child: Text(
-                                      _isEmailMode
-                                          ? 'Use Password Sign In Below'
-                                          : 'Send Verification Code',
-                                      style: GoogleFonts.interTight(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.w600,
-                                        color: Colors.white,
                                       ),
                                     ),
                                   ),
+                                  const SizedBox(height: 16),
+                                  
+                                  // Divider with "OR"
+                                  Row(
+                                    children: [
+                                      const Expanded(child: Divider(color: Colors.grey)),
+                                      Padding(
+                                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                                    child: Text(
+                                          'OR',
+                                          style: AppTheme.bodySmall.copyWith(
+                                            color: Colors.grey.shade600,
+                                            fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ),
+                                      const Expanded(child: Divider(color: Colors.grey)),
+                                    ],
                                 ),
-                                const SizedBox(height: 12),
+                                  const SizedBox(height: 16),
+                                ],
 
                                 // Sign In with Password Button
                                 SizedBox(
@@ -558,7 +756,37 @@ class _LoginScreenState extends State<LoginScreen> {
                                             ),
                                             elevation: 0,
                                           ),
-                                          child: Text(
+                                          child: authProvider.isLoading
+                                              ? Row(
+                                                  mainAxisAlignment:
+                                                      MainAxisAlignment.center,
+                                                  children: [
+                                                    SizedBox(
+                                                      width: 16,
+                                                      height: 16,
+                                                      child:
+                                                          CircularProgressIndicator(
+                                                        strokeWidth: 2,
+                                                        valueColor:
+                                                            AlwaysStoppedAnimation<
+                                                                    Color>(
+                                                                Colors.white),
+                                                      ),
+                                                    ),
+                                                    const SizedBox(width: 8),
+                                                    Text(
+                                                      'Signing In...',
+                                                      style: GoogleFonts
+                                                          .interTight(
+                                                        fontSize: 16,
+                                                        fontWeight:
+                                                            FontWeight.w600,
+                                                        color: Colors.white,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                )
+                                              : Text(
                                             'Sign In',
                                             style: GoogleFonts.interTight(
                                               fontSize: 16,
@@ -567,27 +795,55 @@ class _LoginScreenState extends State<LoginScreen> {
                                             ),
                                           ),
                                         )
-                                      : OutlinedButton(
+                                      : ElevatedButton(
                                           onPressed: authProvider.isLoading
                                               ? null
                                               : _handleSignInWithPassword,
-                                          style: OutlinedButton.styleFrom(
-                                            foregroundColor: Colors.black,
-                                            side: const BorderSide(
-                                              color: Colors.black,
-                                              width: 2,
-                                            ),
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor: Colors.black,
+                                            foregroundColor: Colors.white,
                                             shape: RoundedRectangleBorder(
                                               borderRadius:
                                                   BorderRadius.circular(12),
                                             ),
+                                            elevation: 0,
                                           ),
-                                          child: Text(
-                                            'Sign In with Password',
+                                          child: authProvider.isLoading
+                                              ? Row(
+                                                  mainAxisAlignment:
+                                                      MainAxisAlignment.center,
+                                                  children: [
+                                                    SizedBox(
+                                                      width: 16,
+                                                      height: 16,
+                                                      child:
+                                                          CircularProgressIndicator(
+                                                        strokeWidth: 2,
+                                                        valueColor:
+                                                            AlwaysStoppedAnimation<
+                                                                    Color>(
+                                                                Colors.white),
+                                                      ),
+                                                    ),
+                                                    const SizedBox(width: 8),
+                                                    Text(
+                                                      'Signing In...',
+                                                      style: GoogleFonts
+                                                          .interTight(
+                                                        fontSize: 16,
+                                                        fontWeight:
+                                                            FontWeight.w600,
+                                                        color: Colors.white,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                )
+                                              : Text(
+                                                  'Sign In',
                                             style: GoogleFonts.interTight(
                                               fontSize: 16,
                                               fontWeight: FontWeight.w600,
-                                              color: Colors.black,
+                                                    color: Colors.white,
                                             ),
                                           ),
                                         ),
@@ -786,17 +1042,6 @@ class _LoginScreenState extends State<LoginScreen> {
                           ],
                         ),
                       ],
-                    ),
-                  ),
-
-                  // Loading overlay
-                  if (authProvider.isLoading)
-                    Container(
-                      color: Colors.black.withValues(alpha: 0.3),
-                      child: const Center(
-                        child: CircularProgressIndicator(
-                          color: Colors.white,
-                        ),
                       ),
                     ),
                 ],

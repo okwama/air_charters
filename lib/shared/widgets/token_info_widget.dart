@@ -33,8 +33,7 @@ class _TokenInfoWidgetState extends State<TokenInfoWidget> {
   }
 
   void _loadSessionStatus() {
-    setState(() {
-    });
+    setState(() {});
   }
 
   @override
@@ -116,7 +115,7 @@ class _TokenInfoWidgetState extends State<TokenInfoWidget> {
                                         GoogleFonts.inter(color: Colors.white),
                                   ),
                                   backgroundColor:
-                                        true ? Colors.green : Colors.red,
+                                      true ? Colors.green : Colors.red,
                                 ),
                               );
                               _loadSessionStatus(); // Refresh again after token refresh

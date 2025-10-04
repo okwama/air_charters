@@ -61,20 +61,18 @@ class TripsProvider extends ChangeNotifier {
   void _groupTripsByStatus() {
     // Pending trips are now fetched separately from the backend
     // They include bookings that are pending/priced but not paid yet
-    _pendingTrips = _trips
-        .where((trip) => trip.status == UserTripStatus.pending)
-        .toList();
-    
+    _pendingTrips =
+        _trips.where((trip) => trip.status == UserTripStatus.pending).toList();
+
     // Upcoming trips are confirmed bookings with future flight dates
-    _upcomingTrips = _trips
-        .where((trip) => trip.status == UserTripStatus.upcoming)
-        .toList();
-    
+    _upcomingTrips =
+        _trips.where((trip) => trip.status == UserTripStatus.upcoming).toList();
+
     // Completed trips are confirmed bookings with past flight dates
     _completedTrips = _trips
         .where((trip) => trip.status == UserTripStatus.completed)
         .toList();
-    
+
     // Cancelled trips are cancelled bookings
     _cancelledTrips = _trips
         .where((trip) => trip.status == UserTripStatus.cancelled)
@@ -197,8 +195,7 @@ class TripsProvider extends ChangeNotifier {
       _setLoading(true);
       _setError(null);
 
-      final updatedTrip =
-          await _tripsService.updateTripStatus(tripId, status);
+      final updatedTrip = await _tripsService.updateTripStatus(tripId, status);
 
       // Update the trip in the list
       final index = _trips.indexWhere((trip) => trip.id == tripId);

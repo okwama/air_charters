@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'booking_confirmation_page.dart';
+import 'payment/in_app_checkout_screen.dart';
 import '../../core/models/charter_deal_model.dart';
 import '../../core/models/booking_model.dart' show BookingModel, PaymentMethod;
 import '../../core/providers/passengers_provider.dart';
@@ -64,8 +65,7 @@ class _ReviewTripPageState extends State<ReviewTripPage> {
   @override
   void initState() {
     super.initState();
-    // Generate a unique booking ID for when the booking is actually created
-    _bookingId = 'booking_${DateTime.now().millisecondsSinceEpoch}';
+    // No need for temporary booking ID - we'll create real booking
 
     // Initialize passenger management for booking creation
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -730,7 +730,7 @@ class _ReviewTripPageState extends State<ReviewTripPage> {
       // Create booking without payment intent (request only)
       final bookingService =
           Provider.of<BookingBusinessService>(context, listen: false);
-      print('Booking service obtained: ${bookingService != null}');
+      print('Booking service obtained: true');
 
       print('=== CALLING CREATE BOOKING (REQUEST ONLY) ===');
       print('Deal ID: ${widget.deal?.id ?? 0}');
@@ -751,44 +751,15 @@ class _ReviewTripPageState extends State<ReviewTripPage> {
       print('Result error message: ${result.errorMessage}');
 
       if (result.isSuccess && result.booking != null) {
-        print('=== REQUEST SUCCESSFUL - NAVIGATING TO CONFIRMATION ===');
+        print('=== REQUEST SUCCESSFUL - NAVIGATING DIRECTLY TO PAYMENT ===');
         // Close loading dialog before navigation
         if (mounted) {
           Navigator.of(context).pop();
           print('=== LOADING DIALOG CLOSED ===');
         }
-        // Request successful - navigate to confirmation
+        // Request successful - navigate directly to payment
         if (mounted) {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(
-              builder: (context) => BookingConfirmationPage(
-                bookingData: {
-                  'id': result.booking!.id, // Add the actual booking ID
-                  'reference': result.booking!.referenceNumber,
-                  'departure': widget.departure,
-                  'destination': widget.destination,
-                  'date': widget.date,
-                  'time': widget.time,
-                  'aircraft': widget.aircraft,
-                  'passengers': result.booking!.passengers
-                      .map((passenger) => {
-                            'firstName': passenger.firstName,
-                            'lastName': passenger.lastName,
-                            'age': passenger.age,
-                            'nationality': passenger.nationality,
-                            'passportNumber': passenger.idPassportNumber,
-                            'type': 'Adult', // Default type
-                          })
-                      .toList(),
-                  'totalAmount': totalPrice,
-                  'onboardDining': _onboardDining,
-                  'groundTransportation': _groundTransportation,
-                  'billingRegion': _selectedBillingRegion,
-                },
-              ),
-            ),
-          );
+          _navigateDirectlyToPayment(result.booking!, totalPrice);
         }
       } else {
         print('=== REQUEST FAILED - SHOWING ERROR ===');
@@ -903,5 +874,59 @@ class _ReviewTripPageState extends State<ReviewTripPage> {
         ),
       ),
     );
+  }
+
+  void _navigateDirectlyToPayment(
+      BookingModel booking, double totalPrice) async {
+    try {
+      final authProvider = context.read<AuthProvider>();
+
+      // Navigate to payment screen
+      final result = await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => InAppCheckoutScreen(
+            bookingId: booking.id?.toString() ??
+                booking.referenceNumber?.toString() ??
+                'TEMP_${DateTime.now().millisecondsSinceEpoch}',
+            amount: totalPrice,
+            currency: 'USD',
+            email: authProvider.currentUser?.email ?? 'customer@example.com',
+            companyId: booking.companyId ?? 1,
+            preferredPaymentMethod: 'card',
+          ),
+        ),
+      );
+
+      // Handle payment result
+      if (result != null && result['success'] == true) {
+        // Payment successful - navigate to confirmation
+        if (mounted) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) => BookingConfirmationPage(
+                bookingData: {
+                  'id': booking.id,
+                  'reference': booking.referenceNumber,
+                  'totalAmount': totalPrice,
+                  'companyId': booking.companyId,
+                },
+              ),
+            ),
+          );
+        }
+      } else if (result != null && result['success'] == false) {
+        // Payment failed - show error
+        if (mounted) {
+          _showErrorDialog(result['message'] ?? 'Payment failed');
+        }
+      }
+    } catch (e) {
+      // Handle navigation error
+      if (mounted) {
+        _showErrorDialog('Failed to navigate to payment: ${e.toString()}');
+      }
+    }
   }
 }

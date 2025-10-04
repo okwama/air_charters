@@ -3,7 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../../core/models/passenger_model.dart';
 import '../../core/providers/passengers_provider.dart';
-import '../../features/booking/passenger_form_page.dart';
+import 'passenger_form.dart';
 import '../../core/providers/auth_provider.dart';
 
 class PassengerListWidget extends StatelessWidget {
@@ -35,7 +35,7 @@ class PassengerListWidget extends StatelessWidget {
                       final user = authProvider.currentUser;
                       if (user != null && !userIncluded) {
                         provider.addPassengerLocally(PassengerModel(
-                          bookingId: bookingId,
+                          bookingId: int.tryParse(bookingId),
                           firstName: user.firstName ?? '',
                           lastName: user.lastName ?? '',
                           age: null,
@@ -435,7 +435,8 @@ class PassengerListWidget extends StatelessWidget {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => PassengerFormPage(
+        builder: (context) => PassengerForm(
+          mode: PassengerFormMode.single,
           onSuccess: onPassengersChanged,
         ),
       ),
@@ -446,7 +447,8 @@ class PassengerListWidget extends StatelessWidget {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => PassengerFormPage(
+        builder: (context) => PassengerForm(
+          mode: PassengerFormMode.single,
           passenger: passenger,
           onSuccess: onPassengersChanged,
         ),

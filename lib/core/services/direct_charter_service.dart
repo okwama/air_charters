@@ -1,4 +1,5 @@
 import '../models/direct_charter_model.dart';
+import '../models/booking_stop_model.dart' as booking_stop;
 import '../network/api_client.dart';
 
 class DirectCharterService {
@@ -59,6 +60,7 @@ class DirectCharterService {
     double? repositioningCost,
     required String tripType,
     String? specialRequests,
+    List<booking_stop.BookingStopModel>? stops,
   }) async {
     try {
       final response = await _apiClient.post(
@@ -76,6 +78,15 @@ class DirectCharterService {
           if (repositioningCost != null) 'repositioningCost': repositioningCost,
           'tripType': tripType,
           if (specialRequests != null) 'specialRequests': specialRequests,
+          if (stops != null && stops.isNotEmpty) 'stops': stops.map((stop) => {
+            'stopName': stop.stopName,
+            'longitude': stop.longitude,
+            'latitude': stop.latitude,
+            'datetime': stop.datetime?.toIso8601String(),
+            'stopOrder': stop.stopOrder,
+            'locationType': stop.locationType.name,
+            'locationCode': stop.locationCode,
+          }).toList(),
         },
       );
 

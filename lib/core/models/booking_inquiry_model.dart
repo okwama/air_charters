@@ -1,125 +1,276 @@
-import 'package:json_annotation/json_annotation.dart';
-
-part 'booking_inquiry_model.g.dart';
-
-@JsonSerializable()
-class BookingInquiryModel {
-  final int? id;
-  final String userId;
-  final int aircraftId;
-  final int companyId;
-  final String inquiryStatus;
-  final int requestedSeats;
-  final String? specialRequirements;
-  final bool onboardDining;
-  final bool groundTransportation;
-  final String? billingRegion;
-  final double? proposedPrice;
-  final String? proposedPriceType;
-  final String? adminNotes;
-  final String? userNotes;
-  final String referenceNumber;
-  final DateTime createdAt;
-  final DateTime updatedAt;
-  final DateTime? pricedAt;
-  final DateTime? confirmedAt;
-  final DateTime? cancelledAt;
-  final List<InquiryStopModel> stops;
-  final AircraftModel? aircraft;
-  final UserModel? user;
-
-  BookingInquiryModel({
-    this.id,
-    required this.userId,
-    required this.aircraftId,
-    required this.companyId,
-    required this.inquiryStatus,
-    required this.requestedSeats,
-    this.specialRequirements,
-    required this.onboardDining,
-    required this.groundTransportation,
-    this.billingRegion,
-    this.proposedPrice,
-    this.proposedPriceType,
-    this.adminNotes,
-    this.userNotes,
-    required this.referenceNumber,
-    required this.createdAt,
-    required this.updatedAt,
-    this.pricedAt,
-    this.confirmedAt,
-    this.cancelledAt,
-    required this.stops,
-    this.aircraft,
-    this.user,
-  });
-
-  factory BookingInquiryModel.fromJson(Map<String, dynamic> json) =>
-      _$BookingInquiryModelFromJson(json);
-
-  Map<String, dynamic> toJson() => _$BookingInquiryModelToJson(this);
-
-  BookingInquiryModel copyWith({
-    int? id,
-    String? userId,
-    int? aircraftId,
-    int? companyId,
-    String? inquiryStatus,
-    int? requestedSeats,
-    String? specialRequirements,
-    bool? onboardDining,
-    bool? groundTransportation,
-    String? billingRegion,
-    double? proposedPrice,
-    String? proposedPriceType,
-    String? adminNotes,
-    String? userNotes,
-    String? referenceNumber,
-    DateTime? createdAt,
-    DateTime? updatedAt,
-    DateTime? pricedAt,
-    DateTime? confirmedAt,
-    DateTime? cancelledAt,
-    List<InquiryStopModel>? stops,
-    AircraftModel? aircraft,
-    UserModel? user,
-  }) {
-    return BookingInquiryModel(
-      id: id ?? this.id,
-      userId: userId ?? this.userId,
-      aircraftId: aircraftId ?? this.aircraftId,
-      companyId: companyId ?? this.companyId,
-      inquiryStatus: inquiryStatus ?? this.inquiryStatus,
-      requestedSeats: requestedSeats ?? this.requestedSeats,
-      specialRequirements: specialRequirements ?? this.specialRequirements,
-      onboardDining: onboardDining ?? this.onboardDining,
-      groundTransportation: groundTransportation ?? this.groundTransportation,
-      billingRegion: billingRegion ?? this.billingRegion,
-      proposedPrice: proposedPrice ?? this.proposedPrice,
-      proposedPriceType: proposedPriceType ?? this.proposedPriceType,
-      adminNotes: adminNotes ?? this.adminNotes,
-      userNotes: userNotes ?? this.userNotes,
-      referenceNumber: referenceNumber ?? this.referenceNumber,
-      createdAt: createdAt ?? this.createdAt,
-      updatedAt: updatedAt ?? this.updatedAt,
-      pricedAt: pricedAt ?? this.pricedAt,
-      confirmedAt: confirmedAt ?? this.confirmedAt,
-      cancelledAt: cancelledAt ?? this.cancelledAt,
-      stops: stops ?? this.stops,
-      aircraft: aircraft ?? this.aircraft,
-      user: user ?? this.user,
-    );
-  }
+enum BookingStatus {
+  pending,
+  priced,
+  confirmed,
+  cancelled,
+  completed,
 }
 
-@JsonSerializable()
-class InquiryStopModel {
-  final int? id;
-  final int bookingInquiryId;
+enum PaymentStatus {
+  pending,
+  paid,
+  failed,
+  refunded,
+}
+
+enum BookingType {
+  direct,
+  deal,
+  experience,
+}
+
+class BookingInquiry {
+  final int id;
+  final String userId;
+  final int companyId;
+  final int? aircraftId;
+  final BookingType bookingType;
+  final int? dealId;
+  final int? experienceScheduleId;
+  final double? totalPrice;
+  final String? taxType;
+  final double? taxAmount;
+  final double? subtotal;
+  final BookingStatus bookingStatus;
+  final PaymentStatus paymentStatus;
+  final String referenceNumber;
+  final String? specialRequirements;
+  final String? adminNotes;
+  final String? originName;
+  final double? originLatitude;
+  final double? originLongitude;
+  final String? destinationName;
+  final double? destinationLatitude;
+  final double? destinationLongitude;
+  final DateTime? departureDateTime;
+  final double? estimatedFlightHours;
+  final DateTime? estimatedArrivalTime;
+  final DateTime createdAt;
+  final int totalAdults;
+  final int totalChildren;
+  final bool onboardDining;
+  final DateTime updatedAt;
+  final List<BookingStop> stops;
+
+  // Related data
+  final String? aircraftName;
+  final String? companyName;
+  final String? aircraftType;
+
+  const BookingInquiry({
+    required this.id,
+    required this.userId,
+    required this.companyId,
+    this.aircraftId,
+    required this.bookingType,
+    this.dealId,
+    this.experienceScheduleId,
+    this.totalPrice,
+    this.taxType,
+    this.taxAmount,
+    this.subtotal,
+    required this.bookingStatus,
+    required this.paymentStatus,
+    required this.referenceNumber,
+    this.specialRequirements,
+    this.adminNotes,
+    this.originName,
+    this.originLatitude,
+    this.originLongitude,
+    this.destinationName,
+    this.destinationLatitude,
+    this.destinationLongitude,
+    this.departureDateTime,
+    this.estimatedFlightHours,
+    this.estimatedArrivalTime,
+    required this.createdAt,
+    required this.totalAdults,
+    required this.totalChildren,
+    required this.onboardDining,
+    required this.updatedAt,
+    required this.stops,
+    this.aircraftName,
+    this.companyName,
+    this.aircraftType,
+  });
+
+  factory BookingInquiry.fromJson(Map<String, dynamic> json) {
+    return BookingInquiry(
+      id: json['id'] ?? 0,
+      userId: json['userId'] ?? '',
+      companyId: json['companyId'] ?? 0,
+      aircraftId: json['aircraftId'],
+      bookingType: _parseBookingType(json['bookingType']),
+      dealId: json['dealId'],
+      experienceScheduleId: json['experienceScheduleId'],
+      totalPrice: json['totalPrice']?.toDouble(),
+      taxType: json['taxType'],
+      taxAmount: json['taxAmount']?.toDouble(),
+      subtotal: json['subtotal']?.toDouble(),
+      bookingStatus: _parseBookingStatus(json['bookingStatus']),
+      paymentStatus: _parsePaymentStatus(json['paymentStatus']),
+      referenceNumber: json['referenceNumber'] ?? '',
+      specialRequirements: json['specialRequirements'],
+      adminNotes: json['adminNotes'],
+      originName: json['originName'],
+      originLatitude: json['originLatitude']?.toDouble(),
+      originLongitude: json['originLongitude']?.toDouble(),
+      destinationName: json['destinationName'],
+      destinationLatitude: json['destinationLatitude']?.toDouble(),
+      destinationLongitude: json['destinationLongitude']?.toDouble(),
+      departureDateTime: json['departureDateTime'] != null
+          ? DateTime.parse(json['departureDateTime'])
+          : null,
+      estimatedFlightHours: json['estimatedFlightHours']?.toDouble(),
+      estimatedArrivalTime: json['estimatedArrivalTime'] != null
+          ? DateTime.parse(json['estimatedArrivalTime'])
+          : null,
+      createdAt: json['createdAt'] != null 
+          ? DateTime.parse(json['createdAt'])
+          : DateTime.now(),
+      totalAdults: json['totalAdults'] ?? 0,
+      totalChildren: json['totalChildren'] ?? 0,
+      onboardDining: json['onboardDining'] ?? false,
+      updatedAt: json['updatedAt'] != null 
+          ? DateTime.parse(json['updatedAt'])
+          : DateTime.now(),
+      stops: json['stops'] != null
+          ? (json['stops'] as List)
+              .map((stop) => BookingStop.fromJson(stop))
+              .toList()
+          : [],
+      aircraftName: json['aircraft']?['name'],
+      companyName: json['company']?['name'],
+      aircraftType: json['aircraft']?['aircraftType'],
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'userId': userId,
+      'companyId': companyId,
+      'aircraftId': aircraftId,
+      'bookingType': bookingType.name,
+      'dealId': dealId,
+      'experienceScheduleId': experienceScheduleId,
+      'totalPrice': totalPrice,
+      'taxType': taxType,
+      'taxAmount': taxAmount,
+      'subtotal': subtotal,
+      'bookingStatus': bookingStatus.name,
+      'paymentStatus': paymentStatus.name,
+      'referenceNumber': referenceNumber,
+      'specialRequirements': specialRequirements,
+      'adminNotes': adminNotes,
+      'originName': originName,
+      'originLatitude': originLatitude,
+      'originLongitude': originLongitude,
+      'destinationName': destinationName,
+      'destinationLatitude': destinationLatitude,
+      'destinationLongitude': destinationLongitude,
+      'departureDateTime': departureDateTime?.toIso8601String(),
+      'estimatedFlightHours': estimatedFlightHours,
+      'estimatedArrivalTime': estimatedArrivalTime?.toIso8601String(),
+      'createdAt': createdAt.toIso8601String(),
+      'totalAdults': totalAdults,
+      'totalChildren': totalChildren,
+      'onboardDining': onboardDining,
+      'updatedAt': updatedAt.toIso8601String(),
+      'stops': stops.map((stop) => stop.toJson()).toList(),
+    };
+  }
+
+  static BookingStatus _parseBookingStatus(String? status) {
+    switch (status?.toLowerCase()) {
+      case 'pending':
+        return BookingStatus.pending;
+      case 'priced':
+        return BookingStatus.priced;
+      case 'confirmed':
+        return BookingStatus.confirmed;
+      case 'cancelled':
+        return BookingStatus.cancelled;
+      case 'completed':
+        return BookingStatus.completed;
+      default:
+        return BookingStatus.pending;
+    }
+  }
+
+  static PaymentStatus _parsePaymentStatus(String? status) {
+    switch (status?.toLowerCase()) {
+      case 'pending':
+        return PaymentStatus.pending;
+      case 'paid':
+        return PaymentStatus.paid;
+      case 'failed':
+        return PaymentStatus.failed;
+      case 'refunded':
+        return PaymentStatus.refunded;
+      default:
+        return PaymentStatus.pending;
+    }
+  }
+
+  static BookingType _parseBookingType(String? type) {
+    switch (type?.toLowerCase()) {
+      case 'direct':
+        return BookingType.direct;
+      case 'deal':
+        return BookingType.deal;
+      case 'experience':
+        return BookingType.experience;
+      default:
+        return BookingType.direct;
+    }
+  }
+
+  /// Get formatted status
+  String get formattedStatus {
+    switch (bookingStatus) {
+      case BookingStatus.pending:
+        return 'Pending Review';
+      case BookingStatus.priced:
+        return 'Price Available';
+      case BookingStatus.confirmed:
+        return 'Confirmed';
+      case BookingStatus.cancelled:
+        return 'Cancelled';
+      case BookingStatus.completed:
+        return 'Completed';
+    }
+  }
+
+  /// Get formatted total price
+  String get formattedTotalPrice {
+    if (totalPrice == null) return 'TBD';
+    return '\$${totalPrice!.toStringAsFixed(0)}';
+  }
+
+  /// Check if booking can be confirmed
+  bool get canConfirm => bookingStatus == BookingStatus.priced;
+
+  /// Check if booking can be cancelled
+  bool get canCancel =>
+      bookingStatus == BookingStatus.pending ||
+      bookingStatus == BookingStatus.priced;
+
+  /// Check if booking is paid
+  bool get isPaid => paymentStatus == PaymentStatus.paid;
+
+  /// Check if booking is pending (inquiry state)
+  bool get isPending =>
+      bookingStatus == BookingStatus.pending ||
+      bookingStatus == BookingStatus.priced;
+}
+
+class BookingStop {
+  final int id;
+  final int bookingId;
   final String stopName;
   final double longitude;
   final double latitude;
-  final double? price;
   final DateTime? datetime;
   final int stopOrder;
   final String locationType;
@@ -127,13 +278,12 @@ class InquiryStopModel {
   final DateTime createdAt;
   final DateTime updatedAt;
 
-  InquiryStopModel({
-    this.id,
-    required this.bookingInquiryId,
+  const BookingStop({
+    required this.id,
+    required this.bookingId,
     required this.stopName,
     required this.longitude,
     required this.latitude,
-    this.price,
     this.datetime,
     required this.stopOrder,
     required this.locationType,
@@ -142,108 +292,69 @@ class InquiryStopModel {
     required this.updatedAt,
   });
 
-  factory InquiryStopModel.fromJson(Map<String, dynamic> json) =>
-      _$InquiryStopModelFromJson(json);
+  factory BookingStop.fromJson(Map<String, dynamic> json) {
+    return BookingStop(
+      id: json['id'] ?? 0,
+      bookingId: json['booking_id'] ?? json['bookingId'] ?? 0,
+      stopName: json['stop_name'] ?? json['stopName'] ?? '',
+      longitude: json['longitude']?.toDouble() ?? 0.0,
+      latitude: json['latitude']?.toDouble() ?? 0.0,
+      datetime:
+          json['datetime'] != null ? DateTime.parse(json['datetime']) : null,
+      stopOrder: json['stop_order'] ?? json['stopOrder'] ?? 0,
+      locationType: json['location_type'] ?? json['locationType'] ?? 'custom',
+      locationCode: json['location_code'] ?? json['locationCode'],
+      createdAt: DateTime.parse(json['created_at'] ?? json['createdAt']),
+      updatedAt: DateTime.parse(json['updated_at'] ?? json['updatedAt']),
+    );
+  }
 
-  Map<String, dynamic> toJson() => _$InquiryStopModelToJson(this);
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'booking_id': bookingId,
+      'stop_name': stopName,
+      'longitude': longitude,
+      'latitude': latitude,
+      'datetime': datetime?.toIso8601String(),
+      'stop_order': stopOrder,
+      'location_type': locationType,
+      'location_code': locationCode,
+      'created_at': createdAt.toIso8601String(),
+      'updated_at': updatedAt.toIso8601String(),
+    };
+  }
+
+  /// Get formatted datetime
+  String get formattedDateTime {
+    if (datetime == null) return 'TBD';
+
+    final months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec'
+    ];
+
+    final month = months[datetime!.month - 1];
+    final day = datetime!.day.toString().padLeft(2, '0');
+    final year = datetime!.year;
+    final hour = datetime!.hour.toString().padLeft(2, '0');
+    final minute = datetime!.minute.toString().padLeft(2, '0');
+
+    return '$month $day, $year • $hour:$minute';
+  }
 }
 
-@JsonSerializable()
-class AircraftModel {
-  final int id;
-  final int companyId;
-  final String name;
-  final String registrationNumber;
-  final String type;
-  final String? model;
-  final String? manufacturer;
-  final int? yearManufactured;
-  final int capacity;
-  final double? pricePerHour;
-  final bool isAvailable;
-  final String maintenanceStatus;
-  final String? baseAirport;
-  final String? baseCity;
-  final DateTime createdAt;
-  final DateTime updatedAt;
-
-  AircraftModel({
-    required this.id,
-    required this.companyId,
-    required this.name,
-    required this.registrationNumber,
-    required this.type,
-    this.model,
-    this.manufacturer,
-    this.yearManufactured,
-    required this.capacity,
-    this.pricePerHour,
-    required this.isAvailable,
-    required this.maintenanceStatus,
-    this.baseAirport,
-    this.baseCity,
-    required this.createdAt,
-    required this.updatedAt,
-  });
-
-  factory AircraftModel.fromJson(Map<String, dynamic> json) =>
-      _$AircraftModelFromJson(json);
-
-  Map<String, dynamic> toJson() => _$AircraftModelToJson(this);
-}
-
-@JsonSerializable()
-class UserModel {
-  final String id;
-  final String email;
-  final String? phoneNumber;
-  final String? firstName;
-  final String? lastName;
-  final String? countryCode;
-  final String? language;
-  final String? currency;
-  final String? timezone;
-  final String? theme;
-  final String? profileImageUrl;
-  final int loyaltyPoints;
-  final String loyaltyTier;
-  final double walletBalance;
-  final bool isActive;
-  final bool emailVerified;
-  final bool phoneVerified;
-  final DateTime createdAt;
-  final DateTime updatedAt;
-
-  UserModel({
-    required this.id,
-    required this.email,
-    this.phoneNumber,
-    this.firstName,
-    this.lastName,
-    this.countryCode,
-    this.language,
-    this.currency,
-    this.timezone,
-    this.theme,
-    this.profileImageUrl,
-    required this.loyaltyPoints,
-    required this.loyaltyTier,
-    required this.walletBalance,
-    required this.isActive,
-    required this.emailVerified,
-    required this.phoneVerified,
-    required this.createdAt,
-    required this.updatedAt,
-  });
-
-  factory UserModel.fromJson(Map<String, dynamic> json) =>
-      _$UserModelFromJson(json);
-
-  Map<String, dynamic> toJson() => _$UserModelToJson(this);
-}
-
-// Create Inquiry Request Model
-@JsonSerializable()
+// DTOs for creating booking inquiries
 class CreateBookingInquiryRequest {
   final int aircraftId;
   final int requestedSeats;
@@ -252,9 +363,9 @@ class CreateBookingInquiryRequest {
   final bool groundTransportation;
   final String? billingRegion;
   final String? userNotes;
-  final List<CreateInquiryStopRequest> stops;
+  final List<CreateBookingStopRequest> stops;
 
-  CreateBookingInquiryRequest({
+  const CreateBookingInquiryRequest({
     required this.aircraftId,
     required this.requestedSeats,
     this.specialRequirements,
@@ -265,34 +376,45 @@ class CreateBookingInquiryRequest {
     required this.stops,
   });
 
-  factory CreateBookingInquiryRequest.fromJson(Map<String, dynamic> json) =>
-      _$CreateBookingInquiryRequestFromJson(json);
-
-  Map<String, dynamic> toJson() => _$CreateBookingInquiryRequestToJson(this);
+  Map<String, dynamic> toJson() {
+    return {
+      'aircraftId': aircraftId,
+      'requestedSeats': requestedSeats,
+      'specialRequirements': specialRequirements,
+      'onboardDining': onboardDining,
+      'groundTransportation': groundTransportation,
+      'billingRegion': billingRegion,
+      'userNotes': userNotes,
+      'stops': stops.map((stop) => stop.toJson()).toList(),
+    };
+  }
 }
 
-@JsonSerializable()
-class CreateInquiryStopRequest {
+class CreateBookingStopRequest {
   final String stopName;
   final double longitude;
   final double latitude;
-  final double? price;
-  final DateTime? datetime;
+  final String datetime;
   final int stopOrder;
   final String? locationCode;
 
-  CreateInquiryStopRequest({
+  const CreateBookingStopRequest({
     required this.stopName,
     required this.longitude,
     required this.latitude,
-    this.price,
-    this.datetime,
+    required this.datetime,
     required this.stopOrder,
     this.locationCode,
   });
 
-  factory CreateInquiryStopRequest.fromJson(Map<String, dynamic> json) =>
-      _$CreateInquiryStopRequestFromJson(json);
-
-  Map<String, dynamic> toJson() => _$CreateInquiryStopRequestToJson(this);
+  Map<String, dynamic> toJson() {
+    return {
+      'stopName': stopName,
+      'longitude': longitude,
+      'latitude': latitude,
+      'datetime': datetime,
+      'stopOrder': stopOrder,
+      'locationCode': locationCode,
+    };
+  }
 }

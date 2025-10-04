@@ -51,8 +51,6 @@ class AppRoutes {
   static const String aircraftResults = '/aircraft-results';
   static const String locations = '/locations';
   static const String stopsSelection = '/stops-selection';
-  static const String createInquiry = '/create-inquiry';
-  static const String inquiryConfirmation = '/inquiry-confirmation';
 
   // Settings sub-routes
   static const String notificationSettings = '/notification-settings';
@@ -113,8 +111,6 @@ class AppRoutes {
     aircraftResults,
     locations,
     stopsSelection,
-    createInquiry,
-    inquiryConfirmation,
   ];
 
   static const List<String> settingsRoutes = [
@@ -136,6 +132,17 @@ class AppRoutes {
       experienceRoutes.contains(route);
   static bool isPlanningRoute(String route) => planningRoutes.contains(route);
   static bool isSettingsRoute(String route) => settingsRoutes.contains(route);
+
+  // Check if route exists
+  static bool routeExists(String route) {
+    return authRoutes.contains(route) ||
+           mainTabRoutes.contains(route) ||
+           bookingRoutes.contains(route) ||
+           paymentRoutes.contains(route) ||
+           experienceRoutes.contains(route) ||
+           planningRoutes.contains(route) ||
+           settingsRoutes.contains(route);
+  }
 
   // Get route category for analytics
   static String getRouteCategory(String route) {

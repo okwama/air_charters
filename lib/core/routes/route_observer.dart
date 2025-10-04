@@ -22,13 +22,13 @@ class NavigationEvent {
   });
 
   Map<String, dynamic> toJson() => {
-    'routeName': routeName,
-    'routeCategory': routeCategory,
-    'routeDisplayName': routeDisplayName,
-    'timestamp': timestamp.toIso8601String(),
-    'previousRoute': previousRoute,
-    'metadata': metadata,
-  };
+        'routeName': routeName,
+        'routeCategory': routeCategory,
+        'routeDisplayName': routeDisplayName,
+        'timestamp': timestamp.toIso8601String(),
+        'previousRoute': previousRoute,
+        'metadata': metadata,
+      };
 
   @override
   String toString() {
@@ -48,9 +48,11 @@ class NavigationAnalytics {
   final Map<String, DateTime> _routeLastVisit = {};
 
   // Getters
-  List<NavigationEvent> get navigationHistory => List.unmodifiable(_navigationHistory);
+  List<NavigationEvent> get navigationHistory =>
+      List.unmodifiable(_navigationHistory);
   Map<String, int> get routeVisitCounts => Map.unmodifiable(_routeVisitCounts);
-  Map<String, DateTime> get routeFirstVisit => Map.unmodifiable(_routeFirstVisit);
+  Map<String, DateTime> get routeFirstVisit =>
+      Map.unmodifiable(_routeFirstVisit);
   Map<String, DateTime> get routeLastVisit => Map.unmodifiable(_routeLastVisit);
 
   /// Record a navigation event
@@ -72,22 +74,23 @@ class NavigationAnalytics {
     _updateRouteStats(routeName);
 
     if (kDebugMode) {
-      dev.log('Navigation recorded: ${event.toString()}', name: 'NavigationAnalytics');
+      dev.log('Navigation recorded: ${event.toString()}',
+          name: 'NavigationAnalytics');
     }
   }
 
   /// Update route statistics
   void _updateRouteStats(String routeName) {
     final now = DateTime.now();
-    
+
     // Update visit count
     _routeVisitCounts[routeName] = (_routeVisitCounts[routeName] ?? 0) + 1;
-    
+
     // Update first visit
     if (!_routeFirstVisit.containsKey(routeName)) {
       _routeFirstVisit[routeName] = now;
     }
-    
+
     // Update last visit
     _routeLastVisit[routeName] = now;
   }
@@ -110,22 +113,23 @@ class NavigationAnalytics {
   /// Get time spent on each route (approximate)
   Map<String, Duration> getTimeSpentOnRoutes() {
     final Map<String, Duration> timeSpent = {};
-    
+
     for (int i = 0; i < _navigationHistory.length - 1; i++) {
       final currentEvent = _navigationHistory[i];
       final nextEvent = _navigationHistory[i + 1];
-      
+
       final duration = nextEvent.timestamp.difference(currentEvent.timestamp);
-      timeSpent[currentEvent.routeName] = (timeSpent[currentEvent.routeName] ?? Duration.zero) + duration;
+      timeSpent[currentEvent.routeName] =
+          (timeSpent[currentEvent.routeName] ?? Duration.zero) + duration;
     }
-    
+
     return timeSpent;
   }
 
   /// Get navigation patterns
   Map<String, dynamic> getNavigationPatterns() {
     final patterns = <String, dynamic>{};
-    
+
     // Most common navigation sequences
     final sequences = <String, int>{};
     for (int i = 0; i < _navigationHistory.length - 1; i++) {
@@ -134,25 +138,25 @@ class NavigationAnalytics {
       final sequence = '$current -> $next';
       sequences[sequence] = (sequences[sequence] ?? 0) + 1;
     }
-    
-    patterns['commonSequences'] = sequences.entries
-        .toList()
-        ..sort((a, b) => b.value.compareTo(a.value));
-    
+
+    patterns['commonSequences'] = sequences.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+
     // Route categories visited
     final categories = <String, int>{};
     for (final event in _navigationHistory) {
-      categories[event.routeCategory] = (categories[event.routeCategory] ?? 0) + 1;
+      categories[event.routeCategory] =
+          (categories[event.routeCategory] ?? 0) + 1;
     }
     patterns['categories'] = categories;
-    
+
     // Session duration (if we can determine it)
     if (_navigationHistory.isNotEmpty) {
       final firstVisit = _navigationHistory.first.timestamp;
       final lastVisit = _navigationHistory.last.timestamp;
       patterns['sessionDuration'] = lastVisit.difference(firstVisit).inSeconds;
     }
-    
+
     return patterns;
   }
 
@@ -162,7 +166,7 @@ class NavigationAnalytics {
     _routeVisitCounts.clear();
     _routeFirstVisit.clear();
     _routeLastVisit.clear();
-    
+
     if (kDebugMode) {
       dev.log('Navigation analytics data cleared', name: 'NavigationAnalytics');
     }
@@ -173,8 +177,10 @@ class NavigationAnalytics {
     return {
       'navigationHistory': _navigationHistory.map((e) => e.toJson()).toList(),
       'routeVisitCounts': _routeVisitCounts,
-      'routeFirstVisit': _routeFirstVisit.map((k, v) => MapEntry(k, v.toIso8601String())),
-      'routeLastVisit': _routeLastVisit.map((k, v) => MapEntry(k, v.toIso8601String())),
+      'routeFirstVisit':
+          _routeFirstVisit.map((k, v) => MapEntry(k, v.toIso8601String())),
+      'routeLastVisit':
+          _routeLastVisit.map((k, v) => MapEntry(k, v.toIso8601String())),
       'patterns': getNavigationPatterns(),
       'exportedAt': DateTime.now().toIso8601String(),
     };
@@ -213,12 +219,12 @@ class AppRouteObserver extends RouteObserver<PageRoute<dynamic>> {
   void _handleRouteChange(Route<dynamic> route, Route<dynamic>? previousRoute) {
     final routeName = route.settings.name ?? 'unknown';
     final previousRouteName = previousRoute?.settings.name;
-    
+
     // Skip if it's the same route
     if (routeName == _currentRoute) return;
-    
+
     _currentRoute = routeName;
-    
+
     // Record navigation event
     _analytics.recordNavigation(
       routeName: routeName,
@@ -229,9 +235,9 @@ class AppRouteObserver extends RouteObserver<PageRoute<dynamic>> {
         'timestamp': DateTime.now().toIso8601String(),
       },
     );
-    
+
     if (kDebugMode) {
-      dev.log('Route changed: ${previousRouteName ?? 'none'} -> $routeName', 
+      dev.log('Route changed: ${previousRouteName ?? 'none'} -> $routeName',
           name: 'AppRouteObserver');
     }
   }

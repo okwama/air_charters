@@ -83,7 +83,7 @@ class _CargoScreenState extends State<CargoScreen> {
                       ElevatedButton(
                         onPressed: () => Navigator.of(context).pop(),
                         style: AppTheme.primaryButtonStyle.copyWith(
-                          minimumSize: const MaterialStatePropertyAll(
+                          minimumSize: const WidgetStatePropertyAll(
                             Size(200, 48),
                           ),
                         ),

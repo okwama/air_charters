@@ -1,4 +1,5 @@
 import 'user_model.dart';
+import '../../config/env/app_config.dart';
 
 class AuthModel {
   final String accessToken;
@@ -19,7 +20,7 @@ class AuthModel {
 
   factory AuthModel.fromJson(Map<String, dynamic> json) {
     try {
-      final expiresIn = json['expires_in'] ?? 3600; // Default 1 hour
+      final expiresIn = json['expires_in'] ?? (AppConfig.accessTokenLifespanHours * 3600); // Use config default
       final expiresAt = DateTime.now().add(Duration(seconds: expiresIn));
 
       return AuthModel(
@@ -36,8 +37,8 @@ class AuthModel {
         accessToken: json['access_token']?.toString() ?? '',
         refreshToken: json['refresh_token']?.toString() ?? '',
         tokenType: 'Bearer',
-        expiresIn: 3600,
-        expiresAt: DateTime.now().add(const Duration(hours: 1)),
+        expiresIn: AppConfig.accessTokenLifespanHours * 3600,
+        expiresAt: DateTime.now().add(Duration(hours: AppConfig.accessTokenLifespanHours)),
         user: UserModel.fromJson(json['user'] ?? {}),
       );
     }
@@ -53,7 +54,7 @@ class AuthModel {
             'Invalid auth json: expected Map or List containing Map, got ${json.runtimeType}. Data: $json');
       }
 
-      final expiresIn = json['expiresIn'] ?? 3600;
+      final expiresIn = json['expiresIn'] ?? (AppConfig.accessTokenLifespanHours * 3600);
       final expiresAt = DateTime.now().add(Duration(seconds: expiresIn));
 
       return AuthModel(
@@ -86,9 +87,9 @@ class AuthModel {
   }
 
   bool get willExpireSoon {
-    // Check if token expires in next 5 minutes
+    // Check if token expires within configured threshold
     return DateTime.now()
-        .isAfter(expiresAt.subtract(const Duration(minutes: 5)));
+        .isAfter(expiresAt.subtract(Duration(minutes: AppConfig.tokenRefreshThresholdMinutes)));
   }
 
   String get authorizationHeader {

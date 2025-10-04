@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:provider/provider.dart';
 import '../../shared/components/virtual_card.dart';
@@ -36,28 +35,35 @@ class _ProfileScreenState extends State<ProfileScreen> {
       );
     }
 
-    // Fetch profile on first build, but check authentication first
+    // Industry standard: Smart profile loading with caching
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      if (profileProvider.profile == null && !profileProvider.loading) {
+      if (!profileProvider.loading) {
         // Set the auth provider reference in ProfileProvider
         profileProvider.setAuthProvider(authProvider);
 
+        // Only fetch if we don't have cached data or if data is stale
         if (profileProvider.canFetchProfile) {
-          await profileProvider.fetchProfile();
-
-          // Check if profile fetch failed due to auth issues
-          if (profileProvider.profile == null && !_hasShownAuthError) {
-            _hasShownAuthError = true;
-            if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Session expired. Please login again.'),
-                  backgroundColor: Colors.orange,
-                  duration: Duration(seconds: 3),
-                ),
-              );
-              // Redirect to login after showing the message
-              Navigator.of(context).pushReplacementNamed('/login');
+          try {
+            await profileProvider.fetchProfileIfNeeded();
+          } catch (e) {
+            // Handle auth errors gracefully
+            if (e.toString().contains('Authentication failed') ||
+                e.toString().contains('Invalid or expired token') ||
+                e.toString().contains('401')) {
+              if (!_hasShownAuthError) {
+                _hasShownAuthError = true;
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Session expired. Please login again.'),
+                      backgroundColor: Colors.orange,
+                      duration: Duration(seconds: 3),
+                    ),
+                  );
+                  // Redirect to login after showing the message
+                  Navigator.of(context).pushReplacementNamed('/login');
+                }
+              }
             }
           }
         }
@@ -76,12 +82,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
     // Show error state if profile is null (should not happen for authenticated users)
     if (profile == null) {
       return Scaffold(
-        backgroundColor: Colors.white,
+        backgroundColor: AppTheme.backgroundColor,
         appBar: AppBar(
-          backgroundColor: Colors.white,
+          backgroundColor: AppTheme.backgroundColor,
           elevation: 0,
           leading: IconButton(
-            icon: const Icon(LucideIcons.arrowLeft, color: Colors.black),
+            icon:
+                const Icon(LucideIcons.arrowLeft, color: AppTheme.primaryColor),
             onPressed: () {
               Navigator.of(context).pushReplacementNamed('/settings');
             },
@@ -99,37 +106,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
               Icon(
                 LucideIcons.alertCircle,
                 size: 64,
-                color: Colors.orange,
+                color: AppTheme.errorColor,
               ),
               const SizedBox(height: 16),
               Text(
                 'Unable to load profile',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.black,
-                ),
+                style: AppTheme.heading3,
               ),
               const SizedBox(height: 8),
               Text(
                 'Please try again later',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.grey,
-                ),
+                style: AppTheme.bodySmall,
               ),
               const SizedBox(height: 24),
               ElevatedButton(
                 onPressed: () {
                   profileProvider.fetchProfile();
                 },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.black,
-                  foregroundColor: Colors.white,
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                ),
-                child: Text('Retry'),
+                style: AppTheme.primaryButtonStyle,
+                child: Text('Retry',
+                    style: AppTheme.bodyMedium.copyWith(color: Colors.white)),
               ),
             ],
           ),
@@ -138,12 +134,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: AppTheme.backgroundColor,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: AppTheme.backgroundColor,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(LucideIcons.arrowLeft, color: Colors.black),
+          icon: const Icon(LucideIcons.arrowLeft, color: AppTheme.primaryColor),
           onPressed: () {
             // Simply go back to the previous screen (settings)
             Navigator.of(context).pop();
@@ -156,7 +152,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         centerTitle: true,
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -166,22 +162,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
               walletBalance: '\$${profile['walletBalance'] ?? '0.00'}',
               onTap: () {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Card details coming soon!')),
+                  SnackBar(
+                    content: Text(
+                      'Card details coming soon!',
+                      style: AppTheme.bodyMedium.copyWith(color: Colors.white),
+                    ),
+                    backgroundColor: AppTheme.primaryColor,
+                  ),
                 );
               },
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 32),
 
             // Profile Information
             Text(
               'Personal Information',
-              style: GoogleFonts.interTight(
-                fontWeight: FontWeight.w600,
-                color: Colors.black,
-                fontSize: 18,
-              ),
+              style: AppTheme.heading3,
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
 
             // Name
             _buildInfoRow(
@@ -233,63 +231,59 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   isPreference: true),
             ),
 
+            const SizedBox(height: 32),
+
+            // Account Settings Section
+            Text(
+              'Account Settings',
+              style: AppTheme.heading3,
+            ),
+            const SizedBox(height: 16),
+
+            // Account Status
+            _buildInfoRow(
+              icon: LucideIcons.shield,
+              title: 'Account Status',
+              value: 'Verified',
+              onTap: () {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      'Account verification details',
+                      style: AppTheme.bodyMedium.copyWith(color: Colors.white),
+                    ),
+                    backgroundColor: AppTheme.primaryColor,
+                  ),
+                );
+              },
+            ),
+
+            // Member Since
+            _buildInfoRow(
+              icon: LucideIcons.calendar,
+              title: 'Member Since',
+              value: profile['createdAt'] != null
+                  ? DateTime.parse(profile['createdAt']).year.toString()
+                  : '2024',
+              onTap: () {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      'Account creation details',
+                      style: AppTheme.bodyMedium.copyWith(color: Colors.white),
+                    ),
+                    backgroundColor: AppTheme.primaryColor,
+                  ),
+                );
+              },
+            ),
+
             const SizedBox(height: 24),
 
-            // Preferences Section
-            Text(
-              'Preferences',
-              style: GoogleFonts.interTight(
-                fontWeight: FontWeight.w600,
-                color: Colors.black,
-                fontSize: 18,
-              ),
-            ),
-            const SizedBox(height: 12),
+            // Sign Out Button
+            _buildSignOutButton(),
 
-            // Language
-            _buildInfoRow(
-              icon: LucideIcons.languages,
-              title: 'Language',
-              value: preferences?['language'] ?? 'English',
-              onTap: () => _showPreferenceDialog(
-                  context,
-                  'Language',
-                  ['English', 'Spanish', 'French', 'German'],
-                  preferences?['language'] ?? 'English',
-                  profileProvider),
-            ),
-
-            // Currency
-            _buildInfoRow(
-              icon: LucideIcons.dollarSign,
-              title: 'Currency',
-              value: preferences?['currency'] ?? 'USD (\$)',
-              onTap: () => _showPreferenceDialog(
-                  context,
-                  'Currency',
-                  ['USD (\$)', 'EUR (€)', 'GBP (£)', 'JPY (¥)'],
-                  preferences?['currency'] ?? 'USD (\$)',
-                  profileProvider),
-            ),
-
-            // Notifications
-            _buildInfoRow(
-              icon: LucideIcons.bell,
-              title: 'Notifications',
-              value: (preferences?['notifications'] ?? true)
-                  ? 'Enabled'
-                  : 'Disabled',
-              onTap: () => _showPreferenceDialog(
-                  context,
-                  'Notifications',
-                  ['Enabled', 'Disabled'],
-                  (preferences?['notifications'] ?? true)
-                      ? 'Enabled'
-                      : 'Disabled',
-                  profileProvider),
-            ),
-
-            const SizedBox(height: 20),
+            const SizedBox(height: 32),
           ],
         ),
       ),
@@ -303,39 +297,38 @@ class _ProfileScreenState extends State<ProfileScreen> {
     required VoidCallback onTap,
   }) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 6),
+      margin: const EdgeInsets.only(bottom: 8),
       decoration: BoxDecoration(
-        color: Colors.grey.shade50,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade200),
+        color: AppTheme.surfaceColor,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppTheme.borderColor),
       ),
       child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-        leading: Icon(icon, color: Colors.black, size: 16),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        leading: Icon(icon, color: AppTheme.primaryColor, size: 20),
         title: Text(
           title,
-          style: GoogleFonts.interTight(
+          style: AppTheme.bodySmall.copyWith(
             fontWeight: FontWeight.w500,
-            color: Colors.black,
-            fontSize: 12,
+            color: AppTheme.textPrimaryColor,
           ),
         ),
         subtitle: Text(
           value,
-          style: GoogleFonts.interTight(
+          style: AppTheme.bodyMedium.copyWith(
             fontWeight: FontWeight.w400,
-            color: Colors.grey.shade600,
-            fontSize: 11,
+            color: AppTheme.textSecondaryColor,
           ),
         ),
         trailing: const Icon(
           LucideIcons.chevronRight,
-          color: Colors.grey,
-          size: 12,
+          color: AppTheme.textSecondaryColor,
+          size: 16,
         ),
         onTap: onTap,
-        dense: true,
-        minVerticalPadding: 0,
+        dense: false,
+        minVerticalPadding: 4,
       ),
     );
   }
@@ -349,51 +342,33 @@ class _ProfileScreenState extends State<ProfileScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Edit $field'),
+        backgroundColor: AppTheme.backgroundColor,
+        title: Text('Edit $field', style: AppTheme.heading3),
         content: TextField(
           controller: controller,
-          decoration: InputDecoration(
+          style: AppTheme.bodyMedium,
+          decoration: AppTheme.inputDecoration.copyWith(
             labelText: field,
-            border: const OutlineInputBorder(),
+            labelStyle: AppTheme.bodyMedium
+                .copyWith(color: AppTheme.textSecondaryColor),
           ),
         ),
         actions: [
           ElevatedButton(
             onPressed: () => Navigator.pop(context),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.black,
-              foregroundColor: Colors.white,
-              minimumSize: const Size(double.infinity, 48),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-              elevation: 0,
-            ),
+            style: AppTheme.primaryButtonStyle,
             child: Text(
               'Save',
-              style: GoogleFonts.inter(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: Colors.white,
-              ),
+              style: AppTheme.bodyMedium
+                  .copyWith(color: Colors.white, fontWeight: FontWeight.w600),
             ),
           ),
           OutlinedButton(
             onPressed: () => Navigator.pop(context),
-            style: OutlinedButton.styleFrom(
-              side: const BorderSide(color: Colors.black),
-              minimumSize: const Size(double.infinity, 48),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-            ),
+            style: AppTheme.secondaryButtonStyle,
             child: Text(
               'Cancel',
-              style: GoogleFonts.inter(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: Colors.black,
-              ),
+              style: AppTheme.bodyMedium.copyWith(fontWeight: FontWeight.w600),
             ),
           ),
         ],
@@ -413,79 +388,108 @@ class _ProfileScreenState extends State<ProfileScreen> {
             {'dateOfBirth': date.toIso8601String().split('T').first});
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-              content: Text(
-                  'Date of birth updated to  {date.toString().split(' ')[0]}')),
+            content: Text(
+              'Date of birth updated to ${date.toString().split(' ')[0]}',
+              style: AppTheme.bodyMedium.copyWith(color: Colors.white),
+            ),
+            backgroundColor: AppTheme.successColor,
+          ),
         );
       }
     });
   }
 
-  void _showPreferenceDialog(BuildContext context, String field,
-      List<String> options, String currentValue, ProfileProvider provider) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Select $field'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: options
-              .map((option) => ListTile(
-                    title: Text(option),
-                    selected: option == currentValue,
-                    onTap: () async {
-                      if (field == 'Notifications') {
-                        await provider.updatePreferences(
-                            {'notifications': option == 'Enabled'});
-                      } else {
-                        await provider
-                            .updatePreferences({field.toLowerCase(): option});
-                      }
-                      Navigator.pop(context);
-                    },
-                  ))
-              .toList(),
-        ),
-        actions: [
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.black,
-              foregroundColor: Colors.white,
-              minimumSize: const Size(double.infinity, 48),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
+  Widget _buildSignOutButton() {
+    return Consumer<AuthProvider>(
+      builder: (context, authProvider, child) {
+        return Container(
+          margin: const EdgeInsets.symmetric(horizontal: 24),
+          decoration: BoxDecoration(
+            color: AppTheme.backgroundColor.withOpacity(0.7),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+                color: AppTheme.errorColor.withOpacity(0.3), width: 1),
+            boxShadow: [
+              BoxShadow(
+                color: AppTheme.errorColor.withOpacity(0.1),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
               ),
-              elevation: 0,
-            ),
-            child: Text(
-              'Save',
-              style: GoogleFonts.inter(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: Colors.white,
+            ],
+          ),
+          child: SizedBox(
+            width: double.infinity,
+            height: 52,
+            child: OutlinedButton.icon(
+              onPressed: () async {
+                // Show confirmation dialog
+                final confirmed = await showDialog<bool>(
+                  context: context,
+                  builder: (context) => AlertDialog(
+                    backgroundColor: AppTheme.backgroundColor,
+                    title: Text(
+                      'Sign Out?',
+                      style: AppTheme.heading3,
+                    ),
+                    content: Text(
+                      'Are you sure you want to sign out?',
+                      style: AppTheme.bodyMedium,
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.of(context).pop(false),
+                        style: TextButton.styleFrom(
+                          foregroundColor: AppTheme.textSecondaryColor,
+                        ),
+                        child: Text(
+                          'Cancel',
+                          style: AppTheme.bodyMedium
+                              .copyWith(fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: () => Navigator.of(context).pop(true),
+                        style: TextButton.styleFrom(
+                          foregroundColor: AppTheme.errorColor,
+                        ),
+                        child: Text(
+                          'Sign Out',
+                          style: AppTheme.bodyMedium
+                              .copyWith(fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+
+                if (confirmed == true && context.mounted) {
+                  // Use the comprehensive logout method
+                  await authProvider.logout(context);
+                }
+              },
+              icon: Icon(
+                LucideIcons.logOut,
+                size: 18,
+                color: AppTheme.errorColor,
+              ),
+              label: Text(
+                'Sign Out',
+                style: AppTheme.bodyMedium.copyWith(
+                  fontWeight: FontWeight.w600,
+                  color: AppTheme.errorColor,
+                ),
+              ),
+              style: OutlinedButton.styleFrom(
+                side: BorderSide.none,
+                backgroundColor: Colors.transparent,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
               ),
             ),
           ),
-          OutlinedButton(
-            onPressed: () => Navigator.pop(context),
-            style: OutlinedButton.styleFrom(
-              side: const BorderSide(color: Colors.black),
-              minimumSize: const Size(double.infinity, 48),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-            ),
-            child: Text(
-              'Cancel',
-              style: GoogleFonts.inter(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: Colors.black,
-              ),
-            ),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 }

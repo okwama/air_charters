@@ -1,17 +1,18 @@
 import 'package:flutter/material.dart';
 import '../models/booking_inquiry_model.dart';
+import '../models/location_model.dart';
 import '../services/booking_inquiry_service.dart';
 import '../../shared/utils/session_manager.dart';
 
 class BookingInquiryController extends ChangeNotifier {
-  List<BookingInquiryModel> _inquiries = [];
-  BookingInquiryModel? _currentInquiry;
+  List<BookingInquiry> _inquiries = [];
+  BookingInquiry? _currentInquiry;
   bool _isLoading = false;
   String? _error;
 
   // Getters
-  List<BookingInquiryModel> get inquiries => _inquiries;
-  BookingInquiryModel? get currentInquiry => _currentInquiry;
+  List<BookingInquiry> get inquiries => _inquiries;
+  BookingInquiry? get currentInquiry => _currentInquiry;
   bool get isLoading => _isLoading;
   String? get error => _error;
 
@@ -28,7 +29,7 @@ class BookingInquiryController extends ChangeNotifier {
       }
 
       final inquiries =
-          await BookingInquiryService.getUserInquiries(token: authHeader);
+          await BookingInquiryService().getUserInquiries(authHeader);
       _inquiries = inquiries;
       notifyListeners();
     } catch (e) {
@@ -50,9 +51,9 @@ class BookingInquiryController extends ChangeNotifier {
         throw Exception('User not authenticated');
       }
 
-      final inquiry = await BookingInquiryService.getInquiry(
-        token: authHeader,
-        inquiryId: inquiryId,
+      final inquiry = await BookingInquiryService().getInquiryById(
+        inquiryId,
+        authHeader,
       );
       _currentInquiry = inquiry;
       notifyListeners();
@@ -64,8 +65,20 @@ class BookingInquiryController extends ChangeNotifier {
   }
 
   // Create a new inquiry
-  Future<BookingInquiryModel?> createInquiry(
-      CreateBookingInquiryRequest request) async {
+  Future<BookingInquiry?> createInquiry({
+    required int aircraftId,
+    required int requestedSeats,
+    required LocationModel origin,
+    required LocationModel destination,
+    required DateTime departureDate,
+    DateTime? returnDate,
+    String? specialRequirements,
+    bool onboardDining = false,
+    bool groundTransportation = false,
+    String? billingRegion,
+    String? userNotes,
+    List<LocationModel>? stops,
+  }) async {
     try {
       _setLoading(true);
       _clearError();
@@ -76,10 +89,27 @@ class BookingInquiryController extends ChangeNotifier {
         throw Exception('User not authenticated');
       }
 
-      final inquiry = await BookingInquiryService.createInquiry(
-        token: authHeader,
-        request: request,
+      final result = await BookingInquiryService().createInquiry(
+        aircraftId: aircraftId,
+        requestedSeats: requestedSeats,
+        origin: origin,
+        destination: destination,
+        departureDate: departureDate,
+        returnDate: returnDate,
+        specialRequirements: specialRequirements,
+        onboardDining: onboardDining,
+        groundTransportation: groundTransportation,
+        billingRegion: billingRegion,
+        userNotes: userNotes,
+        stops: stops,
+        authToken: authHeader,
       );
+
+      if (!result.success || result.inquiry == null) {
+        throw Exception(result.message);
+      }
+
+      final inquiry = result.inquiry!;
 
       // Add to the list
       _inquiries.insert(0, inquiry);
@@ -107,27 +137,28 @@ class BookingInquiryController extends ChangeNotifier {
         throw Exception('User not authenticated');
       }
 
-      final result = await BookingInquiryService.confirmInquiry(
-        token: authHeader,
-        inquiryId: inquiryId,
+      final result = await BookingInquiryService().confirmInquiry(
+        inquiryId,
+        authHeader,
       );
 
-      // Update the inquiry in the list
-      final index = _inquiries.indexWhere((i) => i.id == inquiryId);
-      if (index != -1) {
-        // Refresh the inquiry to get updated status
-        final updatedInquiry = await BookingInquiryService.getInquiry(
-          token: authHeader,
-          inquiryId: inquiryId,
-        );
-        _inquiries[index] = updatedInquiry;
-        if (_currentInquiry?.id == inquiryId) {
-          _currentInquiry = updatedInquiry;
+      if (result.success && result.inquiry != null) {
+        // Update the inquiry in the list
+        final index = _inquiries.indexWhere((i) => i.id == inquiryId);
+        if (index != -1) {
+          _inquiries[index] = result.inquiry!;
+          if (_currentInquiry?.id == inquiryId) {
+            _currentInquiry = result.inquiry!;
+          }
+          notifyListeners();
         }
-        notifyListeners();
       }
 
-      return result;
+      return {
+        'success': result.success,
+        'message': result.message,
+        'inquiry': result.inquiry?.toJson(),
+      };
     } catch (e) {
       _setError(e.toString());
       return null;
@@ -148,22 +179,24 @@ class BookingInquiryController extends ChangeNotifier {
         throw Exception('User not authenticated');
       }
 
-      final updatedInquiry = await BookingInquiryService.cancelInquiry(
-        token: authHeader,
-        inquiryId: inquiryId,
+      final result = await BookingInquiryService().cancelInquiry(
+        inquiryId,
+        authHeader,
       );
 
-      // Update the inquiry in the list
-      final index = _inquiries.indexWhere((i) => i.id == inquiryId);
-      if (index != -1) {
-        _inquiries[index] = updatedInquiry;
-        if (_currentInquiry?.id == inquiryId) {
-          _currentInquiry = updatedInquiry;
+      if (result.success && result.inquiry != null) {
+        // Update the inquiry in the list
+        final index = _inquiries.indexWhere((i) => i.id == inquiryId);
+        if (index != -1) {
+          _inquiries[index] = result.inquiry!;
+          if (_currentInquiry?.id == inquiryId) {
+            _currentInquiry = result.inquiry!;
+          }
+          notifyListeners();
         }
-        notifyListeners();
+        return true;
       }
-
-      return true;
+      return false;
     } catch (e) {
       _setError(e.toString());
       return false;
@@ -185,23 +218,25 @@ class BookingInquiryController extends ChangeNotifier {
         throw Exception('User not authenticated');
       }
 
-      final updatedInquiry = await BookingInquiryService.updateInquiry(
-        token: authHeader,
-        inquiryId: inquiryId,
-        updates: updates,
+      final result = await BookingInquiryService().updateInquiry(
+        inquiryId,
+        updates,
+        authHeader,
       );
 
-      // Update the inquiry in the list
-      final index = _inquiries.indexWhere((i) => i.id == inquiryId);
-      if (index != -1) {
-        _inquiries[index] = updatedInquiry;
-        if (_currentInquiry?.id == inquiryId) {
-          _currentInquiry = updatedInquiry;
+      if (result.success && result.inquiry != null) {
+        // Update the inquiry in the list
+        final index = _inquiries.indexWhere((i) => i.id == inquiryId);
+        if (index != -1) {
+          _inquiries[index] = result.inquiry!;
+          if (_currentInquiry?.id == inquiryId) {
+            _currentInquiry = result.inquiry!;
+          }
+          notifyListeners();
         }
-        notifyListeners();
+        return true;
       }
-
-      return true;
+      return false;
     } catch (e) {
       _setError(e.toString());
       return false;
@@ -222,7 +257,7 @@ class BookingInquiryController extends ChangeNotifier {
       _setLoading(true);
       _clearError();
 
-      final result = await BookingInquiryService.getFlightDistance(
+      final result = await BookingInquiryService().getFlightDistance(
         lat1: lat1,
         lon1: lon1,
         lat2: lat2,
@@ -261,25 +296,23 @@ class BookingInquiryController extends ChangeNotifier {
   }
 
   // Get inquiries by status
-  List<BookingInquiryModel> getInquiriesByStatus(String status) {
+  List<BookingInquiry> getInquiriesByStatus(String status) {
     return _inquiries
-        .where((inquiry) => inquiry.inquiryStatus == status)
+        .where((inquiry) => inquiry.bookingStatus.name == status)
         .toList();
   }
 
   // Get pending inquiries
-  List<BookingInquiryModel> get pendingInquiries =>
-      getInquiriesByStatus('pending');
+  List<BookingInquiry> get pendingInquiries => getInquiriesByStatus('pending');
 
   // Get priced inquiries
-  List<BookingInquiryModel> get pricedInquiries =>
-      getInquiriesByStatus('priced');
+  List<BookingInquiry> get pricedInquiries => getInquiriesByStatus('priced');
 
   // Get confirmed inquiries
-  List<BookingInquiryModel> get confirmedInquiries =>
+  List<BookingInquiry> get confirmedInquiries =>
       getInquiriesByStatus('confirmed');
 
   // Get cancelled inquiries
-  List<BookingInquiryModel> get cancelledInquiries =>
+  List<BookingInquiry> get cancelledInquiries =>
       getInquiriesByStatus('cancelled');
 }

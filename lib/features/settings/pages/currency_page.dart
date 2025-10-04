@@ -524,4 +524,3 @@ class CurrencyOption {
     required this.exchangeRate,
   });
 }
-

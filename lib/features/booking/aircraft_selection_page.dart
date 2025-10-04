@@ -1,7 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
 import '../../core/models/aircraft_availability_model.dart';
 import '../../core/models/location_model.dart';
+import '../../core/services/booking_business_service.dart';
+import '../../core/providers/auth_provider.dart';
+import '../../core/models/booking_model.dart';
+import '../../core/error/network_error_handler.dart';
 import '../../shared/widgets/custom_button.dart';
 
 class AircraftSelectionPage extends StatefulWidget {
@@ -31,71 +36,123 @@ class AircraftSelectionPage extends StatefulWidget {
 class _AircraftSelectionPageState extends State<AircraftSelectionPage> {
   bool _isLoading = false;
 
-  void _proceedToBooking() {
+  void _proceedToBooking() async {
     setState(() {
       _isLoading = true;
     });
 
-    // Create booking data structure expected by booking confirmation
-    final bookingData = {
-      // Flight details
-      'aircraft': widget.aircraft.aircraftName,
-      'departure': widget.origin.name,
-      'destination': widget.destination.name,
-      'date':
-          '${widget.departureDate.day}/${widget.departureDate.month}/${widget.departureDate.year}',
+    try {
+      // Create real booking first using BookingBusinessService
+      final bookingService =
+          Provider.of<BookingBusinessService>(context, listen: false);
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
 
-      // Booking details
-      'reference': 'AC${DateTime.now().millisecondsSinceEpoch}',
-      'id': 'BK-${DateTime.now().millisecondsSinceEpoch}',
-      'status': 'pending',
+      if (!authProvider.isAuthenticated) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please log in to continue with booking'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        setState(() {
+          _isLoading = false;
+        });
+        return;
+      }
 
-      // Passenger information
-      'passengerCount': widget.passengerCount,
-      'passengers': [
-        {
-          'firstName': 'User',
-          'lastName': 'Name',
-          'age': 25,
-          'nationality': 'Kenyan',
-        }
-      ],
+      // Create booking with payment intent
+      final result = await bookingService.createBookingWithPaymentIntent(
+        dealId: widget.aircraft.aircraftId, // Use aircraft ID as deal ID
+        totalPrice: widget.aircraft.totalPrice,
+        onboardDining: false, // Default values
+        groundTransportation: false,
+        billingRegion: 'United States', // Default
+        paymentMethod: PaymentMethod.card, // Default for Paystack
+      );
 
-      // Pricing
-      'totalAmount': widget.aircraft.totalPrice,
-      'totalPrice': widget.aircraft.totalPrice,
-      'basePrice': widget.aircraft.basePrice,
-      'repositioningCost': widget.aircraft.repositioningCost ?? 0.0,
-
-      // Flight details
-      'departureDate': widget.departureDate,
-      'returnDate': widget.returnDate,
-      'isRoundTrip': widget.isRoundTrip,
-      'flightDuration': widget.aircraft.flightDuration,
-      'distance': widget.aircraft.distance,
-
-      // Aircraft details
-      'aircraftId': widget.aircraft.aircraftId,
-      'aircraftType': widget.aircraft.aircraftType,
-      'capacity': widget.aircraft.capacity,
-      'companyId': widget.aircraft.companyId,
-      'companyName': widget.aircraft.companyName,
-
-      // Additional info
-      'amenities': widget.aircraft.amenities,
-      'images': widget.aircraft.images,
-    };
-
-    // Navigate to booking confirmation
-    Navigator.pushNamed(
-      context,
-      '/booking-confirmation',
-      arguments: bookingData,
-    ).then((_) {
       setState(() {
         _isLoading = false;
       });
-    });
+
+      if (result.isSuccess && result.booking != null) {
+        // Create booking data structure with real booking ID
+        final bookingData = {
+          // Flight details
+          'aircraft': widget.aircraft.aircraftName,
+          'departure': widget.origin.name,
+          'destination': widget.destination.name,
+          'date':
+              '${widget.departureDate.day}/${widget.departureDate.month}/${widget.departureDate.year}',
+
+          // Booking details - use real booking data
+          'reference': result.booking!.referenceNumber ?? 'N/A',
+          'id': result.booking!.id.toString(),
+          'status': result.booking!.bookingStatus.name,
+          'bookingStatus': result.booking!.bookingStatus.name,
+          'paymentStatus': result.booking!.paymentStatus.name,
+
+          // Passenger information
+          'passengerCount': widget.passengerCount,
+          'passengers': [
+            {
+              'firstName': 'User',
+              'lastName': 'Name',
+              'age': 25,
+              'nationality': 'Kenyan',
+            }
+          ],
+
+          // Pricing
+          'totalAmount': widget.aircraft.totalPrice,
+          'totalPrice': widget.aircraft.totalPrice,
+          'basePrice': widget.aircraft.basePrice,
+          'repositioningCost': widget.aircraft.repositioningCost ?? 0.0,
+
+          // Flight details
+          'departureDate': widget.departureDate.toIso8601String(),
+          'returnDate': widget.returnDate?.toIso8601String(),
+          'isRoundTrip': widget.isRoundTrip,
+          'flightDuration': widget.aircraft.flightDuration,
+          'distance': widget.aircraft.distance,
+
+          // Aircraft details
+          'aircraftId': widget.aircraft.aircraftId,
+          'aircraftType': widget.aircraft.aircraftType,
+          'capacity': widget.aircraft.capacity,
+          'companyId': widget.aircraft.companyId,
+          'companyName': widget.aircraft.companyName,
+
+          // Additional info
+          'amenities': widget.aircraft.amenities,
+          'images': widget.aircraft.images,
+        };
+
+        // Navigate to booking confirmation with real booking data
+        Navigator.pushNamed(
+          context,
+          '/booking-confirmation',
+          arguments: bookingData,
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to create booking: ${result.errorMessage}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
+      final errorResult = NetworkErrorResult.fromException(e);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Booking failed: ${errorResult.message}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   @override

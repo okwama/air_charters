@@ -126,7 +126,13 @@ class _AuthWrapperState extends State<AuthWrapper> {
           case AuthState.loading:
             return const SplashScreen();
           case AuthState.authenticated:
-            return const MainNavigationScreen();
+            // Only navigate to main screen if token is valid
+            if (authProvider.hasValidToken) {
+              return const MainNavigationScreen();
+            } else {
+              // Token is invalid, show loading while attempting refresh
+              return const SplashScreen();
+            }
           case AuthState.unauthenticated:
           case AuthState.error:
             return FutureBuilder<bool>(

@@ -1,4 +1,3 @@
-
 class BookingReviewService {
   /// Calculate total price based on base price and add-ons
   static double calculateTotalPrice({
@@ -53,7 +52,7 @@ class BookingReviewService {
   }
 
   /// Get price breakdown details
-  static Map<String, double> getPriceBreakdown({
+  static Map<String, dynamic> getPriceBreakdown({
     required double basePrice,
     required bool onboardDining,
     required bool groundTransportation,
@@ -69,6 +68,10 @@ class BookingReviewService {
       'transportationCost': transportationCost,
       'taxes': taxes,
       'totalPrice': totalPrice,
+      'currency': 'USD',
     };
   }
+
+  /// Format price in USD
+  static String formatPrice(double price) => '\$${price.toStringAsFixed(0)}';
 }

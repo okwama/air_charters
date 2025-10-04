@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import '../../../config/theme/app_theme.dart';
 
 class SupportHelpSection extends StatelessWidget {
   final Function(BuildContext) onFAQTap;
@@ -23,14 +23,15 @@ class SupportHelpSection extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppTheme.backgroundColor.withOpacity(0.7),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade100, width: 0.5),
+        border:
+            Border.all(color: AppTheme.borderColor.withOpacity(0.3), width: 1),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
+            color: AppTheme.primaryColor.withOpacity(0.1),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
@@ -51,10 +52,9 @@ class SupportHelpSection extends StatelessWidget {
                     const SizedBox(width: 12),
                     Text(
                       'Support & Help',
-                      style: GoogleFonts.outfit(
-                        fontSize: 18,
+                      style: AppTheme.heading3.copyWith(
                         fontWeight: FontWeight.w600,
-                        color: Colors.black,
+                        color: AppTheme.textPrimaryColor,
                       ),
                     ),
                   ],
@@ -137,20 +137,19 @@ class SupportHelpSection extends StatelessWidget {
                   children: [
                     Text(
                       title,
-                      style: GoogleFonts.outfit(
-                        fontSize: 14,
+                      style: AppTheme.bodySmall.copyWith(
                         fontWeight: FontWeight.w600,
-                        color:
-                            isDestructive ? Colors.red.shade600 : Colors.black,
+                        color: isDestructive
+                            ? AppTheme.errorColor
+                            : AppTheme.textPrimaryColor,
                       ),
                     ),
                     const SizedBox(height: 2),
                     Text(
                       subtitle,
-                      style: GoogleFonts.plusJakartaSans(
-                        fontSize: 12,
+                      style: AppTheme.caption.copyWith(
                         fontWeight: FontWeight.w500,
-                        color: Colors.grey.shade600,
+                        color: AppTheme.textSecondaryColor,
                       ),
                     ),
                   ],

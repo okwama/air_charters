@@ -16,13 +16,48 @@ class ProfileProvider extends ChangeNotifier {
   bool _loading = false;
   bool get loading => _loading;
 
+  // Industry standard caching
+  static const Duration _cacheTTL = Duration(minutes: 30);
+  DateTime? _lastFetch;
+  bool _isRefreshing = false;
+
   // Set the auth provider reference
   void setAuthProvider(AuthProvider authProvider) {
     _authProvider = authProvider;
   }
 
-  Future<void> fetchProfile() async {
-    print('🔥 PROFILE: fetchProfile');
+  // Industry standard: Check if profile should be refreshed
+  bool get shouldRefreshProfile {
+    return _profile == null ||
+        _lastFetch == null ||
+        DateTime.now().difference(_lastFetch!) > _cacheTTL;
+  }
+
+  // Industry standard: Check if profile data is stale
+  bool get isProfileStale {
+    if (_lastFetch == null) return true;
+    return DateTime.now().difference(_lastFetch!) > Duration(minutes: 15);
+  }
+
+  // Industry standard: Smart fetch - only when needed
+  Future<void> fetchProfileIfNeeded({bool forceRefresh = false}) async {
+    if (!forceRefresh && !shouldRefreshProfile) {
+      print('🔥 PROFILE: Using cached data, skipping API call');
+      return;
+    }
+
+    // If data is stale but exists, show it immediately and refresh in background
+    if (!forceRefresh && _profile != null && isProfileStale && !_isRefreshing) {
+      print('🔥 PROFILE: Data is stale, refreshing in background');
+      _refreshInBackground();
+      return;
+    }
+
+    await fetchProfile(forceRefresh: forceRefresh);
+  }
+
+  Future<void> fetchProfile({bool forceRefresh = false}) async {
+    print('🔥 PROFILE: fetchProfile (forceRefresh: $forceRefresh)');
 
     // Use standardized authentication check
     final isAuthenticated = _authProvider?.isAuthenticated == true &&
@@ -58,39 +93,57 @@ class ProfileProvider extends ChangeNotifier {
       print('🔥 PROFILE: API call successful');
       _profile = data;
       _preferences = data['preferences'];
+      _lastFetch = DateTime.now(); // Record successful fetch time
     } catch (e) {
       print('🔥 PROFILE: API call failed: $e');
 
       // Handle authentication errors gracefully
-      if (e.toString().contains('Authentication failed')) {
+      if (e.toString().contains('Authentication failed') ||
+          e.toString().contains('Invalid or expired token') ||
+          e.toString().contains('401')) {
         print('🔥 PROFILE: Authentication failed, clearing profile data');
 
         // Clear profile data
         _profile = null;
         _preferences = null;
 
-        // Try to refresh the token using AuthProvider
+        // Use the global auth error handler for proper token refresh and logout handling
         try {
-          print('🔥 PROFILE: Attempting token refresh...');
-          await _authProvider?.refreshToken();
-          print('🔥 PROFILE: Token refresh completed');
+          print('🔥 PROFILE: Using global auth error handler...');
+          final authErrorResult = await _authProvider?.handleGlobalAuthError(e);
 
-          // Check if refresh was successful
-          if (_authProvider?.hasValidToken == true) {
-            // Try fetching profile again with refreshed token
-            print('🔥 PROFILE: Retrying profile fetch with refreshed token...');
+          if (authErrorResult?.shouldRetry == true) {
+            // Token was refreshed successfully, retry the profile fetch
+            print('🔥 PROFILE: Token refreshed, retrying profile fetch...');
             final data = await _apiClient.getUserProfile();
             _profile = data;
             _preferences = data['preferences'];
             print('🔥 PROFILE: Retry successful');
-          } else {
-            print(
-                '🔥 PROFILE: Token refresh failed, user needs to login again');
-            // Don't rethrow - let the UI handle the unauthenticated state
+          } else if (authErrorResult?.shouldRedirectToLogin == true) {
+            print('🔥 PROFILE: User needs to login again');
+            // The auth provider should have already handled the logout
           }
-        } catch (refreshError) {
-          print('🔥 PROFILE: Token refresh error: $refreshError');
-          // Don't rethrow - let the UI handle the unauthenticated state
+        } catch (authError) {
+          print('🔥 PROFILE: Global auth error handler failed: $authError');
+          // Fallback: try direct token refresh
+          try {
+            print('🔥 PROFILE: Fallback - attempting direct token refresh...');
+            await _authProvider?.refreshToken();
+
+            if (_authProvider?.hasValidToken == true) {
+              print('🔥 PROFILE: Fallback refresh successful, retrying...');
+              final data = await _apiClient.getUserProfile();
+              _profile = data;
+              _preferences = data['preferences'];
+            } else {
+              print('🔥 PROFILE: Fallback refresh failed, signing out...');
+              await _authProvider?.signOut();
+            }
+          } catch (fallbackError) {
+            print(
+                '🔥 PROFILE: Fallback refresh error, signing out: $fallbackError');
+            await _authProvider?.signOut();
+          }
         }
       } else {
         // For non-auth errors, rethrow
@@ -131,5 +184,35 @@ class ProfileProvider extends ChangeNotifier {
     // Use standardized AuthProvider check
     return _authProvider?.isAuthenticated == true &&
         _authProvider?.hasValidToken == true;
+  }
+
+  // Industry standard: Background refresh for stale data
+  Future<void> _refreshInBackground() async {
+    if (_isRefreshing) return;
+
+    _isRefreshing = true;
+    try {
+      print('🔥 PROFILE: Starting background refresh...');
+      await fetchProfile(forceRefresh: true);
+      print('🔥 PROFILE: Background refresh completed');
+    } catch (e) {
+      print('🔥 PROFILE: Background refresh failed: $e');
+      // Don't update UI on background refresh failure
+    } finally {
+      _isRefreshing = false;
+    }
+  }
+
+  // Industry standard: Clear cache method
+  void clearCache() {
+    _profile = null;
+    _preferences = null;
+    _lastFetch = null;
+    notifyListeners();
+  }
+
+  // Industry standard: Pull-to-refresh method
+  Future<void> refreshProfile() async {
+    await fetchProfileIfNeeded(forceRefresh: true);
   }
 }

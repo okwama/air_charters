@@ -172,7 +172,7 @@ class _CharterHomePageState extends State<CharterHomePage> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.transparent,
+      backgroundColor: Colors.white,
       builder: (context) => DealsFilterDialog(
         initialFilters: _filters,
         onApplyFilters: (newFilters) {
@@ -191,7 +191,7 @@ class _CharterHomePageState extends State<CharterHomePage> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.transparent,
+      backgroundColor: Colors.white,
       builder: (context) => DraggableScrollableSheet(
         initialChildSize: 0.95,
         minChildSize: 0.5,

@@ -4,6 +4,7 @@ import 'package:air_charters/core/models/experience_booking_model.dart';
 import 'package:air_charters/core/services/payment_service.dart';
 import 'package:air_charters/core/network/api_client.dart';
 import 'package:air_charters/core/services/experience_booking_service.dart';
+import 'package:air_charters/features/booking/payment/in_app_checkout_screen.dart';
 import 'experience_booking_confirmation.dart';
 
 class ExperiencePaymentPage extends StatefulWidget {
@@ -59,48 +60,47 @@ class _ExperiencePaymentPageState extends State<ExperiencePaymentPage> {
     try {
       String? paymentIntentId;
 
-      if (_selectedPaymentMethod == PaymentMethod.mpesa) {
-        // Process M-Pesa payment
-        final mpesaResult = await _paymentService.initiateMpesaPayment(
-          bookingId: widget.booking.experienceId.toString(),
-          amount: widget.booking.totalPrice,
-          phoneNumber: _phoneNumber!,
-          description: 'Payment for ${widget.booking.experienceTitle}',
-        );
-
-        paymentIntentId = mpesaResult['paymentIntentId'];
-
-        // Show M-Pesa instructions
-        _showMpesaInstructions(mpesaResult);
-      } else {
-        // Create payment intent for other methods
-        final paymentIntent = await _paymentService.createPaymentIntent(
-          amount: widget.booking.totalPrice,
-          currency: 'USD',
-          bookingId: widget.booking.experienceId.toString(),
-          paymentMethod: _selectedPaymentMethod,
-          metadata: {
-            'experienceTitle': widget.booking.experienceTitle,
-            'passengersCount': widget.booking.passengersCount,
-          },
-        );
-
-        paymentIntentId = paymentIntent['id'];
-      }
-
-      // Create the booking
+      // Create the booking first
       final bookingResult = await _bookingService.createBooking(widget.booking);
 
-      if (mounted) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (context) => ExperienceBookingConfirmation(
-              bookingId: bookingResult['bookingId'],
-              booking: widget.booking,
+      if (bookingResult['bookingId'] != null) {
+        // Navigate to Paystack payment screen
+        if (mounted) {
+          final result = await Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => InAppCheckoutScreen(
+                bookingId: bookingResult['bookingId'].toString(),
+                amount: widget.booking.totalPrice,
+                currency: 'USD',
+                email: 'customer@example.com', // Default email for experiences
+                companyId: 1, // Default company ID for experiences
+                preferredPaymentMethod:
+                    _selectedPaymentMethod == PaymentMethod.mpesa
+                        ? 'mpesa'
+                        : 'card',
+              ),
             ),
-          ),
-        );
+          );
+
+          // Handle payment result
+          if (result == true) {
+            // Payment successful, navigate to confirmation
+            if (mounted) {
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => ExperienceBookingConfirmation(
+                    bookingId: bookingResult['bookingId'],
+                    booking: widget.booking,
+                  ),
+                ),
+              );
+            }
+          }
+        }
+      } else {
+        throw Exception('Failed to create booking');
       }
     } catch (e) {
       setState(() {
@@ -618,4 +618,3 @@ class _ExperiencePaymentPageState extends State<ExperiencePaymentPage> {
     );
   }
 }
-

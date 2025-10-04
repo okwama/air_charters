@@ -1,33 +1,68 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../booking/payment/payment_screen.dart';
+import 'package:flutter_svg/flutter_svg.dart';
+import '../booking/payment/in_app_checkout_screen.dart';
 import '../../core/models/user_trip_model.dart';
 import '../../core/models/booking_model.dart';
 import '../../core/providers/trips_provider.dart';
 import '../../core/providers/navigation_provider.dart';
 import '../../shared/widgets/app_spinner.dart';
+import '../../core/providers/auth_provider.dart';
+import 'ticket_page.dart';
 
 class TripsPage extends StatefulWidget {
-  const TripsPage({super.key});
+  final int initialTabIndex;
+
+  const TripsPage({super.key, this.initialTabIndex = 0});
 
   @override
   State<TripsPage> createState() => _TripsPageState();
 }
 
 class _TripsPageState extends State<TripsPage>
-    with SingleTickerProviderStateMixin {
+with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  final GlobalKey<RefreshIndicatorState> _refreshIndicatorKey = 
+      GlobalKey<RefreshIndicatorState>();
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this);
+    _tabController = TabController(
+      length: 4,
+      vsync: this,
+      initialIndex: (widget.initialTabIndex >= 0 && widget.initialTabIndex < 4)
+          ? widget.initialTabIndex
+          : 0,
+    );
 
     // Fetch trips when page loads
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<TripsProvider>().fetchUserTrips();
+      // Ensure TripsProvider has a reference to AuthProvider for token/auth state
+      final auth = context.read<AuthProvider>();
+      final trips = context.read<TripsProvider>();
+      trips.setAuthProvider(auth);
+      trips.fetchUserTrips();
     });
+  }
+
+  @override
+  void didUpdateWidget(TripsPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Refresh trips when navigating to this page with different initial tab
+    if (oldWidget.initialTabIndex != widget.initialTabIndex) {
+      _refreshTrips();
+    }
+  }
+
+  Future<void> _refreshTrips() async {
+    print('=== TRIPS PAGE: REFRESHING DATA ===');
+    final auth = context.read<AuthProvider>();
+    final trips = context.read<TripsProvider>();
+    trips.setAuthProvider(auth);
+    await trips.fetchUserTrips();
+    print('=== TRIPS PAGE: REFRESH COMPLETED ===');
   }
 
   @override
@@ -40,52 +75,104 @@ class _TripsPageState extends State<TripsPage>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      body: SafeArea(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Title Section
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
-              child: Text(
-                'My Trips',
-                style: GoogleFonts.inter(
-                  fontSize: 28,
-                  fontWeight: FontWeight.w800,
-                  color: Colors.black,
+      body: Stack(
+        children: [
+          // World SVG Background with overlay
+          Positioned.fill(
+            child: Stack(
+              children: [
+                Opacity(
+                  opacity: 0.05,
+                  child: SvgPicture.asset(
+                    'assets/icons/world.svg',
+                    fit: BoxFit.cover,
+                  ),
                 ),
-              ),
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.7),
+                  ),
+                ),
+              ],
             ),
-
-            // Tab Selector
-            _buildTabSelector(),
-
-            // Tab Content
-            Expanded(
-              child: Consumer<TripsProvider>(
-                builder: (context, tripsProvider, child) {
-                  if (tripsProvider.isLoading) {
-                    return const Center(child: AppSpinner());
-                  }
-
-                  if (tripsProvider.error != null) {
-                    return _buildErrorState(tripsProvider.error!);
-                  }
-
-                  return TabBarView(
-                    controller: _tabController,
+          ),
+          // Main content
+          SafeArea(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Title Section with Back Button
+                Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+                  child: Row(
                     children: [
-                      _buildPendingTrips(tripsProvider.pendingTrips),
-                      _buildUpcomingTrips(tripsProvider.upcomingTrips),
-                      _buildCompletedTrips(tripsProvider.completedTrips),
-                      _buildCancelledTrips(tripsProvider.cancelledTrips),
+                      IconButton(
+                        onPressed: () {
+                          Navigator.of(context).pop();
+                        },
+                        icon: const Icon(
+                          Icons.arrow_back_ios,
+                          color: Colors.black,
+                          size: 20,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'My Trips',
+                        style: GoogleFonts.inter(
+                          fontSize: 28,
+                          fontWeight: FontWeight.w800,
+                          color: Colors.black,
+                        ),
+                      ),
                     ],
-                  );
-                },
-              ),
+                  ),
+                ),
+
+                // Tab Selector
+                _buildTabSelector(),
+
+                // Tab Content
+                Expanded(
+                  child: Consumer<TripsProvider>(
+                    builder: (context, tripsProvider, child) {
+                      if (tripsProvider.isLoading &&
+                          tripsProvider.pendingTrips.isEmpty &&
+                          tripsProvider.upcomingTrips.isEmpty &&
+                          tripsProvider.completedTrips.isEmpty &&
+                          tripsProvider.cancelledTrips.isEmpty) {
+                        return const Center(child: AppSpinner());
+                      }
+
+                      if (tripsProvider.error != null) {
+                        return _buildErrorState(tripsProvider.error!);
+                      }
+
+                      return RefreshIndicator(
+                        key: _refreshIndicatorKey,
+                        onRefresh: _refreshTrips,
+                        color: Colors.black,
+                        backgroundColor: Colors.white,
+                        strokeWidth: 2.5,
+                        displacement: 40,
+                        child: TabBarView(
+                          controller: _tabController,
+                          children: [
+                            _buildPendingTrips(tripsProvider.pendingTrips),
+                            _buildUpcomingTrips(tripsProvider.upcomingTrips),
+                            _buildCompletedTrips(tripsProvider.completedTrips),
+                            _buildCancelledTrips(tripsProvider.cancelledTrips),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -129,86 +216,102 @@ class _TripsPageState extends State<TripsPage>
 
   Widget _buildPendingTrips(List<UserTripModel> pendingTrips) {
     if (pendingTrips.isEmpty) {
-      return _buildEmptyState(
-        'No pending bookings',
-        'Any pending bookings will appear here',
-        true,
+      return SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        child: Container(
+          height: MediaQuery.of(context).size.height * 0.6,
+          child: _buildEmptyState(
+            'No pending bookings',
+            'Any pending bookings will appear here',
+            true,
+          ),
+        ),
       );
     }
 
-    return RefreshIndicator(
-      onRefresh: () => context.read<TripsProvider>().fetchUserTrips(),
-      child: ListView.builder(
-        padding: const EdgeInsets.all(20),
-        itemCount: pendingTrips.length,
-        itemBuilder: (context, index) {
-          return _buildTripCard(pendingTrips[index],
-              isUpcoming: false, isPending: true);
-        },
-      ),
+    return ListView.builder(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.all(20),
+      itemCount: pendingTrips.length,
+      itemBuilder: (context, index) {
+        return _buildTripCard(pendingTrips[index],
+            isUpcoming: false, isPending: true);
+      },
     );
   }
 
   Widget _buildUpcomingTrips(List<UserTripModel> upcomingTrips) {
     if (upcomingTrips.isEmpty) {
-      return _buildEmptyState(
-        'No upcoming trips',
-        'Any upcoming trips will appear here',
-        true,
+      return SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        child: Container(
+          height: MediaQuery.of(context).size.height * 0.6,
+          child: _buildEmptyState(
+            'No upcoming trips',
+            'Any upcoming trips will appear here',
+            true,
+          ),
+        ),
       );
     }
 
-    return RefreshIndicator(
-      onRefresh: () => context.read<TripsProvider>().fetchUserTrips(),
-      child: ListView.builder(
-        padding: const EdgeInsets.all(20),
-        itemCount: upcomingTrips.length,
-        itemBuilder: (context, index) {
-          return _buildTripCard(upcomingTrips[index], isUpcoming: true);
-        },
-      ),
+    return ListView.builder(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.all(20),
+      itemCount: upcomingTrips.length,
+      itemBuilder: (context, index) {
+        return _buildTripCard(upcomingTrips[index], isUpcoming: true);
+      },
     );
   }
 
   Widget _buildCompletedTrips(List<UserTripModel> completedTrips) {
     if (completedTrips.isEmpty) {
-      return _buildEmptyState(
-        'No completed trips',
-        'Your completed trips will appear here',
-        false,
+      return SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        child: Container(
+          height: MediaQuery.of(context).size.height * 0.6,
+          child: _buildEmptyState(
+            'No completed trips',
+            'Your completed trips will appear here',
+            false,
+          ),
+        ),
       );
     }
 
-    return RefreshIndicator(
-      onRefresh: () => context.read<TripsProvider>().fetchUserTrips(),
-      child: ListView.builder(
-        padding: const EdgeInsets.all(20),
-        itemCount: completedTrips.length,
-        itemBuilder: (context, index) {
-          return _buildTripCard(completedTrips[index], isUpcoming: false);
-        },
-      ),
+    return ListView.builder(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.all(20),
+      itemCount: completedTrips.length,
+      itemBuilder: (context, index) {
+        return _buildTripCard(completedTrips[index], isUpcoming: false);
+      },
     );
   }
 
   Widget _buildCancelledTrips(List<UserTripModel> cancelledTrips) {
     if (cancelledTrips.isEmpty) {
-      return _buildEmptyState(
-        'No cancelled trips',
-        'Your cancelled trips will appear here',
-        false,
+      return SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        child: Container(
+          height: MediaQuery.of(context).size.height * 0.6,
+          child: _buildEmptyState(
+            'No cancelled trips',
+            'Your cancelled trips will appear here',
+            false,
+          ),
+        ),
       );
     }
 
-    return RefreshIndicator(
-      onRefresh: () => context.read<TripsProvider>().fetchUserTrips(),
-      child: ListView.builder(
-        padding: const EdgeInsets.all(20),
-        itemCount: cancelledTrips.length,
-        itemBuilder: (context, index) {
-          return _buildTripCard(cancelledTrips[index], isUpcoming: false);
-        },
-      ),
+    return ListView.builder(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.all(20),
+      itemCount: cancelledTrips.length,
+      itemBuilder: (context, index) {
+        return _buildTripCard(cancelledTrips[index], isUpcoming: false);
+      },
     );
   }
 
@@ -274,81 +377,85 @@ class _TripsPageState extends State<TripsPage>
   }
 
   Widget _buildEmptyState(String title, String subtitle, bool showButton) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(40),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            // Calendar Icon
-            Container(
-              width: 80,
-              height: 80,
-              decoration: BoxDecoration(
-                color: const Color(0xFFF8F9FA),
-                borderRadius: BorderRadius.circular(40),
-              ),
-              child: const Icon(
-                Icons.calendar_today_rounded,
-                size: 40,
-                color: Color(0xFF666666),
-              ),
-            ),
+    return ListView(
+      padding: const EdgeInsets.all(40),
+      children: [
+        SizedBox(
+          height: MediaQuery.of(context).size.height * 0.3,
+        ),
+        // Calendar Icon
+        Container(
+          width: 80,
+          height: 80,
+          decoration: BoxDecoration(
+            color: const Color(0xFFF8F9FA),
+            borderRadius: BorderRadius.circular(40),
+          ),
+          child: const Icon(
+            Icons.calendar_today_rounded,
+            size: 40,
+            color: Color(0xFF666666),
+          ),
+        ),
 
-            const SizedBox(height: 24),
+        const SizedBox(height: 24),
 
-            // No trips text
-            Text(
-              title,
-              style: GoogleFonts.inter(
-                fontSize: 20,
-                fontWeight: FontWeight.w600,
-                color: Colors.black,
-              ),
-            ),
+        // No trips text
+        Text(
+          title,
+          style: GoogleFonts.inter(
+            fontSize: 20,
+            fontWeight: FontWeight.w600,
+            color: Colors.black,
+          ),
+          textAlign: TextAlign.center,
+        ),
 
-            const SizedBox(height: 8),
+        const SizedBox(height: 8),
 
-            // Hint text
-            Text(
-              subtitle,
-              style: GoogleFonts.inter(
-                fontSize: 14,
-                color: const Color(0xFF666666),
-              ),
-              textAlign: TextAlign.center,
-            ),
+        // Hint text
+        Text(
+          subtitle,
+          style: GoogleFonts.inter(
+            fontSize: 14,
+            color: const Color(0xFF666666),
+          ),
+          textAlign: TextAlign.center,
+        ),
 
-            if (showButton) ...[
-              const SizedBox(height: 32),
+        if (showButton) ...[
+          const SizedBox(height: 32),
 
-              // Book a flight button
-              SizedBox(
-                width: 140,
-                height: 40,
-                child: ElevatedButton(
-                  onPressed: _navigateToBooking,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.black,
-                    foregroundColor: Colors.white,
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(20),
-                    ),
+          // Book a flight button
+          Center(
+            child: SizedBox(
+              width: 140,
+              height: 40,
+              child: ElevatedButton(
+                onPressed: _navigateToBooking,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.black,
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
                   ),
-                  child: Text(
-                    'Book a flight',
-                    style: GoogleFonts.inter(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                    ),
+                ),
+                child: Text(
+                  'Book a flight',
+                  style: GoogleFonts.inter(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ),
-            ],
-          ],
+            ),
+          ),
+        ],
+        SizedBox(
+          height: MediaQuery.of(context).size.height * 0.3,
         ),
-      ),
+      ],
     );
   }
 
@@ -396,6 +503,8 @@ class _TripsPageState extends State<TripsPage>
                         fontWeight: FontWeight.w700,
                         color: Colors.black,
                       ),
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
                     ),
                     const SizedBox(height: 4),
                     // Reference Number
@@ -407,6 +516,8 @@ class _TripsPageState extends State<TripsPage>
                           color: const Color(0xFF666666),
                           fontWeight: FontWeight.w500,
                         ),
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: 1,
                       ),
                   ],
                 ),
@@ -501,6 +612,33 @@ class _TripsPageState extends State<TripsPage>
 
             const SizedBox(height: 8),
 
+            // Stops Row (if available)
+            if (_hasStops(booking)) ...[
+              Row(
+                children: [
+                  const Icon(
+                    Icons.location_on_rounded,
+                    size: 14,
+                    color: Color(0xFF666666),
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      _formatStops(booking),
+                      style: GoogleFonts.inter(
+                        fontSize: 13,
+                        color: const Color(0xFF666666),
+                        fontWeight: FontWeight.w500,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+            ],
+
             // Passengers and Price Row
             Row(
               children: [
@@ -543,6 +681,33 @@ class _TripsPageState extends State<TripsPage>
           Row(
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
+              // Pending tab: show Proceed to Pay when priced (totalPrice > 0) and payment pending
+              if (isPending && booking != null)
+                if (booking.totalPrice > 0 &&
+                    booking.paymentStatus == PaymentStatus.pending)
+                  Container(
+                    margin: const EdgeInsets.only(right: 8),
+                    child: ElevatedButton(
+                      onPressed: () => _payForBooking(booking),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green,
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 6),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      child: Text(
+                        'Proceed to Pay',
+                        style: GoogleFonts.inter(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
               if (isUpcoming && booking != null) ...[
                 // Pay Now button for pending payments
                 if (booking.paymentStatus == PaymentStatus.pending)
@@ -588,6 +753,32 @@ class _TripsPageState extends State<TripsPage>
                 ),
                 const SizedBox(width: 8),
               ],
+              // View Ticket button for confirmed + paid bookings (in Upcoming/Completed)
+              if (!isPending && booking != null)
+                if (booking.paymentStatus == PaymentStatus.paid)
+                  TextButton(
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (context) => TicketPage(booking: booking),
+                        ),
+                      );
+                    },
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
+                      minimumSize: Size.zero,
+                    ),
+                    child: Text(
+                      'View Ticket',
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.black,
+                        decoration: TextDecoration.underline,
+                      ),
+                    ),
+                  ),
               // View Details button
               TextButton(
                 onPressed: () => _showTripDetails(trip),
@@ -750,16 +941,62 @@ class _TripsPageState extends State<TripsPage>
   }
 
   void _payForBooking(BookingModel booking) {
-    // Navigate to payment screen for this booking
+    // Get user information for Paystack payment
+    final authProvider = context.read<AuthProvider>();
+    final user = authProvider.currentUser;
+
+    if (user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please log in to make a payment'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    // Get companyId from booking (primary source)
+    final companyId = booking.companyId;
+
+    // Debug logging
+    print('=== PAYMENT DEBUG INFO ===');
+    print('Booking ID: ${booking.id}');
+    print('Company ID: $companyId');
+    print('Company Name: ${booking.companyName}');
+    print('Deal ID: ${booking.dealId}');
+    print('User ID: ${booking.userId}');
+    print('Total Price: ${booking.totalPrice}');
+    print('========================');
+
+    // Use fallback companyId if booking.companyId is null
+    final finalCompanyId = companyId ?? 1; // Fallback to company ID 1
+
+    if (companyId == null) {
+      print(
+          'WARNING: Company ID is null, using fallback company ID: $finalCompanyId');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+              'Using default company for payment (Company ID: $finalCompanyId)'),
+          backgroundColor: Colors.orange,
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    }
+
+    // Navigate to Paystack payment screen
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => PaymentScreen(
+        builder: (context) => InAppCheckoutScreen(
           bookingId: booking.id ?? '',
           amount: booking.totalPrice,
           currency: 'USD',
-          // Note: You'll need to get the client secret from the booking
-          // This might require an API call to create a payment intent
+          email: user.email ?? '',
+          companyId:
+              finalCompanyId, // Dynamic companyId from booking with fallback
+          preferredPaymentMethod:
+              'card', // Default to card, can be made configurable
         ),
       ),
     ).then((result) {
@@ -904,6 +1141,8 @@ class _TripsPageState extends State<TripsPage>
                       'Route',
                       '${booking.departure ?? 'N/A'} → ${booking.destination ?? 'N/A'}'
                     ),
+                    if (_hasStops(booking))
+                      ('Stops', _formatStops(booking)),
                     (
                       'Date',
                       _formatDate(booking.departureDate ?? DateTime.now())
@@ -1130,6 +1369,30 @@ class _TripsPageState extends State<TripsPage>
       'Dec'
     ];
     return '${date.day} ${months[date.month - 1]} ${date.year}';
+  }
+
+  /// Check if booking has stops data
+  bool _hasStops(BookingModel booking) {
+    return booking.stops.isNotEmpty;
+  }
+
+  /// Format stops for display
+  String _formatStops(BookingModel booking) {
+    if (booking.stops.isEmpty) {
+      return 'No stops';
+    }
+    
+    if (booking.stops.length == 1) {
+      return '1 stop: ${booking.stops.first.stopName}';
+    }
+    
+    // For multiple stops, show count and first few names
+    final stopNames = booking.stops.take(2).map((stop) => stop.stopName).join(', ');
+    if (booking.stops.length == 2) {
+      return '2 stops: $stopNames';
+    }
+    
+    return '${booking.stops.length} stops: $stopNames...';
   }
 
   String _getBookingStatusDisplay(BookingStatus status) {

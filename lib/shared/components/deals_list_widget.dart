@@ -403,7 +403,7 @@ class _DealsListWidgetState extends State<DealsListWidget> {
             );
           },
         ),
-        
+
         // Show cached deals if available
         if (provider.deals.isNotEmpty) ...[
           Expanded(
@@ -413,7 +413,8 @@ class _DealsListWidgetState extends State<DealsListWidget> {
           // No cached data available
           Expanded(
             child: OfflineFallbackWidget(
-              message: provider.errorMessage ?? 'No internet connection. Please check your network.',
+              message: provider.errorMessage ??
+                  'No internet connection. Please check your network.',
               onRetry: () {
                 provider.loadDeals(
                   searchQuery: widget.searchQuery,

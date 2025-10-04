@@ -23,10 +23,12 @@ class PaystackIntegrationExample extends StatefulWidget {
   });
 
   @override
-  State<PaystackIntegrationExample> createState() => _PaystackIntegrationExampleState();
+  State<PaystackIntegrationExample> createState() =>
+      _PaystackIntegrationExampleState();
 }
 
-class _PaystackIntegrationExampleState extends State<PaystackIntegrationExample> {
+class _PaystackIntegrationExampleState
+    extends State<PaystackIntegrationExample> {
   final PaystackService _paystackService = PaystackService();
   final bool _isLoading = false;
   String? _errorMessage;
@@ -45,14 +47,14 @@ class _PaystackIntegrationExampleState extends State<PaystackIntegrationExample>
           children: [
             // Your existing payment summary UI
             _buildPaymentSummary(),
-            
+
             const SizedBox(height: 24),
-            
+
             // Payment method selection
             _buildPaymentMethodSelection(),
-            
+
             const SizedBox(height: 24),
-            
+
             // Error message
             if (_errorMessage != null)
               Container(
@@ -67,9 +69,9 @@ class _PaystackIntegrationExampleState extends State<PaystackIntegrationExample>
                   style: TextStyle(color: Colors.red.shade700),
                 ),
               ),
-            
+
             const SizedBox(height: 16),
-            
+
             // Pay button
             _buildPayButton(),
           ],
@@ -140,7 +142,7 @@ class _PaystackIntegrationExampleState extends State<PaystackIntegrationExample>
               ),
             ),
             const SizedBox(height: 16),
-            
+
             // Card Payment Option
             _buildPaymentOption(
               icon: Icons.credit_card,
@@ -148,9 +150,9 @@ class _PaystackIntegrationExampleState extends State<PaystackIntegrationExample>
               subtitle: 'Visa, Mastercard, Verve',
               onTap: () => _processCardPayment(),
             ),
-            
+
             const SizedBox(height: 12),
-            
+
             // M-Pesa Payment Option
             _buildPaymentOption(
               icon: Icons.phone_android,

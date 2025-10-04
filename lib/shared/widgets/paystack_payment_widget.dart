@@ -14,6 +14,7 @@ class PaystackPaymentWidget extends StatefulWidget {
   final VoidCallback? onSuccess;
   final VoidCallback? onFailure;
   final VoidCallback? onCancel;
+  final String? preferredPaymentMethod;
 
   const PaystackPaymentWidget({
     super.key,
@@ -27,7 +28,8 @@ class PaystackPaymentWidget extends StatefulWidget {
     this.metadata,
     this.onSuccess,
     this.onFailure,
-    this.onCancel, required Function(PaystackResponse p1) onPaymentSuccess, required VoidCallback onPaymentCancelled, String? preferredPaymentMethod, required Function(String p1) onPaymentError,
+    this.onCancel,
+    this.preferredPaymentMethod,
   });
 
   @override
@@ -97,9 +99,9 @@ class _PaystackPaymentWidgetState extends State<PaystackPaymentWidget> {
               ),
             ],
           ),
-          
+
           const SizedBox(height: 20),
-          
+
           // Payment Details
           Container(
             padding: const EdgeInsets.all(16),
@@ -122,7 +124,8 @@ class _PaystackPaymentWidgetState extends State<PaystackPaymentWidget> {
                       ),
                     ),
                     Text(
-                      _paystackService.formatAmount(widget.amount, widget.currency),
+                      _paystackService.formatAmount(
+                          widget.amount, widget.currency),
                       style: const TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
@@ -180,9 +183,9 @@ class _PaystackPaymentWidgetState extends State<PaystackPaymentWidget> {
               ],
             ),
           ),
-          
+
           const SizedBox(height: 20),
-          
+
           // Error Message
           if (_errorMessage != null)
             Container(
@@ -213,7 +216,7 @@ class _PaystackPaymentWidgetState extends State<PaystackPaymentWidget> {
                 ],
               ),
             ),
-          
+
           // Payment Buttons
           Row(
             children: [
@@ -227,7 +230,8 @@ class _PaystackPaymentWidgetState extends State<PaystackPaymentWidget> {
                           height: 16,
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                            valueColor:
+                                AlwaysStoppedAnimation<Color>(Colors.white),
                           ),
                         )
                       : const Icon(Icons.credit_card, size: 18),
@@ -242,9 +246,9 @@ class _PaystackPaymentWidgetState extends State<PaystackPaymentWidget> {
                   ),
                 ),
               ),
-              
+
               const SizedBox(width: 12),
-              
+
               // M-Pesa Payment Button (if currency is KES)
               if (widget.currency.toUpperCase() == 'KES')
                 Expanded(
@@ -256,11 +260,13 @@ class _PaystackPaymentWidgetState extends State<PaystackPaymentWidget> {
                             height: 16,
                             child: CircularProgressIndicator(
                               strokeWidth: 2,
-                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                              valueColor:
+                                  AlwaysStoppedAnimation<Color>(Colors.white),
                             ),
                           )
                         : const Icon(Icons.phone_android, size: 18),
-                    label: Text(_isLoading ? 'Processing...' : 'Pay with M-Pesa'),
+                    label:
+                        Text(_isLoading ? 'Processing...' : 'Pay with M-Pesa'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.green,
                       foregroundColor: Colors.white,
@@ -273,9 +279,9 @@ class _PaystackPaymentWidgetState extends State<PaystackPaymentWidget> {
                 ),
             ],
           ),
-          
+
           const SizedBox(height: 12),
-          
+
           // Cancel Button
           TextButton(
             onPressed: _isLoading ? null : widget.onCancel,
@@ -287,9 +293,9 @@ class _PaystackPaymentWidgetState extends State<PaystackPaymentWidget> {
               ),
             ),
           ),
-          
+
           const SizedBox(height: 8),
-          
+
           // Security Notice
           Row(
             children: [
@@ -335,8 +341,9 @@ class _PaystackPaymentWidgetState extends State<PaystackPaymentWidget> {
 
       if (response.isSuccess) {
         // Verify payment with backend
-        final verification = await _paystackService.verifyPayment(response.reference!);
-        
+        final verification =
+            await _paystackService.verifyPayment(response.reference!);
+
         if (verification['status'] == 'succeeded') {
           Get.snackbar(
             'Success',
@@ -406,8 +413,9 @@ class _PaystackPaymentWidgetState extends State<PaystackPaymentWidget> {
 
       if (response.isSuccess) {
         // Verify payment with backend
-        final verification = await _paystackService.verifyPayment(response.reference!);
-        
+        final verification =
+            await _paystackService.verifyPayment(response.reference!);
+
         if (verification['status'] == 'succeeded') {
           Get.snackbar(
             'Success',
@@ -453,7 +461,7 @@ class _PaystackPaymentWidgetState extends State<PaystackPaymentWidget> {
 
   Future<String?> _getPhoneNumber() async {
     String? phoneNumber;
-    
+
     await Get.dialog(
       AlertDialog(
         title: const Text('Enter Phone Number'),
@@ -478,7 +486,7 @@ class _PaystackPaymentWidgetState extends State<PaystackPaymentWidget> {
         ],
       ),
     );
-    
+
     return phoneNumber;
   }
 }

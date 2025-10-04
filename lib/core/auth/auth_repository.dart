@@ -45,9 +45,31 @@ class AuthRepository {
     }
   }
 
+  // Phone/Password Authentication (Backend-Only)
+  Future<AuthModel> signInWithPhone(String phoneNumber, String password) async {
+    try {
+      dev.log('Starting backend phone authentication for: $phoneNumber',
+          name: 'AuthRepository');
+
+      // Use backend-only phone authentication
+      return await _loginBackendOnlyPhone(phoneNumber, password);
+    } catch (e, s) {
+      dev.log('Error during signInWithPhone: $e', name: 'AuthRepository-ERROR');
+      dev.log('Stack trace: $s', name: 'AuthRepository-ERROR');
+
+      // Re-throw the original exception to preserve specific error messages
+      if (e is AuthException || e is ValidationException) {
+        rethrow;
+      } else {
+        throw AuthException(
+            'An unexpected error occurred during phone sign-in. Please try again.');
+      }
+    }
+  }
+
   // Email/Password Signup
   Future<AuthModel> signUpWithEmail(
-      String email, String password, String firstName, String lastName) async {
+      String email, String password, String firstName, String lastName, {String? phoneNumber}) async {
     dev.log('=== SIGNUP METHOD CALLED ===', name: 'AuthRepository-DEBUG');
     try {
       dev.log('=== STARTING BACKEND SIGNUP PROCESS ===',
@@ -56,7 +78,7 @@ class AuthRepository {
           name: 'AuthRepository-DEBUG');
 
       // Use backend-only registration
-      return await _registerBackendOnly(email, password, firstName, lastName);
+      return await _registerBackendOnly(email, password, firstName, lastName, phoneNumber: phoneNumber);
     } catch (e, stackTrace) {
       dev.log('Unexpected error during sign up: $e',
           name: 'AuthRepository-ERROR');
@@ -200,20 +222,79 @@ class AuthRepository {
     }
   }
 
+  // Backend-only phone login
+  Future<AuthModel> _loginBackendOnlyPhone(String phoneNumber, String password) async {
+    try {
+      // Removed debug print
+
+      final response = await _apiClient.post('/api/auth/login/phone', {
+        'phoneNumber': phoneNumber,
+        'password': password,
+      });
+
+      // Removed debug print
+
+      // Create auth data from backend response using fromBackendJson
+      final authData = AuthModel.fromBackendJson(response);
+
+      // Store the token immediately
+      await _apiClient.saveAuth(authData);
+      await _saveLocalAuthData(authData);
+
+      // Update SessionManager immediately after storing token
+      try {
+        final sessionManager = SessionManager();
+        if (kDebugMode) {
+          dev.log('AuthRepository: Updating SessionManager after phone login',
+              name: 'auth_repository');
+        }
+        // Note: SessionManager will be re-initialized by AuthProvider
+      } catch (e) {
+        if (kDebugMode) {
+          dev.log('AuthRepository: Error updating SessionManager: $e',
+              name: 'auth_repository');
+        }
+      }
+
+      // Removed debug print
+      return authData;
+    } catch (e) {
+      // Removed debug print
+      // Re-throw the original exception to preserve the specific error message
+      if (e is AuthException) {
+        rethrow;
+      } else {
+        throw AuthException('Phone login failed: $e');
+      }
+    }
+  }
+
   // Register user with backend only
   Future<AuthModel> _registerBackendOnly(
-      String email, String password, String firstName, String lastName) async {
+      String email, String password, String firstName, String lastName, {String? phoneNumber}) async {
     try {
       // Removed debug print
 
       // Create user directly in backend
-      final response = await _apiClient.post('/api/auth/register', {
+      final requestData = {
         'email': email,
         'password': password,
         'firstName': firstName,
         'lastName': lastName,
         'authProvider': 'email', // Email/password authentication
-      });
+      };
+      
+      // Add phone number if provided
+      if (phoneNumber != null && phoneNumber.isNotEmpty) {
+        requestData['phoneNumber'] = phoneNumber;
+        // Extract country code from phone number
+        if (phoneNumber.startsWith('+')) {
+          final countryCode = phoneNumber.substring(0, phoneNumber.length - phoneNumber.substring(1).replaceAll(RegExp(r'[^\d]'), '').length);
+          requestData['countryCode'] = countryCode;
+        }
+      }
+      
+      final response = await _apiClient.post('/api/auth/register', requestData);
 
       // Removed debug print
 
@@ -294,9 +375,11 @@ class AuthRepository {
   // Phone Authentication with Twilio SMS
   Future<void> sendPhoneVerification(String phoneNumber) async {
     try {
-      dev.log('Sending SMS verification to: $phoneNumber', name: 'AuthRepository');
-      
-      final response = await _apiClient.post(AppConfig.sendSmsVerificationEndpoint, {
+      dev.log('Sending SMS verification to: $phoneNumber',
+          name: 'AuthRepository');
+
+      final response =
+          await _apiClient.post(AppConfig.sendSmsVerificationEndpoint, {
         'phoneNumber': phoneNumber,
       });
 
@@ -304,7 +387,8 @@ class AuthRepository {
         dev.log('SMS verification sent successfully', name: 'AuthRepository');
         return; // Success - no exception thrown
       } else {
-        throw AuthException(response['message'] ?? 'Failed to send verification code');
+        throw AuthException(
+            response['message'] ?? 'Failed to send verification code');
       }
     } catch (e) {
       dev.log('SMS verification error: $e', name: 'AuthRepository-ERROR');
@@ -320,7 +404,7 @@ class AuthRepository {
   Future<bool> verifySmsCode(String phoneNumber, String code) async {
     try {
       dev.log('Verifying SMS code for: $phoneNumber', name: 'AuthRepository');
-      
+
       final response = await _apiClient.post(AppConfig.verifySmsCodeEndpoint, {
         'phoneNumber': phoneNumber,
         'code': code,
@@ -338,6 +422,48 @@ class AuthRepository {
         rethrow;
       } else {
         throw AuthException('Failed to verify code: $e');
+      }
+    }
+  }
+
+  // Biometric Authentication
+  Future<AuthModel> loginWithBiometric(String biometricId, String userId, String userEmail) async {
+    try {
+      dev.log('Starting biometric authentication for user: $userEmail', name: 'AuthRepository');
+
+      final response = await _apiClient.post(AppConfig.biometricLoginEndpoint, {
+        'biometricId': biometricId,
+        'userId': userId,
+        'userEmail': userEmail,
+      });
+
+      // Create auth data from backend response using fromBackendJson
+      final authData = AuthModel.fromBackendJson(response);
+
+      // Store the token immediately
+      await _apiClient.saveAuth(authData);
+      await _saveLocalAuthData(authData);
+
+      // Update SessionManager immediately after storing token
+      try {
+        final sessionManager = SessionManager();
+        if (kDebugMode) {
+          dev.log('AuthRepository: Updating SessionManager after biometric login', name: 'auth_repository');
+        }
+      } catch (e) {
+        if (kDebugMode) {
+          dev.log('AuthRepository: Error updating SessionManager: $e', name: 'auth_repository');
+        }
+      }
+
+      dev.log('Biometric authentication successful', name: 'AuthRepository');
+      return authData;
+    } catch (e) {
+      dev.log('Biometric authentication error: $e', name: 'AuthRepository-ERROR');
+      if (e is AuthException || e is ValidationException) {
+        rethrow;
+      } else {
+        throw AuthException('Biometric authentication failed: $e');
       }
     }
   }

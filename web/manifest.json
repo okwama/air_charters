@@ -1,13 +1,61 @@
 {
-    "name": "air_charters",
-    "short_name": "air_charters",
+    "name": "Air Charterss - Charter Beyond Borders",
+    "short_name": "Air Charterss",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
     "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "description": "Book private jet charters and luxury air travel services globally. Experience premium aviation with Air Charterss comprehensive booking platform for private flights, cargo transport, and medical evacuations.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
+    "scope": "/",
+    "lang": "en",
+    "dir": "ltr",
+    "categories": [
+        "travel",
+        "business",
+        "lifestyle"
+    ],
+    "screenshots": [
+        {
+            "src": "icons/screenshot-mobile.png",
+            "sizes": "640x1136",
+            "type": "image/png",
+            "form_factor": "narrow"
+        },
+        {
+            "src": "icons/screenshot-desktop.png",
+            "sizes": "1280x720",
+            "type": "image/png",
+            "form_factor": "wide"
+        }
+    ],
+    "shortcuts": [
+        {
+            "name": "Book Charter",
+            "short_name": "Book",
+            "description": "Book a private jet charter",
+            "url": "/booking",
+            "icons": [
+                {
+                    "src": "icons/Icon-192.png",
+                    "sizes": "192x192"
+                }
+            ]
+        },
+        {
+            "name": "My Trips",
+            "short_name": "Trips",
+            "description": "View your charter trips",
+            "url": "/trips",
+            "icons": [
+                {
+                    "src": "icons/Icon-192.png",
+                    "sizes": "192x192"
+                }
+            ]
+        }
+    ],
     "icons": [
         {
             "src": "icons/Icon-192.png",

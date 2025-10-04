@@ -6,6 +6,7 @@ class DirectCharterAircraft {
   final double pricePerHour;
   final String baseAirport;
   final String baseCity;
+  final int? companyId;
   final String companyName;
   final String? imageUrl;
   final double totalPrice;
@@ -22,6 +23,7 @@ class DirectCharterAircraft {
     required this.pricePerHour,
     required this.baseAirport,
     required this.baseCity,
+    this.companyId,
     required this.companyName,
     this.imageUrl,
     required this.totalPrice,
@@ -40,6 +42,7 @@ class DirectCharterAircraft {
       pricePerHour: (json['pricePerHour'] ?? 0).toDouble(),
       baseAirport: json['baseAirport'] ?? '',
       baseCity: json['baseCity'] ?? '',
+      companyId: json['companyId'],
       companyName: json['companyName'] ?? '',
       imageUrl: json['imageUrl'],
       totalPrice: (json['totalPrice'] ?? 0).toDouble(),
@@ -59,6 +62,7 @@ class DirectCharterAircraft {
       'pricePerHour': pricePerHour,
       'baseAirport': baseAirport,
       'baseCity': baseCity,
+      'companyId': companyId,
       'companyName': companyName,
       'imageUrl': imageUrl,
       'totalPrice': totalPrice,
@@ -211,4 +215,4 @@ class DirectCharterBookingResponse {
       'message': message,
     };
   }
-} 
+}

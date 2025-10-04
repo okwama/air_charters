@@ -1,15 +1,21 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter_svg/flutter_svg.dart';
+import '../../config/theme/app_theme.dart';
 import '../../core/providers/settings_provider.dart';
 import '../../core/providers/theme_provider.dart';
+import '../../core/providers/auth_provider.dart';
 
 // Import modular widgets
 import 'widgets/user_info_section.dart';
 import 'widgets/app_preferences_section.dart';
 import 'widgets/account_security_section.dart';
 import 'widgets/support_help_section.dart';
-import 'widgets/sign_out_button.dart';
+import 'widgets/legal_section.dart';
+
+// Import enhanced dialogs
+import '../../shared/widgets/biometric_dialog.dart';
+import '../../debug/biometric_diagnostic.dart';
 
 // Import pages
 import 'pages/app_version_page.dart';
@@ -19,6 +25,11 @@ import 'pages/theme_page.dart';
 import 'pages/language_page.dart';
 import 'pages/currency_page.dart';
 import 'pages/notification_settings_page.dart';
+import 'pages/terms_of_service_page.dart';
+import 'pages/privacy_policy_page.dart';
+import 'pages/cookie_policy_page.dart';
+import 'pages/data_processing_page.dart';
+import 'pages/open_source_licenses_page.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -30,83 +41,103 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
     return Consumer<SettingsProvider>(
       builder: (context, settingsProvider, child) {
         return Scaffold(
-          backgroundColor: colorScheme.surface,
+          backgroundColor: AppTheme.backgroundColor,
           appBar: AppBar(
-            backgroundColor: colorScheme.surface,
+            backgroundColor: AppTheme.backgroundColor,
             automaticallyImplyLeading: false,
             title: Text(
               'Settings',
-              style: GoogleFonts.outfit(
-                fontWeight: FontWeight.w600,
-                color: colorScheme.onSurface,
-                fontSize: 20,
-              ),
+              style: AppTheme.heading3,
             ),
             elevation: 0,
             centerTitle: true,
           ),
-          body: Column(
+          body: Stack(
             children: [
-              Expanded(
-                child: SingleChildScrollView(
-                  child: Column(
-                    children: [
-                      const SizedBox(height: 16),
-
-                      // User Info Section
-                      const UserInfoSection(),
-
-                      const SizedBox(height: 24),
-
-                      // App Preferences Section
-                      AppPreferencesSection(
-                        onThemeTap: _showThemeDialog,
-                        onLanguageTap: _showLanguageDialog,
-                        onCurrencyTap: _showCurrencyDialog,
-                        onNotificationsTap: _showNotificationsDialog,
-                        onPrivacyTap: _showPrivacyDialog,
-                        currentTheme: settingsProvider.currentTheme,
-                        currentLanguage: settingsProvider.currentLanguage,
-                        currentCurrency: settingsProvider.currentCurrency,
-                      ),
-
-                      const SizedBox(height: 24),
-
-                      // Account & Security Section
-                      AccountSecuritySection(
-                        onChangePasswordTap: _showChangePasswordDialog,
-                        onBiometricTap: _showBiometricDialog,
-                        onExportDataTap: _exportUserData,
-                        onDeleteAccountTap: _showDeleteAccountDialog,
-                      ),
-
-                      const SizedBox(height: 24),
-
-                      // Support & Help Section
-                      SupportHelpSection(
-                        onFAQTap: _showFAQ,
-                        onContactSupportTap: _contactSupport,
-                        onAppTutorialTap: _showAppTutorial,
-                        onRateAppTap: _rateApp,
-                        onAppVersionTap: _showAppVersion,
-                      ),
-
-                      const SizedBox(height: 32),
-                    ],
+              // Settings SVG Background
+              Positioned(
+                top: 80,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                child: Opacity(
+                  opacity: 0.08,
+                  child: SvgPicture.asset(
+                    'assets/icons/settings.svg',
+                    fit: BoxFit.cover,
                   ),
                 ),
               ),
+              // Main content
+              Column(
+                children: [
+                  Expanded(
+                    child: SingleChildScrollView(
+                      child: Column(
+                        children: [
+                          const SizedBox(height: 16),
 
-              // Sign Out Button at bottom
-              const SignOutButton(),
+                          // User Info Section
+                          const UserInfoSection(),
 
-              const SizedBox(height: 32),
+                          const SizedBox(height: 24),
+
+                          // App Preferences Section
+                          AppPreferencesSection(
+                            onThemeTap: _showThemeDialog,
+                            onLanguageTap: _showLanguageDialog,
+                            onCurrencyTap: _showCurrencyDialog,
+                            onNotificationsTap: _showNotificationsDialog,
+                            onPrivacyTap: _showPrivacyDialog,
+                            currentTheme: settingsProvider.currentTheme,
+                            currentLanguage: settingsProvider.currentLanguage,
+                            currentCurrency: settingsProvider.currentCurrency,
+                          ),
+
+                          const SizedBox(height: 24),
+
+                          // Account & Security Section
+                          AccountSecuritySection(
+                            onChangePasswordTap: _showChangePasswordDialog,
+                            onBiometricTap: _showBiometricDialog,
+                            onExportDataTap: _exportUserData,
+                            onDeleteAccountTap: _showDeleteAccountDialog,
+                            onBiometricDiagnosticTap: _showBiometricDiagnostic,
+                          ),
+
+                          const SizedBox(height: 24),
+
+                          // Legal & Policies Section
+                          LegalSection(
+                            onTermsOfServiceTap: _showTermsOfService,
+                            onPrivacyPolicyTap: _showPrivacyPolicy,
+                            onCookiePolicyTap: _showCookiePolicy,
+                            onDataProcessingTap: _showDataProcessing,
+                            onLicensesTap: _showOpenSourceLicenses,
+                          ),
+
+                          const SizedBox(height: 24),
+
+                          // Support & Help Section
+                          SupportHelpSection(
+                            onFAQTap: _showFAQ,
+                            onContactSupportTap: _contactSupport,
+                            onAppTutorialTap: _showAppTutorial,
+                            onRateAppTap: _rateApp,
+                            onAppVersionTap: _showAppVersion,
+                          ),
+
+                          const SizedBox(height: 32),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 32),
+                ],
+              ),
             ],
           ),
         );
@@ -132,8 +163,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
                   content: Text(
-                      'Theme changed to ${theme == 'auto' ? 'Auto (System)' : theme == 'light' ? 'Light Mode' : 'Dark Mode'}'),
-                  backgroundColor: Colors.green,
+                    'Theme changed to ${theme == 'auto' ? 'Auto (System)' : theme == 'light' ? 'Light Mode' : 'Dark Mode'}',
+                    style: AppTheme.bodyMedium.copyWith(color: Colors.white),
+                  ),
+                  backgroundColor: AppTheme.successColor,
                 ),
               );
             }
@@ -156,9 +189,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
             if (context.mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content:
-                      Text('Language changed to ${_getLanguageName(language)}'),
-                  backgroundColor: Colors.green,
+                  content: Text(
+                    'Language changed to ${_getLanguageName(language)}',
+                    style: AppTheme.bodyMedium.copyWith(color: Colors.white),
+                  ),
+                  backgroundColor: AppTheme.successColor,
                 ),
               );
             }
@@ -181,9 +216,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
             if (context.mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content:
-                      Text('Currency changed to ${_getCurrencyName(currency)}'),
-                  backgroundColor: Colors.green,
+                  content: Text(
+                    'Currency changed to ${_getCurrencyName(currency)}',
+                    style: AppTheme.bodyMedium.copyWith(color: Colors.white),
+                  ),
+                  backgroundColor: AppTheme.successColor,
                 ),
               );
             }
@@ -254,33 +291,44 @@ class _SettingsScreenState extends State<SettingsScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Privacy Settings'),
+        backgroundColor: AppTheme.backgroundColor,
+        title: Text('Privacy Settings', style: AppTheme.heading3),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             SwitchListTile(
-              title: const Text('Profile Visibility'),
-              subtitle: const Text('Make your profile visible to others'),
+              title: Text('Profile Visibility', style: AppTheme.bodyMedium),
+              subtitle: Text('Make your profile visible to others',
+                  style: AppTheme.bodySmall),
               value: false, // TODO: Get from SettingsProvider
               onChanged: (value) {
                 // TODO: Implement privacy toggle
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                      content: Text(
-                          'Profile visibility ${value ? 'enabled' : 'disabled'}')),
+                    content: Text(
+                      'Profile visibility ${value ? 'enabled' : 'disabled'}',
+                      style: AppTheme.bodyMedium.copyWith(color: Colors.white),
+                    ),
+                    backgroundColor: AppTheme.primaryColor,
+                  ),
                 );
               },
             ),
             SwitchListTile(
-              title: const Text('Analytics'),
-              subtitle: const Text('Help improve the app with analytics'),
+              title: Text('Analytics', style: AppTheme.bodyMedium),
+              subtitle: Text('Help improve the app with analytics',
+                  style: AppTheme.bodySmall),
               value: true, // Default to true
               onChanged: (value) {
                 // TODO: Implement analytics toggle
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                      content:
-                          Text('Analytics ${value ? 'enabled' : 'disabled'}')),
+                    content: Text(
+                      'Analytics ${value ? 'enabled' : 'disabled'}',
+                      style: AppTheme.bodyMedium.copyWith(color: Colors.white),
+                    ),
+                    backgroundColor: AppTheme.primaryColor,
+                  ),
                 );
               },
             ),
@@ -289,7 +337,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Done'),
+            style: TextButton.styleFrom(
+              foregroundColor: AppTheme.primaryColor,
+            ),
+            child: Text('Done',
+                style:
+                    AppTheme.bodyMedium.copyWith(fontWeight: FontWeight.w600)),
           ),
         ],
       ),
@@ -304,34 +357,41 @@ class _SettingsScreenState extends State<SettingsScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Change Password'),
+        backgroundColor: AppTheme.backgroundColor,
+        title: Text('Change Password', style: AppTheme.heading3),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             TextField(
               controller: currentPasswordController,
               obscureText: true,
-              decoration: const InputDecoration(
+              style: AppTheme.bodyMedium,
+              decoration: AppTheme.inputDecoration.copyWith(
                 labelText: 'Current Password',
-                border: OutlineInputBorder(),
+                labelStyle: AppTheme.bodyMedium
+                    .copyWith(color: AppTheme.textSecondaryColor),
               ),
             ),
             const SizedBox(height: 16),
             TextField(
               controller: newPasswordController,
               obscureText: true,
-              decoration: const InputDecoration(
+              style: AppTheme.bodyMedium,
+              decoration: AppTheme.inputDecoration.copyWith(
                 labelText: 'New Password',
-                border: OutlineInputBorder(),
+                labelStyle: AppTheme.bodyMedium
+                    .copyWith(color: AppTheme.textSecondaryColor),
               ),
             ),
             const SizedBox(height: 16),
             TextField(
               controller: confirmPasswordController,
               obscureText: true,
-              decoration: const InputDecoration(
+              style: AppTheme.bodyMedium,
+              decoration: AppTheme.inputDecoration.copyWith(
                 labelText: 'Confirm New Password',
-                border: OutlineInputBorder(),
+                labelStyle: AppTheme.bodyMedium
+                    .copyWith(color: AppTheme.textSecondaryColor),
               ),
             ),
           ],
@@ -339,34 +399,177 @@ class _SettingsScreenState extends State<SettingsScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            style: TextButton.styleFrom(
+              foregroundColor: AppTheme.textSecondaryColor,
+            ),
+            child: Text('Cancel',
+                style:
+                    AppTheme.bodyMedium.copyWith(fontWeight: FontWeight.w600)),
           ),
           TextButton(
             onPressed: () async {
               // TODO: Implement password change
               Navigator.pop(context);
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Password changed successfully')),
+                SnackBar(
+                  content: Text(
+                    'Password changed successfully',
+                    style: AppTheme.bodyMedium.copyWith(color: Colors.white),
+                  ),
+                  backgroundColor: AppTheme.successColor,
+                ),
               );
             },
-            child: const Text('Change Password'),
+            style: TextButton.styleFrom(
+              foregroundColor: AppTheme.primaryColor,
+            ),
+            child: Text('Change Password',
+                style:
+                    AppTheme.bodyMedium.copyWith(fontWeight: FontWeight.w600)),
           ),
         ],
       ),
     );
   }
 
-  void _showBiometricDialog(BuildContext context) {
+  void _showBiometricDialog(BuildContext context) async {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    
+    // Check if biometric is available
+    final bool isAvailable = await authProvider.isBiometricAvailable();
+    if (!isAvailable) {
+      _showBiometricNotAvailableDialog(context);
+      return;
+    }
+
+    // Check if biometric is already enabled
+    final bool isEnabled = await authProvider.isBiometricEnabled();
+    final List<dynamic> availableTypes = await authProvider.getAvailableBiometrics();
+    final String biometricName = authProvider.getBiometricTypeName(availableTypes);
+    final String biometricIcon = authProvider.getBiometricIcon(availableTypes);
+
+    showBiometricDialog(
+      context: context,
+      isEnabled: isEnabled,
+      biometricName: biometricName,
+      biometricIcon: biometricIcon,
+      onEnable: () async {
+        try {
+          await authProvider.enableBiometric();
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  '$biometricName authentication enabled successfully!',
+                  style: AppTheme.bodyMedium.copyWith(color: Colors.white),
+                ),
+                backgroundColor: AppTheme.successColor,
+              ),
+            );
+          }
+        } catch (e) {
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  e.toString(),
+                  style: AppTheme.bodyMedium.copyWith(color: Colors.white),
+                ),
+                backgroundColor: AppTheme.errorColor,
+              ),
+            );
+          }
+        }
+      },
+      onDisable: () async {
+        try {
+          await authProvider.disableBiometric();
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  '$biometricName authentication disabled',
+                  style: AppTheme.bodyMedium.copyWith(color: Colors.white),
+                ),
+                backgroundColor: AppTheme.successColor,
+              ),
+            );
+          }
+        } catch (e) {
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  e.toString(),
+                  style: AppTheme.bodyMedium.copyWith(color: Colors.white),
+                ),
+                backgroundColor: AppTheme.errorColor,
+              ),
+            );
+          }
+        }
+      },
+      onCancel: () {
+        Navigator.pop(context);
+      },
+    );
+  }
+
+  void _showBiometricDiagnostic(BuildContext context) {
+    BiometricDiagnostic.showDiagnosticDialog(context);
+  }
+
+  void _showBiometricNotAvailableDialog(BuildContext context) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Biometric Authentication'),
-        content:
-            const Text('This feature will be available in a future update.'),
+        backgroundColor: AppTheme.backgroundColor,
+        title: Row(
+          children: [
+            const Text('🔒', style: TextStyle(fontSize: 24)),
+            const SizedBox(width: 12),
+            Text('Biometric Not Available', style: AppTheme.heading3),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Biometric authentication is not available on this device.',
+          style: AppTheme.bodyMedium,
+            ),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.orange.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.orange.shade200),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.warning_outlined, color: Colors.orange.shade600, size: 20),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Make sure your device supports fingerprint or face recognition',
+                      style: AppTheme.bodySmall.copyWith(color: Colors.orange.shade700),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('OK'),
+            style: TextButton.styleFrom(
+              foregroundColor: AppTheme.primaryColor,
+            ),
+            child: Text('OK',
+                style: AppTheme.bodyMedium.copyWith(fontWeight: FontWeight.w600)),
           ),
         ],
       ),
@@ -376,7 +579,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
   void _exportUserData(BuildContext context) async {
     // TODO: Implement data export
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Data export feature coming soon')),
+      SnackBar(
+        content: Text(
+          'Data export feature coming soon',
+          style: AppTheme.bodyMedium.copyWith(color: Colors.white),
+        ),
+        backgroundColor: AppTheme.primaryColor,
+      ),
     );
   }
 
@@ -387,29 +596,34 @@ class _SettingsScreenState extends State<SettingsScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Delete Account'),
+        backgroundColor: AppTheme.backgroundColor,
+        title: Text('Delete Account', style: AppTheme.heading3),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text(
+            Text(
               'This action cannot be undone. All your data will be permanently deleted.',
-              style: TextStyle(color: Colors.red),
+              style: AppTheme.bodyMedium.copyWith(color: AppTheme.errorColor),
             ),
             const SizedBox(height: 16),
             TextField(
               controller: passwordController,
               obscureText: true,
-              decoration: const InputDecoration(
+              style: AppTheme.bodyMedium,
+              decoration: AppTheme.inputDecoration.copyWith(
                 labelText: 'Enter your password',
-                border: OutlineInputBorder(),
+                labelStyle: AppTheme.bodyMedium
+                    .copyWith(color: AppTheme.textSecondaryColor),
               ),
             ),
             const SizedBox(height: 16),
             TextField(
               controller: confirmationController,
-              decoration: const InputDecoration(
+              style: AppTheme.bodyMedium,
+              decoration: AppTheme.inputDecoration.copyWith(
                 labelText: 'Type "DELETE" to confirm',
-                border: OutlineInputBorder(),
+                labelStyle: AppTheme.bodyMedium
+                    .copyWith(color: AppTheme.textSecondaryColor),
               ),
             ),
           ],
@@ -417,19 +631,31 @@ class _SettingsScreenState extends State<SettingsScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            style: TextButton.styleFrom(
+              foregroundColor: AppTheme.textSecondaryColor,
+            ),
+            child: Text('Cancel',
+                style:
+                    AppTheme.bodyMedium.copyWith(fontWeight: FontWeight.w600)),
           ),
           TextButton(
             onPressed: () async {
               // TODO: Implement account deletion
               Navigator.pop(context);
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                    content: Text('Account deletion feature coming soon')),
+                SnackBar(
+                  content: Text(
+                    'Account deletion feature coming soon',
+                    style: AppTheme.bodyMedium.copyWith(color: Colors.white),
+                  ),
+                  backgroundColor: AppTheme.primaryColor,
+                ),
               );
             },
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Delete Account'),
+            style: TextButton.styleFrom(foregroundColor: AppTheme.errorColor),
+            child: Text('Delete Account',
+                style:
+                    AppTheme.bodyMedium.copyWith(fontWeight: FontWeight.w600)),
           ),
         ],
       ),
@@ -454,12 +680,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('App Tutorial'),
-        content: const Text('Interactive tutorial will be available here.'),
+        backgroundColor: AppTheme.backgroundColor,
+        title: Text('App Tutorial', style: AppTheme.heading3),
+        content: Text(
+          'Interactive tutorial will be available here.',
+          style: AppTheme.bodyMedium,
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('OK'),
+            style: TextButton.styleFrom(
+              foregroundColor: AppTheme.primaryColor,
+            ),
+            child: Text('OK',
+                style:
+                    AppTheme.bodyMedium.copyWith(fontWeight: FontWeight.w600)),
           ),
         ],
       ),
@@ -470,12 +705,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Rate App'),
-        content: const Text('App store rating link will be available here.'),
+        backgroundColor: AppTheme.backgroundColor,
+        title: Text('Rate App', style: AppTheme.heading3),
+        content: Text(
+          'App store rating link will be available here.',
+          style: AppTheme.bodyMedium,
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('OK'),
+            style: TextButton.styleFrom(
+              foregroundColor: AppTheme.primaryColor,
+            ),
+            child: Text('OK',
+                style:
+                    AppTheme.bodyMedium.copyWith(fontWeight: FontWeight.w600)),
           ),
         ],
       ),
@@ -486,6 +730,42 @@ class _SettingsScreenState extends State<SettingsScreen> {
     Navigator.push(
       context,
       MaterialPageRoute(builder: (context) => const AppVersionPage()),
+    );
+  }
+
+  // Legal & Policies Navigation Methods
+  void _showTermsOfService(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const TermsOfServicePage()),
+    );
+  }
+
+  void _showPrivacyPolicy(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const PrivacyPolicyPage()),
+    );
+  }
+
+  void _showCookiePolicy(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const CookiePolicyPage()),
+    );
+  }
+
+  void _showDataProcessing(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const DataProcessingPage()),
+    );
+  }
+
+  void _showOpenSourceLicenses(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const OpenSourceLicensesPage()),
     );
   }
 }

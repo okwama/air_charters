@@ -2,6 +2,7 @@ enum LocationType {
   airport,
   city,
   region,
+  other,
 }
 
 class LocationModel {

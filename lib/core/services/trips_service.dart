@@ -33,7 +33,8 @@ class TripsService {
 
       return [];
     } catch (e) {
-      throw NetworkException('Failed to fetch pending bookings: ${e.toString()}');
+      throw NetworkException(
+          'Failed to fetch pending bookings: ${e.toString()}');
     }
   }
 

@@ -38,7 +38,7 @@ class CharterDealsProvider extends ChangeNotifier {
   bool _hasMoreData = true;
   int _currentPage = 1;
   static const int _pageSize = 10;
-  
+
   // Debouncing and fallback UI support
   Timer? _debounceTimer;
   bool _isOfflineMode = false;
@@ -226,9 +226,9 @@ class CharterDealsProvider extends ChangeNotifier {
         dev.log('CharterDealsProvider: Unexpected error: $e',
             name: 'deals_provider');
       }
-      
+
       // Check if it's a timeout or network error
-      if (e.toString().contains('TimeoutException') || 
+      if (e.toString().contains('TimeoutException') ||
           e.toString().contains('SocketException')) {
         _handleNetworkError('Connection timeout. Showing cached data.');
       } else {
@@ -243,11 +243,13 @@ class CharterDealsProvider extends ChangeNotifier {
     if (_deals.isNotEmpty && _lastSuccessfulLoad != null) {
       // Show cached data with offline indicator
       _isOfflineMode = true;
-      _errorMessage = '$message (Showing cached data from ${_formatLastLoadTime()})';
+      _errorMessage =
+          '$message (Showing cached data from ${_formatLastLoadTime()})';
       _setState(CharterDealsState.offline);
-      
+
       if (kDebugMode) {
-        dev.log('CharterDealsProvider: Showing ${_deals.length} cached deals in offline mode',
+        dev.log(
+            'CharterDealsProvider: Showing ${_deals.length} cached deals in offline mode',
             name: 'deals_provider');
       }
     } else {
@@ -260,10 +262,10 @@ class CharterDealsProvider extends ChangeNotifier {
   /// Format last load time for display
   String _formatLastLoadTime() {
     if (_lastSuccessfulLoad == null) return 'unknown time';
-    
+
     final now = DateTime.now();
     final difference = now.difference(_lastSuccessfulLoad!);
-    
+
     if (difference.inMinutes < 1) {
       return 'just now';
     } else if (difference.inMinutes < 60) {

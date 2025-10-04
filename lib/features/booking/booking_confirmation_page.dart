@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/providers/booking_provider.dart';
 import '../../core/providers/auth_provider.dart';
+import '../../core/error/network_error_handler.dart';
 import '../../shared/widgets/loading_system.dart';
-import 'payment/paystack_payment_screen.dart';
+import '../../shared/utils/currency_utils.dart';
+import 'payment/in_app_checkout_screen.dart';
 
 class BookingConfirmationPage extends StatefulWidget {
   final Map<String, dynamic> bookingData;
@@ -555,8 +557,9 @@ class _BookingConfirmationPageState extends State<BookingConfirmationPage> {
                         fontFamily: 'Inter',
                       ),
                     ),
-                    Text(
-                      '\$${widget.bookingData['totalAmount']?.toStringAsFixed(2) ?? '0.00'}',
+                    CurrencyText(
+                      amount: widget.bookingData['totalAmount'] ?? 0.0,
+                      currency: 'KES', // Standardize to KES
                       style: const TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.bold,
@@ -997,12 +1000,12 @@ class _BookingConfirmationPageState extends State<BookingConfirmationPage> {
         final result = await Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => PaystackPaymentScreen(
-              bookingId: widget.bookingData['id'] ??
-                  widget.bookingData['reference'] ??
-                  'booking_${DateTime.now().millisecondsSinceEpoch}',
+            builder: (context) => InAppCheckoutScreen(
+              bookingId: widget.bookingData['id']?.toString() ??
+                  widget.bookingData['reference']?.toString() ??
+                  'TEMP_${DateTime.now().millisecondsSinceEpoch}',
               amount: widget.bookingData['totalAmount'] ?? 0.0,
-              currency: 'KES', // Changed to KES for Kenya
+              currency: 'USD',
               email: authProvider.currentUser?.email ?? 'customer@example.com',
               companyId: widget.bookingData['companyId'] ?? 1,
               preferredPaymentMethod: 'card',
@@ -1025,7 +1028,8 @@ class _BookingConfirmationPageState extends State<BookingConfirmationPage> {
 
       // Show error dialog
       if (mounted) {
-        _showErrorDialog('Payment setup failed: ${e.toString()}');
+        final errorResult = NetworkErrorResult.fromException(e);
+        _showErrorDialog('Payment setup failed: ${errorResult.message}');
       }
     }
   }
@@ -1069,12 +1073,12 @@ class _BookingConfirmationPageState extends State<BookingConfirmationPage> {
         final result = await Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => PaystackPaymentScreen(
-              bookingId: widget.bookingData['id'] ??
-                  widget.bookingData['reference'] ??
-                  'booking_${DateTime.now().millisecondsSinceEpoch}',
+            builder: (context) => InAppCheckoutScreen(
+              bookingId: widget.bookingData['id']?.toString() ??
+                  widget.bookingData['reference']?.toString() ??
+                  'TEMP_${DateTime.now().millisecondsSinceEpoch}',
               amount: widget.bookingData['totalAmount'] ?? 0.0,
-              currency: 'KES',
+              currency: 'USD',
               email: authProvider.currentUser?.email ?? 'customer@example.com',
               companyId: widget.bookingData['companyId'] ?? 1,
               preferredPaymentMethod: 'mpesa',
@@ -1097,7 +1101,8 @@ class _BookingConfirmationPageState extends State<BookingConfirmationPage> {
 
       // Show error dialog
       if (mounted) {
-        _showErrorDialog('Payment setup failed: ${e.toString()}');
+        final errorResult = NetworkErrorResult.fromException(e);
+        _showErrorDialog('Payment setup failed: ${errorResult.message}');
       }
     }
   }
@@ -1149,8 +1154,9 @@ class _BookingConfirmationPageState extends State<BookingConfirmationPage> {
               const SizedBox(height: 12),
 
               // Amount
-              Text(
-                '\$${(widget.bookingData['totalAmount'] ?? 0.0).toStringAsFixed(2)}',
+              CurrencyText(
+                amount: widget.bookingData['totalAmount'] ?? 0.0,
+                currency: 'KES',
                 style: TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.bold,

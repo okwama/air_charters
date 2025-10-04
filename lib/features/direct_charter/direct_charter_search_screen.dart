@@ -4,8 +4,10 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:air_charters/features/plan/locations.dart';
 import 'package:air_charters/shared/widgets/calendar_selector.dart';
 import 'package:air_charters/shared/widgets/custom_button.dart';
+import 'package:air_charters/shared/widgets/aircraft_unavailable_modal.dart';
 import '../../core/models/location_model.dart';
 import '../../core/services/direct_charter_service.dart';
+import '../../core/error/network_error_handler.dart';
 import 'direct_charter_results_screen.dart';
 
 class DirectCharterWrapper extends StatefulWidget {
@@ -564,8 +566,9 @@ class _DirectCharterSearchScreenState extends State<DirectCharterSearchScreen> {
         _isLoadingDeals = false;
       });
 
-      // Show error modal
-      _showErrorModal(e.toString());
+      // Show error modal with user-friendly message
+      final errorResult = NetworkErrorResult.fromException(e);
+      _showErrorModal(errorResult.message);
     }
   }
 
@@ -647,97 +650,19 @@ class _DirectCharterSearchScreenState extends State<DirectCharterSearchScreen> {
   }
 
   void _showNoAircraftModal() {
-    showModalBottomSheet(
+    showAircraftUnavailableModal(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      isDismissible: true,
-      builder: (context) => Container(
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.only(
-            topLeft: Radius.circular(24),
-            topRight: Radius.circular(24),
-          ),
-        ),
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Handle bar
-            Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: Colors.grey[300],
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-
-            const SizedBox(height: 24),
-
-            // Plane icon
-            Container(
-              width: 80,
-              height: 80,
-              decoration: BoxDecoration(
-                color: Colors.grey[100],
-                borderRadius: BorderRadius.circular(40),
-              ),
-              child: Icon(
-                Icons.flight_takeoff,
-                size: 40,
-                color: Colors.grey[600],
-              ),
-            ),
-
-            const SizedBox(height: 24),
-
-            Text(
-              'No aircraft available',
-              style: GoogleFonts.inter(
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-                color: Colors.black,
-              ),
-            ),
-
-            const SizedBox(height: 8),
-
-            Text(
-              'No direct charter aircraft are available for your selected route and dates.',
-              style: GoogleFonts.inter(
-                fontSize: 16,
-                color: Colors.grey[600],
-              ),
-              textAlign: TextAlign.center,
-            ),
-
-            const SizedBox(height: 16),
-
-            Text(
-              'Try adjusting your dates or contact us for custom arrangements.',
-              style: GoogleFonts.inter(
-                fontSize: 16,
-                color: Colors.grey[600],
-              ),
-              textAlign: TextAlign.center,
-            ),
-
-            const SizedBox(height: 32),
-
-            CustomButton(
-              text: 'Contact Us',
-              onPressed: () {
-                Navigator.pop(context);
-                _contactUs();
-              },
-            ),
-
-            const SizedBox(height: 16),
-          ],
-        ),
-      ),
+      title: 'Aircraft Not Available',
+      message:
+          'No direct charter aircraft are available for your selected route and dates.',
+      subMessage:
+          'Try adjusting your dates or send us an inquiry for custom arrangements.',
+      origin: _originLocation,
+      destination: _destinationLocation,
+      departureDate: _departureDate,
+      returnDate: _returnDate,
+      passengerCount: _passengerCount,
+      isRoundTrip: _isRoundTrip,
     );
   }
 
@@ -821,19 +746,6 @@ class _DirectCharterSearchScreenState extends State<DirectCharterSearchScreen> {
             const SizedBox(height: 16),
           ],
         ),
-      ),
-    );
-  }
-
-  void _contactUs() {
-    // TODO: Implement contact functionality
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          'Contact feature will be implemented soon!',
-          style: GoogleFonts.inter(color: Colors.white),
-        ),
-        backgroundColor: Colors.blue,
       ),
     );
   }

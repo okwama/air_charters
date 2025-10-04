@@ -165,7 +165,8 @@ class ApiClient {
         final errorMessage = body['message'] ?? 'Resource not found.';
         throw ServerException(errorMessage);
       case 400:
-        final errorMessage = body['message'] ?? 'Bad request. Please check your input.';
+        final errorMessage =
+            body['message'] ?? 'Bad request. Please check your input.';
         throw ServerException(errorMessage);
       case 422:
         throw ValidationException(body['message'] ?? 'Validation failed.');
@@ -217,18 +218,19 @@ class ApiClient {
   }
 
   // Retry logic with exponential backoff
-  Future<dynamic> _retryRequest(Future<dynamic> Function() request, {int maxRetries = 3}) async {
+  Future<dynamic> _retryRequest(Future<dynamic> Function() request,
+      {int maxRetries = 3}) async {
     for (int attempt = 0; attempt < maxRetries; attempt++) {
       try {
         return await request();
       } catch (e) {
         print('🔄 ApiClient: Attempt ${attempt + 1}/$maxRetries failed: $e');
-        
+
         if (attempt == maxRetries - 1) {
           print('❌ ApiClient: All retry attempts failed, throwing error');
           throw _handleError(e);
         }
-        
+
         // Exponential backoff: 1s, 2s, 4s
         final delay = Duration(seconds: 1 << attempt);
         print('⏳ ApiClient: Waiting ${delay.inSeconds}s before retry...');

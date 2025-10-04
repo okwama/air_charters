@@ -2,6 +2,10 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 // Paystack handled server-side - no client SDK needed
 import '../../config/env/app_config.dart';
+import '../../shared/utils/currency_utils.dart';
+import '../../shared/utils/session_manager.dart';
+import '../error/network_error_handler.dart';
+import '../logging/app_logger.dart';
 
 class PaystackService {
   static final PaystackService _instance = PaystackService._internal();
@@ -9,33 +13,6 @@ class PaystackService {
   PaystackService._internal();
 
   // Paystack is handled server-side - no client initialization needed
-
-  /// Get Paystack public key from backend
-  Future<String> _getPublicKeyFromBackend() async {
-    try {
-      final response = await http.get(
-        Uri.parse('${AppConfig.baseUrl}/api/payments/paystack/info'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer ${AppConfig.authToken}',
-        },
-      );
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        if (data['success'] == true) {
-          return data['data']['publicKey'];
-        } else {
-          throw Exception(data['message'] ?? 'Failed to get public key');
-        }
-      } else {
-        throw Exception('HTTP ${response.statusCode}: ${response.body}');
-      }
-    } catch (e) {
-      print('Error getting public key: $e');
-      rethrow;
-    }
-  }
 
   /// Initialize a payment with the backend
   Future<Map<String, dynamic>> initializePayment({
@@ -53,7 +30,8 @@ class PaystackService {
         Uri.parse('${AppConfig.baseUrl}/api/payments/paystack/initialize'),
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer ${AppConfig.authToken}',
+          'Authorization':
+              await SessionManager().getAuthorizationHeader() ?? '',
         },
         body: jsonEncode({
           'amount': amount,
@@ -78,8 +56,14 @@ class PaystackService {
         throw Exception('HTTP ${response.statusCode}: ${response.body}');
       }
     } catch (e) {
-      print('Payment initialization error: $e');
-      rethrow;
+      AppLogger().log(
+        'Payment initialization failed',
+        level: LogLevel.error,
+        category: LogCategory.payment,
+        error: e,
+      );
+      final errorResult = NetworkErrorResult.fromException(e);
+      throw Exception('Payment initialization failed: ${errorResult.message}');
     }
   }
 
@@ -107,18 +91,29 @@ class PaystackService {
         metadata: metadata,
       );
 
-      // Return success response with payment data
-      return PaystackResponse(
-        status: 'success',
-        reference: paymentData['reference'],
-        message: 'Payment initialized successfully',
-        data: paymentData,
-      );
+      // Verify payment was initialized successfully
+      if (paymentData['reference'] != null &&
+          paymentData['authorization_url'] != null) {
+        return PaystackResponse(
+          status: 'success',
+          reference: paymentData['reference'],
+          message: 'Payment initialized successfully',
+          data: paymentData,
+        );
+      } else {
+        throw Exception('Invalid payment initialization response');
+      }
     } catch (e) {
-      print('Card payment error: $e');
+      AppLogger().log(
+        'Card payment failed',
+        level: LogLevel.error,
+        category: LogCategory.payment,
+        error: e,
+      );
+      final errorResult = NetworkErrorResult.fromException(e);
       return PaystackResponse(
         status: 'failed',
-        message: e.toString(),
+        message: errorResult.message,
       );
     }
   }
@@ -160,10 +155,16 @@ class PaystackService {
         data: paymentData,
       );
     } catch (e) {
-      print('M-Pesa payment error: $e');
+      AppLogger().log(
+        'M-Pesa payment failed',
+        level: LogLevel.error,
+        category: LogCategory.payment,
+        error: e,
+      );
+      final errorResult = NetworkErrorResult.fromException(e);
       return PaystackResponse(
         status: 'failed',
-        message: e.toString(),
+        message: errorResult.message,
       );
     }
   }
@@ -176,7 +177,8 @@ class PaystackService {
             '${AppConfig.baseUrl}/api/payments/paystack/verify/$reference'),
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer ${AppConfig.authToken}',
+          'Authorization':
+              await SessionManager().getAuthorizationHeader() ?? '',
         },
       );
 
@@ -191,8 +193,14 @@ class PaystackService {
         throw Exception('HTTP ${response.statusCode}: ${response.body}');
       }
     } catch (e) {
-      print('Payment verification error: $e');
-      rethrow;
+      AppLogger().log(
+        'Payment verification failed',
+        level: LogLevel.error,
+        category: LogCategory.payment,
+        error: e,
+      );
+      final errorResult = NetworkErrorResult.fromException(e);
+      throw Exception('Payment verification failed: ${errorResult.message}');
     }
   }
 
@@ -216,40 +224,14 @@ class PaystackService {
     return getSupportedPaymentMethods().contains(method.toLowerCase());
   }
 
-  /// Format amount for display
+  /// Format amount for display using centralized utility
   String formatAmount(double amount, String currency) {
-    switch (currency.toUpperCase()) {
-      case 'NGN':
-        return '₦${amount.toStringAsFixed(2)}';
-      case 'GHS':
-        return 'GH₵${amount.toStringAsFixed(2)}';
-      case 'ZAR':
-        return 'R${amount.toStringAsFixed(2)}';
-      case 'KES':
-        return 'KSh${amount.toStringAsFixed(2)}';
-      case 'USD':
-        return '\$${amount.toStringAsFixed(2)}';
-      default:
-        return '$currency ${amount.toStringAsFixed(2)}';
-    }
+    return CurrencyUtils.formatAmount(amount, currency);
   }
 
-  /// Get currency symbol
+  /// Get currency symbol using centralized utility
   String getCurrencySymbol(String currency) {
-    switch (currency.toUpperCase()) {
-      case 'NGN':
-        return '₦';
-      case 'GHS':
-        return 'GH₵';
-      case 'ZAR':
-        return 'R';
-      case 'KES':
-        return 'KSh';
-      case 'USD':
-        return '\$';
-      default:
-        return currency;
-    }
+    return CurrencyUtils.getCurrencySymbol(currency);
   }
 }
 

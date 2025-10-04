@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<full-backup-content>
+    <!-- Exclude sensitive user data from backup -->
+    <exclude domain="sharedpref" path="FlutterSecureStorage" />
+    <exclude domain="database" path="flutter_secure_storage" />
+    
+    <!-- Include app preferences and settings -->
+    <include domain="sharedpref" path="." />
+    
+    <!-- Exclude cache and temporary files -->
+    <exclude domain="file" path="." />
+</full-backup-content>

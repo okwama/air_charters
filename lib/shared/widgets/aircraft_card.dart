@@ -242,13 +242,13 @@ class AircraftCard extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 4),
-                  Text(
-                    aircraft.companyName,
-                    style: GoogleFonts.inter(
-                      fontSize: 14,
-                      color: Colors.grey[600],
-                    ),
-                  ),
+                  // Text(
+                  //   aircraft.companyName,
+                  //   style: GoogleFonts.inter(
+                  //     fontSize: 14,
+                  //     color: Colors.grey[600],
+                  //   ),
+                  // ),
                   const SizedBox(height: 12),
 
                   // Flight details

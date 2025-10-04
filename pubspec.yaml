@@ -1,8 +1,25 @@
 name: air_charters
-description: "AirCharters - Charter Beyond Borders. Book private jet charters and luxury air travel services globally."
+description: "AirCharters - Charter Beyond Borders. Book private jet charters and luxury air travel services globally. Experience premium aviation with our comprehensive booking platform for private flights, cargo transport, and medical evacuations."
 publish_to: 'none'
 
 version: 1.0.0+1
+
+# App Store and Google Play Store metadata
+homepage: https://aircharters.com
+repository: https://github.com/citlogistics/air-charters
+issue_tracker: https://github.com/citlogistics/air-charters/issues
+documentation: https://docs.aircharters.com
+
+# App metadata for stores
+keywords:
+  - private jet
+  - charter flights
+  - luxury travel
+  - aviation
+  - air transport
+  - cargo charter
+  - medical evacuation
+  - business aviation
 
 environment:
   sdk: ^3.6.1
@@ -24,6 +41,9 @@ dependencies:
   # Icons
   lucide_icons: ^0.257.0
   
+  # Animations
+  lottie: ^3.1.2
+  
   # Timer
   stop_watch_timer: ^3.0.0
   
@@ -35,6 +55,9 @@ dependencies:
   
   # Paystack Flutter SDK
   paystack_flutter_sdk: ^0.0.1-alpha.2
+  
+  # WebView for in-app checkout
+  webview_flutter: ^4.4.2
   
   # Local storage
   shared_preferences: ^2.2.2
@@ -50,6 +73,12 @@ dependencies:
   
   # Secure Storage
   flutter_secure_storage: ^9.0.0
+  
+  # Biometric Authentication
+  local_auth: ^2.1.6
+  
+  # Encryption
+  crypto: ^3.0.3
   
   # Connectivity
   connectivity_plus: ^5.0.2
@@ -76,6 +105,14 @@ dependencies:
   flutter_local_notifications: ^17.2.2
   permission_handler: ^11.3.1
 
+  # QR, Sharing, Files, and PDF support
+  qr_flutter: ^4.1.0
+  share_plus: ^10.0.2
+  printing: ^5.13.3
+  pdf: ^3.11.0
+  path_provider: ^2.1.4
+  url_launcher: ^6.3.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -92,6 +129,7 @@ flutter:
   assets:
     - assets/icons/
     - assets/images/
+    - assets/legal/
     - assets/logo/logo.png
 
 # Flutter Launcher Icons configuration

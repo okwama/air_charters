@@ -1,8 +1,10 @@
 import 'package:flutter/foundation.dart';
+import 'package:local_auth/local_auth.dart';
 import '../auth/auth_repository.dart';
 import '../models/auth_model.dart';
 import '../models/user_model.dart';
 import '../error/app_exceptions.dart';
+import '../services/biometric_service.dart';
 import 'dart:async';
 import 'dart:developer' as dev;
 import '../../shared/utils/session_manager.dart';
@@ -23,6 +25,7 @@ enum AuthState {
 class AuthProvider with ChangeNotifier {
   final AuthRepository _authRepository = AuthRepository();
   final SessionManager _sessionManager = SessionManager();
+  final BiometricService _biometricService = BiometricService();
   Timer? _tokenRefreshTimer;
 
   AuthState _state = AuthState.initial;
@@ -47,6 +50,9 @@ class AuthProvider with ChangeNotifier {
     if (kDebugMode) {
       dev.log('AuthProvider: Starting initialization', name: 'auth_provider');
     }
+
+    // Start background token refresh timer
+    _startBackgroundTokenRefresh();
 
     _setLoading(true);
     try {
@@ -183,8 +189,13 @@ class AuthProvider with ChangeNotifier {
     if (_authData != null && _authData!.willExpireSoon) {
       try {
         await refreshToken();
+        // Clear any previous error messages on successful refresh
+        _clearError();
       } catch (e) {
-        // If refresh fails, sign out user
+        // Set user-friendly error message before signing out
+        _setError('Your session has expired. Please login again to continue.');
+        // Give user a moment to see the message before signing out
+        await Future.delayed(const Duration(seconds: 2));
         await signOut();
       }
     }
@@ -275,8 +286,28 @@ class AuthProvider with ChangeNotifier {
     }
   }
 
+  // Phone/Password Authentication
+  Future<void> signInWithPhone(String phoneNumber, String password) async {
+    _isLoading = true;
+    _errorMessage = null;
+    _successMessage = null;
+    notifyListeners();
+
+    try {
+      final authData = await _authRepository.signInWithPhone(phoneNumber, password);
+      await _setAuthenticatedWithToken(authData);
+      _successMessage =
+          'Phone login successful! Welcome back, ${authData.user.firstName}';
+    } catch (e) {
+      _errorMessage = _getErrorMessage(e);
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
   Future<void> signUpWithEmail(
-      String email, String password, String firstName, String lastName) async {
+      String email, String password, String firstName, String lastName, {String? phoneNumber}) async {
     // Removed debug print
     dev.log('=== AUTH PROVIDER: SIGNUP STARTED ===',
         name: 'AuthProvider-DEBUG');
@@ -292,7 +323,7 @@ class AuthProvider with ChangeNotifier {
       dev.log('About to call _authRepository.signUpWithEmail',
           name: 'AuthProvider-DEBUG');
       final authData = await _authRepository.signUpWithEmail(
-          email, password, firstName, lastName);
+          email, password, firstName, lastName, phoneNumber: phoneNumber);
       dev.log('Auth repository signup completed successfully',
           name: 'AuthProvider-DEBUG');
       await _setAuthenticatedWithToken(authData);
@@ -319,14 +350,15 @@ class AuthProvider with ChangeNotifier {
   }
 
   // Sign Out
-  Future<void> signOut() async {
+  Future<void> signOut({bool forceLogout = false}) async {
     if (kDebugMode) {
-      dev.log('AuthProvider: Starting sign out process', name: 'auth_provider');
+      dev.log('AuthProvider: Starting sign out process (force: $forceLogout)',
+          name: 'auth_provider');
     }
 
     try {
-      // Cancel any ongoing token refresh
-      _tokenRefreshTimer?.cancel();
+      // Stop background token refresh timer
+      _stopBackgroundTokenRefresh();
 
       // Clear auth data from backend (if possible)
       try {
@@ -342,6 +374,19 @@ class AuthProvider with ChangeNotifier {
 
       // Clear all local storage
       await _sessionManager.clearStoredAuthData();
+
+      // Clear biometric data for security
+      try {
+        await _biometricService.disableBiometric();
+        if (kDebugMode) {
+          dev.log('AuthProvider: Biometric data cleared on logout', name: 'auth_provider');
+        }
+      } catch (e) {
+        if (kDebugMode) {
+          dev.log('AuthProvider: Error clearing biometric data: $e', name: 'auth_provider');
+        }
+        // Don't fail logout if biometric cleanup fails
+      }
 
       // Clear SharedPreferences landing flag (optional - keeps user as "returning")
       // await _clearLandingFlag(); // Uncomment if you want to reset landing page for logout
@@ -772,6 +817,245 @@ class AuthProvider with ChangeNotifier {
   // Clear error (for UserController)
   void clearError() {
     _clearError();
+  }
+
+  // Biometric Authentication Methods
+
+  // Check if biometric authentication is available
+  Future<bool> isBiometricAvailable() async {
+    return await _biometricService.isBiometricAvailable();
+  }
+
+  // Check if biometric authentication is enabled
+  Future<bool> isBiometricEnabled() async {
+    return await _biometricService.isBiometricEnabled();
+  }
+
+  // Get available biometric types
+  Future<List<dynamic>> getAvailableBiometrics() async {
+    final biometrics = await _biometricService.getAvailableBiometrics();
+    return biometrics.cast<dynamic>();
+  }
+
+  // Enable biometric authentication
+  Future<void> enableBiometric() async {
+    try {
+      if (!await isBiometricAvailable()) {
+        throw AuthException('Biometric authentication is not available on this device');
+      }
+
+      if (_authData == null) {
+        throw AuthException('Please log in first to enable biometric authentication');
+      }
+
+      await _biometricService.enableBiometric(_authData!);
+      _setSuccess('Biometric authentication enabled successfully');
+      
+      if (kDebugMode) {
+        dev.log('AuthProvider: Biometric authentication enabled', name: 'auth_provider');
+      }
+    } catch (e) {
+      _errorMessage = _getErrorMessage(e);
+      if (kDebugMode) {
+        dev.log('AuthProvider: Error enabling biometric: $e', name: 'auth_provider');
+      }
+      rethrow;
+    } finally {
+      notifyListeners();
+    }
+  }
+
+  // Disable biometric authentication
+  Future<void> disableBiometric() async {
+    try {
+      await _biometricService.disableBiometric();
+      _setSuccess('Biometric authentication disabled successfully');
+      
+      if (kDebugMode) {
+        dev.log('AuthProvider: Biometric authentication disabled', name: 'auth_provider');
+      }
+    } catch (e) {
+      _errorMessage = _getErrorMessage(e);
+      if (kDebugMode) {
+        dev.log('AuthProvider: Error disabling biometric: $e', name: 'auth_provider');
+      }
+      rethrow;
+    } finally {
+      notifyListeners();
+    }
+  }
+
+  // Authenticate with biometric
+  Future<void> authenticateWithBiometric() async {
+    _isLoading = true;
+    _errorMessage = null;
+    _successMessage = null;
+    notifyListeners();
+
+    try {
+      final userData = await _biometricService.authenticateWithBiometric();
+      
+      if (userData != null) {
+        // Get user data from biometric authentication
+        final String userId = userData['userId'] ?? '';
+        final String userEmail = userData['userEmail'] ?? '';
+        final String biometricId = userData['biometricId'] ?? '';
+        
+        if (userId.isEmpty || userEmail.isEmpty || biometricId.isEmpty) {
+          throw AuthException('Invalid biometric data. Please re-enable biometric authentication.');
+        }
+        
+        if (kDebugMode) {
+          dev.log('AuthProvider: Biometric authentication successful for user: $userEmail', name: 'auth_provider');
+        }
+        
+        // Call backend to validate biometric authentication and get tokens
+        final authData = await _authRepository.loginWithBiometric(biometricId, userId, userEmail);
+        
+        // Set authenticated state with the received tokens
+        await _setAuthenticatedWithToken(authData);
+        
+        _setSuccess('Welcome back! Biometric authentication successful.');
+        
+        if (kDebugMode) {
+          dev.log('AuthProvider: Biometric login completed successfully', name: 'auth_provider');
+        }
+        
+      } else {
+        throw AuthException('Biometric authentication failed');
+      }
+    } catch (e) {
+      _errorMessage = _getErrorMessage(e);
+      if (kDebugMode) {
+        dev.log('AuthProvider: Biometric authentication error: $e', name: 'auth_provider');
+      }
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  // Check if biometric data is valid (not expired)
+  Future<bool> isBiometricDataValid() async {
+    return await _biometricService.isBiometricDataValid();
+  }
+
+  // Get biometric type name for display
+  String getBiometricTypeName(List<dynamic> availableTypes) {
+    // Convert dynamic list to BiometricType list
+    final biometricTypes = availableTypes.cast<BiometricType>();
+    return _biometricService.getBiometricTypeName(biometricTypes);
+  }
+
+  // Get biometric icon for display
+  String getBiometricIcon(List<dynamic> availableTypes) {
+    // Convert dynamic list to BiometricType list
+    final biometricTypes = availableTypes.cast<BiometricType>();
+    return _biometricService.getBiometricIcon(biometricTypes);
+  }
+
+  // Check if biometric login should be offered on app startup
+  Future<bool> shouldOfferBiometricLogin() async {
+    try {
+      // Only offer biometric login if:
+      // 1. User is not authenticated
+      // 2. Biometric is available
+      // 3. Biometric is enabled
+      // 4. Biometric data is valid
+      if (_state == AuthState.authenticated) {
+        return false; // User is already logged in
+      }
+
+      final isAvailable = await _biometricService.isBiometricAvailable();
+      final isEnabled = await _biometricService.isBiometricEnabled();
+      final isValid = await _biometricService.isBiometricDataValid();
+
+      return isAvailable && isEnabled && isValid;
+    } catch (e) {
+      if (kDebugMode) {
+        dev.log('AuthProvider: Error checking biometric login availability: $e', name: 'auth_provider');
+      }
+      return false;
+    }
+  }
+
+  // Industry standard: Background token refresh timer
+  void _startBackgroundTokenRefresh() {
+    if (kDebugMode) {
+      dev.log('AuthProvider: Starting background token refresh timer',
+          name: 'auth_provider');
+    }
+
+    _tokenRefreshTimer?.cancel();
+    _tokenRefreshTimer = Timer.periodic(const Duration(minutes: 5), (_) {
+      if (_shouldRefreshToken()) {
+        _refreshTokenSilently();
+      }
+    });
+  }
+
+  // Industry standard: Check if token should be refreshed
+  bool _shouldRefreshToken() {
+    if (_authData == null || _state != AuthState.authenticated) {
+      return false;
+    }
+
+    // Refresh if token expires in next 10 minutes
+    final now = DateTime.now();
+    final expiresAt = _authData!.expiresAt;
+    final timeUntilExpiry = expiresAt.difference(now);
+
+    // Notify user if token expires in next 5 minutes
+    if (timeUntilExpiry.inMinutes <= 5 && timeUntilExpiry.inMinutes > 0) {
+      _setError(
+          'Your session will expire in ${timeUntilExpiry.inMinutes} minutes. We\'ll automatically refresh it for you.');
+    }
+
+    return timeUntilExpiry.inMinutes <= 10;
+  }
+
+  // Industry standard: Silent token refresh
+  Future<void> _refreshTokenSilently() async {
+    try {
+      if (kDebugMode) {
+        dev.log('AuthProvider: Performing silent token refresh',
+            name: 'auth_provider');
+      }
+
+      await refreshToken();
+
+      if (kDebugMode) {
+        dev.log('AuthProvider: Silent token refresh successful',
+            name: 'auth_provider');
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        dev.log('AuthProvider: Silent token refresh failed: $e',
+            name: 'auth_provider');
+      }
+
+      // Set error state to notify user of session issues
+      _setError('Session expired. Please refresh the page or login again.');
+
+      // Don't sign out immediately - let user continue with limited functionality
+      // They'll be redirected to login on next API call
+    }
+  }
+
+  // Industry standard: Stop background refresh (call on logout)
+  void _stopBackgroundTokenRefresh() {
+    _tokenRefreshTimer?.cancel();
+    _tokenRefreshTimer = null;
+    if (kDebugMode) {
+      dev.log('AuthProvider: Background token refresh timer stopped',
+          name: 'auth_provider');
+    }
+  }
+
+  @override
+  void dispose() {
+    _stopBackgroundTokenRefresh();
+    super.dispose();
   }
 }
 

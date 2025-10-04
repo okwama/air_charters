@@ -55,13 +55,13 @@ class PaymentMethodSelectionWidget extends StatelessWidget {
             ),
 
             // Header
-                Text(
-                  'Select Payment Method',
-                  style: GoogleFonts.inter(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.black,
-                  ),
+            Text(
+              'Select Payment Method',
+              style: GoogleFonts.inter(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                color: Colors.black,
+              ),
             ),
 
             const SizedBox(height: 20),
@@ -76,7 +76,7 @@ class PaymentMethodSelectionWidget extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 12),
-            
+
             // Card Payment Option
             _buildPaystackPaymentOption(
               context,
@@ -85,9 +85,9 @@ class PaymentMethodSelectionWidget extends StatelessWidget {
               Icons.credit_card,
               'card',
             ),
-            
+
             const SizedBox(height: 8),
-            
+
             // M-Pesa Payment Option
             _buildPaystackPaymentOption(
               context,
@@ -122,7 +122,8 @@ class PaymentMethodSelectionWidget extends StatelessWidget {
           color: isSelected ? const Color(0xFFF0F9FF) : Colors.white,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: isSelected ? const Color(0xFF0EA5E9) : const Color(0xFFE8E8E8),
+            color:
+                isSelected ? const Color(0xFF0EA5E9) : const Color(0xFFE8E8E8),
             width: isSelected ? 2 : 1,
           ),
         ),
@@ -135,8 +136,8 @@ class PaymentMethodSelectionWidget extends StatelessWidget {
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Icon(
-              icon,
-              size: 20,
+                icon,
+                size: 20,
                 color: const Color(0xFF0EA5E9),
               ),
             ),
@@ -153,14 +154,14 @@ class PaymentMethodSelectionWidget extends StatelessWidget {
                       color: Colors.black,
                     ),
                   ),
-                    const SizedBox(height: 2),
-                    Text(
+                  const SizedBox(height: 2),
+                  Text(
                     subtitle,
-                      style: GoogleFonts.inter(
-                        fontSize: 12,
-                        color: const Color(0xFF666666),
-                      ),
+                    style: GoogleFonts.inter(
+                      fontSize: 12,
+                      color: const Color(0xFF666666),
                     ),
+                  ),
                 ],
               ),
             ),
@@ -168,7 +169,7 @@ class PaymentMethodSelectionWidget extends StatelessWidget {
               Icons.arrow_forward_ios,
               size: 16,
               color: const Color(0xFF666666),
-              ),
+            ),
           ],
         ),
       ),
@@ -178,7 +179,7 @@ class PaymentMethodSelectionWidget extends StatelessWidget {
   void _handlePaystackPayment(BuildContext context, String paymentMethod) {
     // Call the payment method selected callback
     onPaymentMethodSelected(paymentMethod);
-    
+
     // Navigate to Paystack payment screen
     Navigator.pushNamed(
       context,

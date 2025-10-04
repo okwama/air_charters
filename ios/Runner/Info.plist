@@ -5,7 +5,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>Air Charters</string>
+	<string>Air Charterss</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -13,7 +13,7 @@
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>air_charters</string>
+	<string>air_charterss</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
@@ -45,5 +45,103 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	
+	<!-- Location Permissions -->
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>AirCharters uses your location to show nearby airports, calculate flight distances, and provide personalized charter recommendations based on your current position.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>AirCharters uses your location to show nearby airports, calculate flight distances, and provide personalized charter recommendations based on your current position.</string>
+	
+	<!-- Camera Permissions -->
+	<key>NSCameraUsageDescription</key>
+	<string>AirCharters needs camera access to scan documents, capture photos for trip verification, and upload identification documents for flight bookings.</string>
+	
+	<!-- Photo Library Permissions -->
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>AirCharters needs access to your photo library to upload documents and images required for charter bookings and trip verification.</string>
+	
+	<!-- Microphone Permissions (for video calls with charter operators) -->
+	<key>NSMicrophoneUsageDescription</key>
+	<string>AirCharters may use microphone access for video calls with charter operators and customer support representatives.</string>
+	
+	<!-- Contacts Permissions (for sharing trip details) -->
+	<key>NSContactsUsageDescription</key>
+	<string>AirCharters can access your contacts to easily share trip details and invite companions to your charter bookings.</string>
+	
+	<!-- Phone Permissions (for SMS verification) -->
+	<key>NSPhoneNumberUsageDescription</key>
+	<string>AirCharters needs phone number access for SMS verification and two-factor authentication to secure your account.</string>
+	
+	<!-- Biometric Authentication Permissions -->
+	<key>NSFaceIDUsageDescription</key>
+	<string>AirCharters uses Face ID for secure and convenient authentication, allowing you to quickly access your account without typing passwords.</string>
+	
+	<!-- App Transport Security -->
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsArbitraryLoads</key>
+		<false/>
+		<key>NSExceptionDomains</key>
+		<dict>
+			<key>api.aircharters.com</key>
+			<dict>
+				<key>NSExceptionAllowsInsecureHTTPLoads</key>
+				<false/>
+				<key>NSExceptionMinimumTLSVersion</key>
+				<string>TLSv1.2</string>
+				<key>NSExceptionRequiresForwardSecrecy</key>
+				<true/>
+			</dict>
+		</dict>
+	</dict>
+	
+	<!-- App Category -->
+	<key>LSApplicationCategoryType</key>
+	<string>public.app-category.travel</string>
+	
+	<!-- URL Schemes for deep linking -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.cit.air_charters</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>aircharters</string>
+			</array>
+		</dict>
+	</array>
+	
+	<!-- Background Modes -->
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>background-fetch</string>
+		<string>remote-notification</string>
+	</array>
+	
+	<!-- App Store Metadata -->
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
+	
+	<!-- Privacy Information -->
+	<key>NSPrivacyAccessedAPITypes</key>
+	<array>
+		<dict>
+			<key>NSPrivacyAccessedAPIType</key>
+			<string>NSPrivacyAccessedAPICategoryFileTimestamp</string>
+			<key>NSPrivacyAccessedAPITypeReasons</key>
+			<array>
+				<string>35F9.1</string>
+			</array>
+		</dict>
+		<dict>
+			<key>NSPrivacyAccessedAPIType</key>
+			<string>NSPrivacyAccessedAPICategorySystemBootTime</string>
+			<key>NSPrivacyAccessedAPITypeReasons</key>
+			<array>
+				<string>35F9.1</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>

@@ -4,7 +4,8 @@ import 'settings.dart';
 
 void main() {
   group('Settings Functionality Tests', () {
-    testWidgets('Settings screen displays current values correctly', (WidgetTester tester) async {
+    testWidgets('Settings screen displays current values correctly',
+        (WidgetTester tester) async {
       // Build the settings screen
       await tester.pumpWidget(
         MaterialApp(
@@ -25,7 +26,8 @@ void main() {
       expect(find.text('US Dollar (\$)'), findsOneWidget); // Default currency
     });
 
-    testWidgets('Theme page opens and allows selection', (WidgetTester tester) async {
+    testWidgets('Theme page opens and allows selection',
+        (WidgetTester tester) async {
       // Build the settings screen
       await tester.pumpWidget(
         MaterialApp(
@@ -49,7 +51,8 @@ void main() {
       expect(find.text('Auto (System)'), findsOneWidget);
     });
 
-    testWidgets('Language page opens and allows selection', (WidgetTester tester) async {
+    testWidgets('Language page opens and allows selection',
+        (WidgetTester tester) async {
       // Build the settings screen
       await tester.pumpWidget(
         MaterialApp(
@@ -73,7 +76,8 @@ void main() {
       expect(find.text('French'), findsOneWidget);
     });
 
-    testWidgets('Currency page opens and allows selection', (WidgetTester tester) async {
+    testWidgets('Currency page opens and allows selection',
+        (WidgetTester tester) async {
       // Build the settings screen
       await tester.pumpWidget(
         MaterialApp(
@@ -98,4 +102,3 @@ void main() {
     });
   });
 }
-

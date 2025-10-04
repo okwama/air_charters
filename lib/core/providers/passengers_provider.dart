@@ -21,14 +21,14 @@ class PassengerProvider with ChangeNotifier {
   PassengerState _state = PassengerState.initial;
   String? _errorMessage;
   List<PassengerModel> _passengers = [];
-  String? _currentBookingId;
+  int? _currentBookingId;
   bool _isLocalMode = false; // Track if we're managing passengers locally
 
   // Getters
   PassengerState get state => _state;
   String? get errorMessage => _errorMessage;
   List<PassengerModel> get passengers => List.unmodifiable(_passengers);
-  String? get currentBookingId => _currentBookingId;
+  int? get currentBookingId => _currentBookingId;
   bool get isLoading => _state == PassengerState.loading;
   bool get hasError => _state == PassengerState.error;
   bool get hasPassengers => _passengers.isNotEmpty;
@@ -49,7 +49,7 @@ class PassengerProvider with ChangeNotifier {
     try {
       _state = PassengerState.loading;
       _errorMessage = null;
-      _currentBookingId = bookingId;
+      _currentBookingId = int.tryParse(bookingId);
       notifyListeners();
 
       final passengers =
@@ -147,7 +147,7 @@ class PassengerProvider with ChangeNotifier {
       _errorMessage = null;
       notifyListeners();
 
-      await _passengerService.deletePassengersByBookingId(_currentBookingId!);
+      await _passengerService.deletePassengersByBookingId(_currentBookingId!.toString());
 
       _passengers.clear();
       _state = PassengerState.loaded;
@@ -188,7 +188,7 @@ class PassengerProvider with ChangeNotifier {
       return null;
     }
   }
-  
+
   // Add method to get additional passengers
   List<PassengerModel> get additionalPassengers {
     return _passengers.where((p) => p.isUser != true).toList();
@@ -211,10 +211,12 @@ class PassengerProvider with ChangeNotifier {
   // Add passenger locally (for booking creation)
   void addPassengerLocally(PassengerModel passenger) {
     if (_isLocalMode) {
+      try { print('PASSENGERS_PROVIDER: addPassengerLocally incoming=${passenger.toJson()} currentBookingId=$_currentBookingId'); } catch (_) {}
       _passengers.add(passenger.copyWith(
         id: null, // No backend ID yet
-        bookingId: 'local_booking', // Temporary booking ID for local management
+        bookingId: _currentBookingId, // Keep null or current int booking id
       ));
+      try { print('PASSENGERS_PROVIDER: passengers now=${_passengers.map((p)=>p.toJson()).toList()}'); } catch (_) {}
       notifyListeners();
     }
   }
@@ -222,11 +224,13 @@ class PassengerProvider with ChangeNotifier {
   // Update passenger locally
   void updatePassengerLocally(int index, PassengerModel passenger) {
     if (_isLocalMode && index >= 0 && index < _passengers.length) {
+      try { print('PASSENGERS_PROVIDER: updatePassengerLocally index=$index incoming=${passenger.toJson()}'); } catch (_) {}
       _passengers[index] = passenger.copyWith(
         id: _passengers[index].id, // Keep existing ID if any
         bookingId:
             _passengers[index].bookingId, // Keep existing booking ID if any
       );
+      try { print('PASSENGERS_PROVIDER: updated passenger=${_passengers[index].toJson()}'); } catch (_) {}
       notifyListeners();
     }
   }
@@ -250,15 +254,19 @@ class PassengerProvider with ChangeNotifier {
 
       final savedPassengers = <PassengerModel>[];
 
+      final parsedBookingId = int.tryParse(bookingId);
+
       for (final passenger in _passengers) {
-        final passengerWithBooking = passenger.copyWith(bookingId: bookingId);
+        final passengerWithBooking = passenger.copyWith(bookingId: parsedBookingId);
+        try { print('PASSENGERS_PROVIDER: saving passenger=${passengerWithBooking.toJson()} to bookingId=$parsedBookingId'); } catch (_) {}
         final savedPassenger =
             await _passengerService.createPassenger(passengerWithBooking);
         savedPassengers.add(savedPassenger);
       }
 
       _passengers = savedPassengers;
-      _currentBookingId = bookingId;
+      try { print('PASSENGERS_PROVIDER: savedPassengers=${_passengers.map((p)=>p.toJson()).toList()}'); } catch (_) {}
+      _currentBookingId = parsedBookingId;
       _isLocalMode = false;
       _state = PassengerState.loaded;
       notifyListeners();
@@ -282,7 +290,7 @@ class PassengerProvider with ChangeNotifier {
   // Refresh current passengers
   Future<void> refresh() async {
     if (_currentBookingId != null) {
-      await loadPassengersForBooking(_currentBookingId!);
+      await loadPassengersForBooking(_currentBookingId!.toString());
     }
   }
 

@@ -3,7 +3,6 @@ import '../../models/user_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/user_service.dart';
 
-
 /// Controller to handle user profile and preferences business logic
 class UserController {
   final AuthProvider _authProvider;

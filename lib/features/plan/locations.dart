@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:lucide_icons/lucide_icons.dart';
+import '../../config/theme/app_theme.dart';
 import '../../core/services/locations_service.dart';
 import '../../core/models/location_model.dart';
 
@@ -64,7 +65,7 @@ class _LocationsScreenState extends State<LocationsScreen> {
       });
 
       final locations = await _locationsService.getAllLocations();
-      
+
       setState(() {
         _allLocations = locations;
         _filteredLocations = locations;
@@ -82,35 +83,34 @@ class _LocationsScreenState extends State<LocationsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: AppTheme.backgroundColor,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: AppTheme.backgroundColor,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
+          icon: const Icon(LucideIcons.arrowLeft,
+              color: AppTheme.textPrimaryColor),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
           widget.title,
-          style: GoogleFonts.inter(
-            fontSize: 18,
+          style: AppTheme.heading3.copyWith(
             fontWeight: FontWeight.w600,
-            color: Colors.black,
+            color: AppTheme.textPrimaryColor,
           ),
         ),
       ),
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Origin text
+          // Header text
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: Text(
               'Select ${widget.title.toLowerCase()}',
-              style: GoogleFonts.inter(
-                fontSize: 24,
+              style: AppTheme.heading2.copyWith(
                 fontWeight: FontWeight.w700,
-                color: Colors.black,
+                color: AppTheme.textPrimaryColor,
               ),
             ),
           ),
@@ -118,33 +118,14 @@ class _LocationsScreenState extends State<LocationsScreen> {
           // Search bar
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16.0),
-            child: Container(
-              decoration: BoxDecoration(
-                color: Colors.grey[100],
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.grey[300]!),
-              ),
-              child: TextField(
-                controller: _searchController,
-                style: GoogleFonts.inter(
-                  fontSize: 16,
-                  color: Colors.black,
-                ),
-                decoration: InputDecoration(
-                  hintText: 'Search by airport or city',
-                  hintStyle: GoogleFonts.inter(
-                    fontSize: 16,
-                    color: Colors.grey[500],
-                  ),
-                  prefixIcon: Icon(
-                    Icons.search,
-                    color: Colors.grey[500],
-                  ),
-                  border: InputBorder.none,
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 12,
-                  ),
+            child: TextField(
+              controller: _searchController,
+              style: AppTheme.bodyMedium,
+              decoration: AppTheme.inputDecoration.copyWith(
+                hintText: 'Search by airport or city',
+                prefixIcon: const Icon(
+                  LucideIcons.search,
+                  color: AppTheme.textSecondaryColor,
                 ),
               ),
             ),
@@ -157,7 +138,7 @@ class _LocationsScreenState extends State<LocationsScreen> {
             child: _isLoading
                 ? const Center(
                     child: CircularProgressIndicator(
-                      color: Colors.black,
+                      color: AppTheme.primaryColor,
                     ),
                   )
                 : _errorMessage != null
@@ -166,43 +147,34 @@ class _LocationsScreenState extends State<LocationsScreen> {
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Icon(
-                              Icons.error_outline,
+                              LucideIcons.alertCircle,
                               size: 64,
-                              color: Colors.grey[400],
+                              color: AppTheme.errorColor,
                             ),
                             const SizedBox(height: 16),
                             Text(
                               'Error',
-                              style: GoogleFonts.inter(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w500,
-                                color: Colors.grey[600],
+                              style: AppTheme.heading3.copyWith(
+                                color: AppTheme.textPrimaryColor,
                               ),
                             ),
                             const SizedBox(height: 8),
                             Text(
                               _errorMessage!,
-                              style: GoogleFonts.inter(
-                                fontSize: 14,
-                                color: Colors.grey[500],
+                              style: AppTheme.bodyMedium.copyWith(
+                                color: AppTheme.textSecondaryColor,
                               ),
                               textAlign: TextAlign.center,
                             ),
                             const SizedBox(height: 16),
                             ElevatedButton(
                               onPressed: _loadLocations,
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.black,
-                                foregroundColor: Colors.white,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                              ),
+                              style: AppTheme.primaryButtonStyle,
                               child: Text(
                                 'Retry',
-                                style: GoogleFonts.inter(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w500,
+                                style: AppTheme.bodyMedium.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.white,
                                 ),
                               ),
                             ),
@@ -215,48 +187,45 @@ class _LocationsScreenState extends State<LocationsScreen> {
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
                                 Icon(
-                                  Icons.location_off,
+                                  LucideIcons.mapPin,
                                   size: 64,
-                                  color: Colors.grey[400],
+                                  color: AppTheme.textSecondaryColor,
                                 ),
                                 const SizedBox(height: 16),
                                 Text(
                                   'No locations found',
-                                  style: GoogleFonts.inter(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.w500,
-                                    color: Colors.grey[600],
+                                  style: AppTheme.heading3.copyWith(
+                                    color: AppTheme.textPrimaryColor,
                                   ),
                                 ),
                                 const SizedBox(height: 8),
                                 Text(
                                   'Try adjusting your search',
-                              style: GoogleFonts.inter(
-                                fontSize: 14,
-                                color: Colors.grey[500],
-                              ),
+                                  style: AppTheme.bodyMedium.copyWith(
+                                    color: AppTheme.textSecondaryColor,
+                                  ),
+                                ),
+                              ],
                             ),
-                          ],
-                        ),
-                      )
-                    : ListView.separated(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        itemCount: _filteredLocations.length,
-                        separatorBuilder: (context, index) => Divider(
-                          height: 1,
-                          color: Colors.grey[200],
-                        ),
-                        itemBuilder: (context, index) {
-                          final location = _filteredLocations[index];
-                          return LocationTile(
-                            location: location,
-                            onTap: () {
-                              widget.onLocationSelected(location);
-                              Navigator.pop(context);
+                          )
+                        : ListView.separated(
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            itemCount: _filteredLocations.length,
+                            separatorBuilder: (context, index) => Divider(
+                              height: 1,
+                              color: AppTheme.borderColor.withOpacity(0.3),
+                            ),
+                            itemBuilder: (context, index) {
+                              final location = _filteredLocations[index];
+                              return LocationTile(
+                                location: location,
+                                onTap: () {
+                                  widget.onLocationSelected(location);
+                                  Navigator.pop(context);
+                                },
+                              );
                             },
-                          );
-                        },
-                      ),
+                          ),
           ),
         ],
       ),
@@ -278,8 +247,14 @@ class LocationTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 16.0),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: AppTheme.surfaceColor,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppTheme.borderColor.withOpacity(0.3)),
+        ),
         child: Row(
           children: [
             // Airport icon
@@ -287,12 +262,12 @@ class LocationTile extends StatelessWidget {
               width: 48,
               height: 48,
               decoration: BoxDecoration(
-                color: Colors.grey[100],
+                color: AppTheme.primaryColor.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Icon(
-                Icons.flight_takeoff,
-                color: Colors.grey[600],
+                LucideIcons.mapPin,
+                color: AppTheme.primaryColor,
                 size: 24,
               ),
             ),
@@ -306,10 +281,9 @@ class LocationTile extends StatelessWidget {
                 children: [
                   Text(
                     location.name,
-                    style: GoogleFonts.inter(
-                      fontSize: 16,
+                    style: AppTheme.bodyMedium.copyWith(
                       fontWeight: FontWeight.w600,
-                      color: Colors.black,
+                      color: AppTheme.textPrimaryColor,
                     ),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
@@ -317,9 +291,8 @@ class LocationTile extends StatelessWidget {
                   const SizedBox(height: 4),
                   Text(
                     '${location.city}, ${location.country}',
-                    style: GoogleFonts.inter(
-                      fontSize: 14,
-                      color: Colors.grey[600],
+                    style: AppTheme.bodySmall.copyWith(
+                      color: AppTheme.textSecondaryColor,
                     ),
                   ),
                 ],
@@ -334,13 +307,12 @@ class LocationTile extends StatelessWidget {
                   vertical: 4,
                 ),
                 decoration: BoxDecoration(
-                  color: Colors.black,
+                  color: AppTheme.primaryColor,
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
                   location.iataCode!,
-                  style: GoogleFonts.inter(
-                    fontSize: 12,
+                  style: AppTheme.caption.copyWith(
                     fontWeight: FontWeight.w600,
                     color: Colors.white,
                   ),
@@ -352,5 +324,3 @@ class LocationTile extends StatelessWidget {
     );
   }
 }
-
-

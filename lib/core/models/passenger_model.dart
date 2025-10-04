@@ -1,133 +1,68 @@
 class PassengerModel {
   final int? id;
-  final String bookingId;
+  final int? bookingId;
   final String firstName;
   final String lastName;
   final int? age;
   final String? nationality;
   final String? idPassportNumber;
-  final bool
-      isUser; // Added: Flag to identify if this passenger is the booking user
-  final DateTime? createdAt;
+  final bool isUser;
 
   const PassengerModel({
     this.id,
-    required this.bookingId,
+    this.bookingId,
     required this.firstName,
     required this.lastName,
     this.age,
     this.nationality,
     this.idPassportNumber,
-    this.isUser = false, // Default to false
-    this.createdAt,
+    this.isUser = false,
   });
 
-  factory PassengerModel.fromJson(Map<String, dynamic> json) {
+  // Create passenger from user data
+  factory PassengerModel.fromUser({
+    int? id,
+    int? bookingId,
+    required String firstName,
+    required String lastName,
+    required int age,
+    required String nationality,
+    String? idPassportNumber,
+  }) {
     return PassengerModel(
-      id: json['id'] as int?,
-      bookingId:
-          json['bookingId']?.toString() ?? json['booking_id']?.toString() ?? '',
-      firstName:
-          json['firstName']?.toString() ?? json['first_name']?.toString() ?? '',
-      lastName:
-          json['lastName']?.toString() ?? json['last_name']?.toString() ?? '',
-      age: json['age'] as int?,
-      nationality: json['nationality']?.toString(),
-      idPassportNumber: json['idPassportNumber']?.toString() ??
-          json['id_passport_number']?.toString(),
-      isUser: json['isUser'] as bool? ?? json['is_user'] as bool? ?? false,
-      createdAt: json['createdAt'] != null
-          ? DateTime.parse(json['createdAt'] as String)
-          : json['created_at'] != null
-              ? DateTime.parse(json['created_at'] as String)
-              : null,
+      id: id,
+      bookingId: bookingId,
+      firstName: firstName,
+      lastName: lastName,
+      age: age,
+      nationality: nationality,
+      idPassportNumber: idPassportNumber,
+      isUser: true,
     );
   }
 
-  Map<String, dynamic> toJson() {
-    return {
-      if (id != null) 'id': id,
-      'bookingId': bookingId,
-      'firstName': firstName,
-      'lastName': lastName,
-      if (age != null) 'age': age,
-      if (nationality != null) 'nationality': nationality,
-      if (idPassportNumber != null) 'idPassportNumber': idPassportNumber,
-      'isUser': isUser, // Include isUser field
-      if (createdAt != null) 'createdAt': createdAt!.toIso8601String(),
-    };
+  // Create empty passenger for additional passengers
+  factory PassengerModel.empty() {
+    return const PassengerModel(
+      firstName: '',
+      lastName: '',
+      age: 25,
+      nationality: 'Kenyan',
+      idPassportNumber: null,
+      isUser: false,
+    );
   }
 
-  // Create a copy for API requests (without id, bookingId, isUser and createdAt)
-  Map<String, dynamic> toCreateJson() {
-    print('=== PASSENGER MODEL TO CREATE JSON ===');
-    print('First name: $firstName (${firstName.runtimeType})');
-    print('Last name: $lastName (${lastName.runtimeType})');
-    print('Age: $age (${age.runtimeType})');
-    print('Nationality: $nationality (${nationality.runtimeType})');
-    print('ID/Passport: $idPassportNumber (${idPassportNumber.runtimeType})');
-
-    final json = {
-      'firstName': firstName,
-      'lastName': lastName,
-      if (age != null) 'age': age,
-      if (nationality != null) 'nationality': nationality,
-      if (idPassportNumber != null) 'idPassportNumber': idPassportNumber,
-      'isUser': isUser, // Add missing isUser field
-    };
-
-    print('Passenger JSON: $json');
-    return json;
-  }
-
-  // Create a copy for API updates (without bookingId, id and createdAt)
-  Map<String, dynamic> toUpdateJson() {
-    return {
-      'firstName': firstName,
-      'lastName': lastName,
-      if (age != null) 'age': age,
-      if (nationality != null) 'nationality': nationality,
-      if (idPassportNumber != null) 'idPassportNumber': idPassportNumber,
-      'isUser': isUser, // Include isUser field
-    };
-  }
-
-  String get fullName => '$firstName $lastName'.trim();
-
-  String get displayName =>
-      fullName.isNotEmpty ? fullName : 'Unnamed Passenger';
-
-  String get initials {
-    final firstInitial = firstName.isNotEmpty ? firstName[0].toUpperCase() : '';
-    final lastInitial = lastName.isNotEmpty ? lastName[0].toUpperCase() : '';
-    return '$firstInitial$lastInitial';
-  }
-
-  String get ageDisplay {
-    if (age == null) return 'Age not specified';
-    return '$age years old';
-  }
-
-  String get documentDisplay {
-    if (idPassportNumber == null || idPassportNumber!.isEmpty) {
-      return 'No document provided';
-    }
-    return 'ID/Passport: $idPassportNumber';
-  }
-
-  // Helper method to check if this is the primary passenger (user)
-  bool get isPrimaryPassenger => isUser;
-
+  // Copy with modifications
   PassengerModel copyWith({
     int? id,
-    String? bookingId,
+    int? bookingId,
     String? firstName,
     String? lastName,
     int? age,
     String? nationality,
     String? idPassportNumber,
     bool? isUser,
-    DateTime? createdAt,
   }) {
     return PassengerModel(
       id: id ?? this.id,
@@ -138,37 +73,226 @@ class PassengerModel {
       nationality: nationality ?? this.nationality,
       idPassportNumber: idPassportNumber ?? this.idPassportNumber,
       isUser: isUser ?? this.isUser,
-      createdAt: createdAt ?? this.createdAt,
     );
   }
 
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is PassengerModel &&
-          runtimeType == other.runtimeType &&
-          id == other.id &&
-          bookingId == other.bookingId &&
-          firstName == other.firstName &&
-          lastName == other.lastName &&
-          age == other.age &&
-          nationality == other.nationality &&
-          idPassportNumber == other.idPassportNumber &&
-          isUser == other.isUser;
+  // Convert to JSON for API calls
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'bookingId': bookingId,
+      'firstName': firstName,
+      'lastName': lastName,
+      'age': age,
+      'nationality': nationality,
+      'idPassportNumber': idPassportNumber,
+      'isUser': isUser,
+    };
+  }
 
-  @override
-  int get hashCode =>
-      id.hashCode ^
-      bookingId.hashCode ^
-      firstName.hashCode ^
-      lastName.hashCode ^
-      age.hashCode ^
-      nationality.hashCode ^
-      idPassportNumber.hashCode ^
-      isUser.hashCode;
+  // Convert to JSON for creating new passengers (without IDs)
+  Map<String, dynamic> toCreateJson() {
+    return {
+      'firstName': firstName,
+      'lastName': lastName,
+      'age': age,
+      'nationality': (nationality ?? '').toString(),
+      'idPassportNumber': idPassportNumber?.toString(),
+      'isUser': isUser,
+    };
+  }
+
+  // Convert to JSON for updating existing passengers
+  Map<String, dynamic> toUpdateJson() {
+    return {
+      'id': id,
+      'firstName': firstName,
+      'lastName': lastName,
+      'age': age,
+      'nationality': (nationality ?? '').toString(),
+      'idPassportNumber': idPassportNumber?.toString(),
+      'isUser': isUser,
+    };
+  }
+
+  // Create from JSON
+  factory PassengerModel.fromJson(Map<String, dynamic> json) {
+    int? parseInt(dynamic v) {
+      if (v == null) return null;
+      if (v is int) return v;
+      if (v is String) {
+        final parsed = int.tryParse(v);
+        return parsed;
+      }
+      return null;
+    }
+
+    return PassengerModel(
+      id: parseInt(json['id']),
+      bookingId: parseInt(json['bookingId']),
+      firstName: json['firstName'] ?? '',
+      lastName: json['lastName'] ?? '',
+      age: parseInt(json['age']) ?? 25,
+      nationality: (json['nationality'] as String?) ?? 'Kenyan',
+      idPassportNumber: json['idPassportNumber'] as String?,
+      isUser: (json['isUser'] as bool?) ?? false,
+    );
+  }
+
+  // Validation methods
+  bool get isValid {
+    return firstName.isNotEmpty &&
+        lastName.isNotEmpty &&
+        (age ?? 0) > 0 &&
+        (nationality?.isNotEmpty ?? false);
+  }
+
+  bool isValidForInternationalFlight() {
+    return isValid &&
+        idPassportNumber != null &&
+        idPassportNumber!.isNotEmpty;
+  }
+
+  // Display name
+  String get fullName => '$firstName $lastName'.trim();
+  String get displayName => fullName; // Alias for compatibility
+
+  // Age category
+  String get ageCategory {
+    final a = age ?? 0;
+    if (a < 2) return 'Infant';
+    if (a < 12) return 'Child';
+    return 'Adult';
+  }
+
+  // Additional getters for compatibility
+  String get initials {
+    final firstInitial = firstName.isNotEmpty ? firstName[0].toUpperCase() : '';
+    final lastInitial = lastName.isNotEmpty ? lastName[0].toUpperCase() : '';
+    return '$firstInitial$lastInitial';
+  }
+
+  String get ageDisplay => age != null ? '$age years old' : 'Age N/A';
+
+  String get documentDisplay {
+    if (idPassportNumber != null && idPassportNumber!.isNotEmpty) {
+      return idPassportNumber!;
+    }
+    return 'No document';
+  }
+
+  // Validation errors
+  List<String> getValidationErrors({bool isInternationalFlight = false}) {
+    final errors = <String>[];
+    
+    if (firstName.isEmpty) errors.add('First name is required');
+    if (lastName.isEmpty) errors.add('Last name is required');
+    if ((age ?? 0) <= 0) errors.add('Valid age is required');
+    if ((nationality == null) || nationality!.isEmpty) {
+      errors.add('Nationality is required');
+    }
+    
+    if (isInternationalFlight && 
+        (idPassportNumber == null || idPassportNumber!.isEmpty)) {
+      errors.add('Passport/ID number is required for international flights');
+    }
+    
+    return errors;
+  }
 
   @override
   String toString() {
-    return 'PassengerModel{id: $id, fullName: $fullName, age: $age, nationality: $nationality, isUser: $isUser}';
+    return 'PassengerModel(firstName: $firstName, lastName: $lastName, age: $age, nationality: $nationality, isUser: $isUser)';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    return other is PassengerModel &&
+        other.id == id &&
+        other.bookingId == bookingId &&
+        other.firstName == firstName &&
+        other.lastName == lastName &&
+        other.age == age &&
+        other.nationality == nationality &&
+        other.idPassportNumber == idPassportNumber &&
+        other.isUser == isUser;
+  }
+
+  @override
+  int get hashCode {
+    return Object.hash(
+      id,
+      bookingId,
+      firstName,
+      lastName,
+      age,
+      nationality,
+      idPassportNumber,
+      isUser,
+    );
+  }
+}
+
+// Helper class for passenger validation
+class PassengerValidationHelper {
+  static const List<String> commonNationalities = [
+    'Kenyan',
+    'Ugandan',
+    'Tanzanian',
+    'Ethiopian',
+    'South African',
+    'Nigerian',
+    'American',
+    'British',
+    'German',
+    'French',
+    'Canadian',
+    'Australian',
+    'Indian',
+    'Chinese',
+    'Other',
+  ];
+
+  static bool isInternationalFlight(String origin, String destination) {
+    // List of domestic airports in Kenya
+    const domesticAirports = [
+      'Jomo Kenyatta International Airport',
+      'Wilson Airport',
+      'Moi International Airport',
+      'Kisumu Airport',
+      'Eldoret Airport',
+      'Malindi Airport',
+      'Lamu Airport',
+      'Ukunda Airport',
+      'Diani Airport',
+      'Nairobi',
+      'Mombasa',
+      'Kisumu',
+      'Eldoret',
+      'Malindi',
+      'Lamu',
+      'Diani',
+    ];
+
+    // Check if both origin and destination are domestic
+    final isOriginDomestic = domesticAirports.any((airport) => 
+        origin.toLowerCase().contains(airport.toLowerCase()));
+    final isDestinationDomestic = domesticAirports.any((airport) => 
+        destination.toLowerCase().contains(airport.toLowerCase()));
+
+    return !(isOriginDomestic && isDestinationDomestic);
+  }
+
+  static int calculateAge(DateTime birthDate) {
+    final now = DateTime.now();
+    int age = now.year - birthDate.year;
+    
+    if (now.month < birthDate.month || 
+        (now.month == birthDate.month && now.day < birthDate.day)) {
+      age--;
+    }
+    
+    return age;
   }
 }

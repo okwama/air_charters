@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import '../../core/models/direct_charter_model.dart';
-import '../../core/models/aircraft_availability_model.dart';
-import '../../core/models/location_model.dart';
-import '../plan/inquiry/create_inquiry_screen.dart';
+import '../../core/services/aircraft_type_service.dart';
 import 'direct_charter_booking_screen.dart';
+import 'flight_configuration_screen.dart';
 
 class DirectCharterResultsScreen extends StatelessWidget {
   final List<DirectCharterAircraft> aircraft;
@@ -398,7 +397,33 @@ class DirectCharterResultsScreen extends StatelessWidget {
                     ] else ...[
                       Expanded(
                         child: ElevatedButton(
-                          onPressed: () => _createInquiry(context, aircraft),
+                          onPressed: () {
+                            // Convert DirectCharterAircraft to Aircraft
+                            final aircraftModel = Aircraft(
+                              id: aircraft.id,
+                              name: aircraft.name,
+                              model: aircraft.name,
+                              capacity: aircraft.capacity,
+                              pricePerHour: aircraft.totalPrice /
+                                  aircraft.flightDurationHours,
+                              baseAirport: null,
+                              baseCity: null,
+                              companyName: aircraft.companyName,
+                              imageUrl: aircraft.imageUrl,
+                              aircraftType: 'jet', // Default to jet type
+                              flightDurationHours: aircraft.flightDurationHours,
+                            );
+
+                            // Navigate to flight configuration for inquiry
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => FlightConfigurationScreen(
+                                  aircraft: aircraftModel,
+                                ),
+                              ),
+                            );
+                          },
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.black,
                             foregroundColor: Colors.white,
@@ -471,83 +496,6 @@ class DirectCharterResultsScreen extends StatelessWidget {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Navigation error: $e')),
-        );
-      }
-    }
-  }
-
-  void _createInquiry(BuildContext context, DirectCharterAircraft aircraft) {
-    if (!context.mounted) return;
-
-    try {
-      // Convert DirectCharterAircraft to AvailableAircraft for inquiry
-      final availableAircraft = AvailableAircraft(
-        aircraftId: aircraft.id,
-        aircraftName: aircraft.name,
-        aircraftType: 'jet', // Default to jet type
-        capacity: aircraft.capacity,
-        basePrice: aircraft.totalPrice,
-        totalPrice: aircraft.totalPrice,
-        availableSeats: aircraft.capacity,
-        departureTime: '10:00',
-        arrivalTime: '12:00',
-        flightDuration: (aircraft.flightDurationHours * 60).round(),
-        distance: 0.0, // Will be calculated
-        companyId: 1, // Default company ID
-        companyName: aircraft.companyName,
-        repositioningCost: aircraft.repositioningCost,
-        amenities: [],
-        images: aircraft.imageUrl != null ? [aircraft.imageUrl!] : [],
-      );
-
-      // Create location models from search data
-      final origin = LocationModel(
-        id: 1,
-        name: searchData['origin'],
-        code: '',
-        country: '',
-        type: LocationType.city,
-        latitude: 0.0,
-        longitude: 0.0,
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
-      );
-
-      final destination = LocationModel(
-        id: 2,
-        name: searchData['destination'],
-        code: '',
-        country: '',
-        type: LocationType.city,
-        latitude: 0.0,
-        longitude: 0.0,
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
-      );
-
-      if (context.mounted) {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => CreateInquiryScreen(
-              aircraft: availableAircraft,
-              origin: origin,
-              destination: destination,
-              departureDate: DateTime.parse(searchData['departureDateTime']),
-              returnDate: searchData['returnDateTime'] != null
-                  ? DateTime.parse(searchData['returnDateTime'])
-                  : null,
-              passengerCount: searchData['passengerCount'],
-              isRoundTrip: searchData['tripType'] == 'roundtrip',
-            ),
-          ),
-        );
-      }
-    } catch (e) {
-      print('Error creating inquiry: $e');
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
         );
       }
     }

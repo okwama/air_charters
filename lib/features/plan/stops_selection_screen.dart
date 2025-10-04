@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
@@ -5,6 +6,9 @@ import 'package:geolocator/geolocator.dart';
 import '../../core/models/location_model.dart';
 import '../../core/models/google_earth_location_model.dart';
 import '../../core/services/google_earth_engine_service.dart';
+import '../../core/error/network_error_handler.dart';
+import '../../config/env/maps_config.dart';
+import '../../config/theme/app_theme.dart';
 
 class StopsSelectionScreen extends StatefulWidget {
   final List<LocationModel>? existingStops;
@@ -26,16 +30,22 @@ class _StopsSelectionScreenState extends State<StopsSelectionScreen> {
 
   List<LocationModel> _stops = [];
   List<GoogleEarthLocationModel> _searchResults = [];
+  List<String> _recentSearches = [];
   final bool _isLoading = false;
   bool _isSearching = false;
+  String? _searchError;
 
   GoogleMapController? _mapController;
   final Set<Marker> _markers = {};
   final Set<Polyline> _polylines = {};
 
+  // Search debouncing
+  Timer? _searchDebounce;
+  static const Duration _searchDelay = Duration(milliseconds: 500);
+
   // Map position
-  LatLng _center = const LatLng(0, 0);
-  final double _zoom = 10.0;
+  LatLng _center = const LatLng(MapsConfig.defaultLatitude, MapsConfig.defaultLongitude);
+  final double _zoom = MapsConfig.defaultZoom;
 
   @override
   void initState() {
@@ -43,6 +53,14 @@ class _StopsSelectionScreenState extends State<StopsSelectionScreen> {
     _stops = widget.existingStops ?? [];
     _initializeMap();
     _updateMarkers();
+    _loadRecentSearches();
+  }
+
+  @override
+  void dispose() {
+    _searchDebounce?.cancel();
+    _searchController.dispose();
+    super.dispose();
   }
 
   Future<void> _initializeMap() async {
@@ -130,53 +148,111 @@ class _StopsSelectionScreenState extends State<StopsSelectionScreen> {
     }
   }
 
-  Future<void> _searchLocations(String query) async {
+  void _onSearchChanged(String query) {
+    // Cancel previous search
+    _searchDebounce?.cancel();
+    
     if (query.trim().isEmpty) {
       setState(() {
         _searchResults = [];
         _isSearching = false;
+        _searchError = null;
       });
       return;
     }
 
+    // Debounce search
+    _searchDebounce = Timer(_searchDelay, () {
+      _performSearch(query);
+    });
+  }
+
+  Future<void> _performSearch(String query) async {
+    if (!mounted) return;
+    
     setState(() {
       _isSearching = true;
+      _searchError = null;
     });
 
     try {
       final results = await _googleService.searchLocations(query);
-
+      
+      if (!mounted) return;
+      
       setState(() {
         _searchResults = results;
         _isSearching = false;
+        _searchError = null;
       });
+      
+      // Add to recent searches
+      _addToRecentSearches(query);
+      
     } catch (e) {
+      if (!mounted) return;
+      
       setState(() {
         _isSearching = false;
+        _searchError = 'Search failed: ${NetworkErrorResult.fromException(e).message}';
+        _searchResults = [];
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Search failed: ${e.toString()}')),
-      );
     }
   }
 
+  void _addToRecentSearches(String query) {
+    if (!_recentSearches.contains(query)) {
+      _recentSearches.insert(0, query);
+      if (_recentSearches.length > 5) {
+        _recentSearches = _recentSearches.take(5).toList();
+      }
+      _saveRecentSearches();
+    }
+  }
+
+  void _loadRecentSearches() {
+    // In a real app, you'd load from SharedPreferences
+    _recentSearches = [
+      'Nairobi Airport',
+      'Mombasa Airport',
+      'Kilimanjaro Airport',
+    ];
+  }
+
+  void _saveRecentSearches() {
+    // In a real app, you'd save to SharedPreferences
+  }
+
   void _addStop(GoogleEarthLocationModel location) {
-    // Convert to LocationModel for compatibility
-    final locationModel = location.toLocationModel();
+    try {
+      print('🗺️ StopsSelectionScreen: Converting location to LocationModel');
+      // Convert to LocationModel for compatibility
+      final locationModel = location.toLocationModel();
+      print('🗺️ StopsSelectionScreen: Converted location: ${locationModel.name}');
 
-    setState(() {
-      _stops.add(locationModel);
-      _searchResults = [];
-      _searchController.clear();
-    });
+      setState(() {
+        _stops.add(locationModel);
+        _searchResults = [];
+        _searchController.clear();
+      });
 
-    _updateMarkers();
+      print('🗺️ StopsSelectionScreen: Added stop, total stops: ${_stops.length}');
+      _updateMarkers();
 
-    // Animate map to new stop
-    _mapController?.animateCamera(
-      CameraUpdate.newLatLng(
-          LatLng(location.location.lat, location.location.lng)),
-    );
+      // Animate map to new stop
+      _mapController?.animateCamera(
+        CameraUpdate.newLatLng(
+            LatLng(location.location.lat, location.location.lng)),
+      );
+    } catch (e) {
+      print('🗺️ StopsSelectionScreen: Error adding stop: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error adding stop: ${e.toString()}'),
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    }
   }
 
   void _removeStop(int index) {
@@ -189,19 +265,49 @@ class _StopsSelectionScreenState extends State<StopsSelectionScreen> {
 
   void _onMapTap(LatLng position) async {
     try {
+      print('🗺️ StopsSelectionScreen: Map tapped at lat: ${position.latitude}, lng: ${position.longitude}');
+      
+      // Show loading indicator
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Getting location details...'),
+          duration: Duration(seconds: 1),
+        ),
+      );
+
       // Reverse geocode the tapped location
       final results = await _googleService.reverseGeocode(
         position.latitude,
         position.longitude,
       );
 
+      print('🗺️ StopsSelectionScreen: Got ${results.length} reverse geocode results');
+
       if (results.isNotEmpty) {
         final location = results.first;
+        print('🗺️ StopsSelectionScreen: Adding stop: ${location.name}');
         _addStop(location);
+        
+        // Show success message
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Added: ${location.name}'),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      } else {
+        print('🗺️ StopsSelectionScreen: No results from reverse geocode');
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No location details found for this area')),
+        );
       }
     } catch (e) {
+      print('🗺️ StopsSelectionScreen: Map tap error: $e');
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Failed to get location details')),
+        SnackBar(
+          content: Text('Failed to get location details: ${e.toString()}'),
+          duration: const Duration(seconds: 3),
+        ),
       );
     }
   }
@@ -214,20 +320,19 @@ class _StopsSelectionScreenState extends State<StopsSelectionScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: AppTheme.backgroundColor,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: AppTheme.backgroundColor,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
+          icon: Icon(Icons.arrow_back, color: AppTheme.textPrimaryColor),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
           'Select Stops',
-          style: GoogleFonts.inter(
-            fontSize: 18,
+          style: AppTheme.heading3.copyWith(
+            color: AppTheme.textPrimaryColor,
             fontWeight: FontWeight.w600,
-            color: Colors.black,
           ),
         ),
         actions: [
@@ -235,16 +340,18 @@ class _StopsSelectionScreenState extends State<StopsSelectionScreen> {
             onPressed: _stops.isNotEmpty ? _confirmStops : null,
             child: Text(
               'Confirm',
-              style: GoogleFonts.inter(
-                color: _stops.isNotEmpty ? Colors.blue : Colors.grey,
+              style: AppTheme.bodyMedium.copyWith(
+                color: _stops.isNotEmpty ? AppTheme.primaryColor : AppTheme.textSecondaryColor,
                 fontWeight: FontWeight.w600,
               ),
             ),
           ),
         ],
       ),
-      body: Column(
+      body: Stack(
         children: [
+          Column(
+            children: [
           // Search Bar
           Container(
             padding: const EdgeInsets.all(16),
@@ -253,57 +360,111 @@ class _StopsSelectionScreenState extends State<StopsSelectionScreen> {
               children: [
                 Text(
                   'Search for stops',
-                  style: GoogleFonts.inter(
-                    fontSize: 16,
+                  style: AppTheme.bodyMedium.copyWith(
+                    color: AppTheme.textPrimaryColor,
                     fontWeight: FontWeight.w600,
-                    color: Colors.black,
                   ),
                 ),
                 const SizedBox(height: 8),
                 TextField(
                   controller: _searchController,
+                  style: AppTheme.bodyMedium.copyWith(
+                    color: AppTheme.textPrimaryColor,
+                  ),
                   decoration: InputDecoration(
                     hintText: 'Search airports, cities, or landmarks...',
-                    prefixIcon: const Icon(Icons.search),
+                    hintStyle: AppTheme.bodyMedium.copyWith(
+                      color: AppTheme.textSecondaryColor,
+                    ),
+                    prefixIcon: Icon(Icons.search, color: AppTheme.primaryColor),
                     suffixIcon: _isSearching
-                        ? const Padding(
-                            padding: EdgeInsets.all(12),
-                            child: CircularProgressIndicator(strokeWidth: 2),
+                        ? Padding(
+                            padding: const EdgeInsets.all(12),
+                            child: SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation<Color>(AppTheme.primaryColor),
+                              ),
+                            ),
                           )
-                        : null,
+                        : _searchController.text.isNotEmpty
+                            ? IconButton(
+                                icon: Icon(Icons.clear, color: AppTheme.textSecondaryColor),
+                                onPressed: () {
+                                  _searchController.clear();
+                                  setState(() {
+                                    _searchResults = [];
+                                    _isSearching = false;
+                                    _searchError = null;
+                                  });
+                                },
+                              )
+                            : _recentSearches.isNotEmpty
+                                ? IconButton(
+                                    icon: Icon(Icons.history, color: AppTheme.textSecondaryColor),
+                                    onPressed: () => _showRecentSearches(),
+                                    tooltip: 'Recent searches',
+                                  )
+                                : null,
+                    filled: true,
+                    fillColor: AppTheme.surfaceColor,
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(color: Colors.grey.shade300),
+                      borderSide: BorderSide(color: AppTheme.borderColor),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: AppTheme.borderColor),
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Colors.blue),
+                      borderSide: BorderSide(color: AppTheme.primaryColor, width: 2),
                     ),
                   ),
-                  onChanged: (value) {
-                    if (value.trim().isNotEmpty) {
-                      _searchLocations(value);
-                    } else {
-                      setState(() {
-                        _searchResults = [];
-                        _isSearching = false;
-                      });
-                    }
-                  },
+                  onChanged: _onSearchChanged,
                 ),
+                
+                // Search Error
+                if (_searchError != null)
+                  Container(
+                    margin: const EdgeInsets.only(top: 8),
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: AppTheme.errorColor.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: AppTheme.errorColor.withValues(alpha: 0.3)),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.error_outline, color: AppTheme.errorColor, size: 16),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            _searchError!,
+                            style: AppTheme.bodySmall.copyWith(
+                              color: AppTheme.errorColor,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
               ],
             ),
           ),
 
-          // Search Results
+          // Search Results Only (when actively searching)
           if (_searchResults.isNotEmpty)
             Container(
-              height: 200,
+              height: 150,
+              constraints: const BoxConstraints(maxHeight: 150),
               margin: const EdgeInsets.symmetric(horizontal: 16),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: AppTheme.surfaceColor,
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.grey.shade200),
+                border: Border.all(color: AppTheme.borderColor),
                 boxShadow: [
                   BoxShadow(
                     color: Colors.black.withValues(alpha: 0.1),
@@ -312,24 +473,49 @@ class _StopsSelectionScreenState extends State<StopsSelectionScreen> {
                   ),
                 ],
               ),
-              child: ListView.builder(
-                padding: const EdgeInsets.all(8),
-                itemCount: _searchResults.length,
-                itemBuilder: (context, index) {
-                  final result = _searchResults[index];
-                  return ListTile(
-                    leading: const Icon(Icons.location_on, color: Colors.blue),
-                    title: Text(
-                      result.name,
-                      style: GoogleFonts.inter(fontWeight: FontWeight.w600),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Text(
+                      'Search Results (${_searchResults.length})',
+                      style: AppTheme.bodySmall.copyWith(
+                        color: AppTheme.textSecondaryColor,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
-                    subtitle: Text(
-                      result.formattedAddress,
-                      style: GoogleFonts.inter(color: Colors.grey[600]),
+                  ),
+                  Expanded(
+                    child: ListView.builder(
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      itemCount: _searchResults.length,
+                      itemBuilder: (context, index) {
+                        final result = _searchResults[index];
+                        return ListTile(
+                          dense: true,
+                          leading: Icon(Icons.location_on, color: AppTheme.primaryColor, size: 20),
+                          title: Text(
+                            result.name,
+                            style: AppTheme.bodySmall.copyWith(
+                              color: AppTheme.textPrimaryColor,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          subtitle: Text(
+                            result.formattedAddress,
+                            style: AppTheme.caption.copyWith(
+                              color: AppTheme.textSecondaryColor,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          onTap: () => _addStop(result),
+                        );
+                      },
                     ),
-                    onTap: () => _addStop(result),
-                  );
-                },
+                  ),
+                ],
               ),
             ),
 
@@ -363,79 +549,73 @@ class _StopsSelectionScreenState extends State<StopsSelectionScreen> {
             ),
           ),
 
-          // Selected Stops
+            ],
+          ),
+          // Floating Selected Stops Overlay
           if (_stops.isNotEmpty)
-            Container(
-              height: 120,
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Selected Stops (${_stops.length})',
-                    style: GoogleFonts.inter(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.black,
+            Positioned(
+              bottom: 16,
+              left: 16,
+              right: 16,
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: AppTheme.surfaceColor,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppTheme.borderColor),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.1),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  Expanded(
-                    child: ListView.builder(
-                      scrollDirection: Axis.horizontal,
-                      itemCount: _stops.length,
-                      itemBuilder: (context, index) {
-                        final stop = _stops[index];
-                        return Container(
-                          width: 200,
-                          margin: const EdgeInsets.only(right: 12),
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: Colors.grey.shade50,
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: Colors.grey.shade200),
+                  ],
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.location_on, color: AppTheme.primaryColor, size: 20),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Selected Stops (${_stops.length})',
+                          style: AppTheme.bodyMedium.copyWith(
+                            color: AppTheme.textPrimaryColor,
+                            fontWeight: FontWeight.w600,
                           ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: Text(
-                                      stop.name,
-                                      style: GoogleFonts.inter(
-                                        fontWeight: FontWeight.w600,
-                                        fontSize: 14,
-                                      ),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                                  IconButton(
-                                    icon: const Icon(Icons.close, size: 16),
-                                    onPressed: () => _removeStop(index),
-                                    padding: EdgeInsets.zero,
-                                    constraints: const BoxConstraints(),
-                                  ),
-                                ],
+                        ),
+                        const Spacer(),
+                        if (_stops.length > 3)
+                          TextButton(
+                            onPressed: () => _showAllStops(),
+                            child: Text(
+                              'View All',
+                              style: AppTheme.bodySmall.copyWith(
+                                color: AppTheme.primaryColor,
+                                fontWeight: FontWeight.w600,
                               ),
-                              const SizedBox(height: 4),
-                              Text(
-                                stop.city,
-                                style: GoogleFonts.inter(
-                                  color: Colors.grey[600],
-                                  fontSize: 12,
-                                ),
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ],
+                            ),
                           ),
-                        );
-                      },
+                      ],
                     ),
-                  ),
-                ],
+                    const SizedBox(height: 12),
+                    // Show first 3 stops
+                    ...(_stops.take(3).map((stop) => _buildStopChip(stop, _stops.indexOf(stop)))),
+                    if (_stops.length > 3)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8),
+                        child: Text(
+                          '+${_stops.length - 3} more stops',
+                          style: AppTheme.caption.copyWith(
+                            color: AppTheme.textSecondaryColor,
+                            fontStyle: FontStyle.italic,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
               ),
             ),
         ],
@@ -443,9 +623,179 @@ class _StopsSelectionScreenState extends State<StopsSelectionScreen> {
     );
   }
 
-  @override
-  void dispose() {
-    _searchController.dispose();
-    super.dispose();
+  Widget _buildStopChip(LocationModel stop, int index) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: AppTheme.primaryColor.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AppTheme.primaryColor.withValues(alpha: 0.2)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 24,
+            height: 24,
+            decoration: BoxDecoration(
+              color: AppTheme.primaryColor,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Center(
+              child: Text(
+                '${index + 1}',
+                style: AppTheme.caption.copyWith(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  stop.name,
+                  style: AppTheme.bodySmall.copyWith(
+                    color: AppTheme.textPrimaryColor,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                if (stop.city != null)
+                  Text(
+                    stop.city!,
+                    style: AppTheme.caption.copyWith(
+                      color: AppTheme.textSecondaryColor,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+              ],
+            ),
+          ),
+          IconButton(
+            icon: Icon(Icons.close, size: 16, color: AppTheme.errorColor),
+            onPressed: () => _removeStop(index),
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+          ),
+        ],
+      ),
+    );
   }
+
+  void _showAllStops() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        height: MediaQuery.of(context).size.height * 0.7,
+        decoration: BoxDecoration(
+          color: AppTheme.surfaceColor,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: Column(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  Icon(Icons.location_on, color: AppTheme.primaryColor),
+                  const SizedBox(width: 8),
+                  Text(
+                    'All Selected Stops (${_stops.length})',
+                    style: AppTheme.heading3.copyWith(
+                      color: AppTheme.textPrimaryColor,
+                    ),
+                  ),
+                  const Spacer(),
+                  IconButton(
+                    icon: Icon(Icons.close, color: AppTheme.textSecondaryColor),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                ],
+              ),
+            ),
+            Expanded(
+              child: ListView.builder(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                itemCount: _stops.length,
+                itemBuilder: (context, index) {
+                  final stop = _stops[index];
+                  return _buildStopChip(stop, index);
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showRecentSearches() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        height: 300,
+        decoration: BoxDecoration(
+          color: AppTheme.surfaceColor,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: Column(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  Icon(Icons.history, color: AppTheme.primaryColor),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Recent Searches',
+                    style: AppTheme.heading3.copyWith(
+                      color: AppTheme.textPrimaryColor,
+                    ),
+                  ),
+                  const Spacer(),
+                  IconButton(
+                    icon: Icon(Icons.close, color: AppTheme.textSecondaryColor),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                ],
+              ),
+            ),
+            Expanded(
+              child: ListView.builder(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                itemCount: _recentSearches.length,
+                itemBuilder: (context, index) {
+                  final search = _recentSearches[index];
+                  return ListTile(
+                    leading: Icon(Icons.history, color: AppTheme.textSecondaryColor),
+                    title: Text(
+                      search,
+                      style: AppTheme.bodyMedium.copyWith(
+                        color: AppTheme.textPrimaryColor,
+                      ),
+                    ),
+                    onTap: () {
+                      Navigator.pop(context);
+                      _searchController.text = search;
+                      _performSearch(search);
+                    },
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
 }

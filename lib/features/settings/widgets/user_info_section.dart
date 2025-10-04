@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:provider/provider.dart';
+import '../../../config/theme/app_theme.dart';
 import '../../../core/providers/auth_provider.dart';
 import '../../profile/profile.dart';
 
@@ -29,14 +29,15 @@ class UserInfoSection extends StatelessWidget {
             margin: const EdgeInsets.symmetric(horizontal: 16),
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: AppTheme.backgroundColor.withOpacity(0.7),
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.grey.shade100, width: 0.5),
+              border: Border.all(
+                  color: AppTheme.borderColor.withOpacity(0.3), width: 1),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.03),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
+                  color: AppTheme.primaryColor.withOpacity(0.1),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
                 ),
               ],
             ),
@@ -67,28 +68,25 @@ class UserInfoSection extends StatelessWidget {
                     children: [
                       Text(
                         userName,
-                        style: GoogleFonts.outfit(
-                          fontSize: 18,
+                        style: AppTheme.heading3.copyWith(
                           fontWeight: FontWeight.w600,
-                          color: Colors.black,
+                          color: AppTheme.textPrimaryColor,
                         ),
                       ),
                       const SizedBox(height: 4),
                       Text(
                         userEmail,
-                        style: GoogleFonts.plusJakartaSans(
-                          fontSize: 14,
+                        style: AppTheme.bodySmall.copyWith(
                           fontWeight: FontWeight.w500,
-                          color: Colors.grey.shade600,
+                          color: AppTheme.textSecondaryColor,
                         ),
                       ),
                       const SizedBox(height: 2),
                       Text(
                         userPhone,
-                        style: GoogleFonts.plusJakartaSans(
-                          fontSize: 14,
+                        style: AppTheme.bodySmall.copyWith(
                           fontWeight: FontWeight.w500,
-                          color: Colors.grey.shade600,
+                          color: AppTheme.textSecondaryColor,
                         ),
                       ),
                     ],

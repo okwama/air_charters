@@ -5,7 +5,8 @@ import '../../core/models/location_model.dart';
 import '../../core/services/aircraft_availability_service.dart';
 import '../../shared/widgets/aircraft_card.dart';
 import '../booking/aircraft_selection_page.dart';
-import 'inquiry/create_inquiry_screen.dart';
+import '../direct_charter/flight_configuration_screen.dart';
+import '../../core/services/aircraft_type_service.dart';
 
 class AircraftResultsScreen extends StatefulWidget {
   final LocationModel origin;
@@ -373,7 +374,33 @@ class _AircraftResultsScreenState extends State<AircraftResultsScreen> {
                   child: ElevatedButton(
                     onPressed: () {
                       Navigator.pop(context);
-                      _createInquiry(aircraft);
+                      // Convert AvailableAircraft to Aircraft
+                      final aircraftModel = Aircraft(
+                        id: aircraft.aircraftId,
+                        name: aircraft.aircraftName,
+                        model: aircraft.aircraftName,
+                        capacity: aircraft.capacity,
+                        pricePerHour:
+                            aircraft.basePrice / 2, // Estimate price per hour
+                        baseAirport: null,
+                        baseCity: null,
+                        companyName: aircraft.companyName,
+                        imageUrl: aircraft.images.isNotEmpty
+                            ? aircraft.images.first
+                            : null,
+                        aircraftType: aircraft.aircraftType,
+                        flightDurationHours: aircraft.flightDuration / 60.0,
+                      );
+
+                      // Navigate to flight configuration for inquiry
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => FlightConfigurationScreen(
+                            aircraft: aircraftModel,
+                          ),
+                        ),
+                      );
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.black,
@@ -423,23 +450,6 @@ class _AircraftResultsScreenState extends State<AircraftResultsScreen> {
               const SizedBox(height: 20),
             ],
           ),
-        ),
-      ),
-    );
-  }
-
-  void _createInquiry(AvailableAircraft aircraft) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => CreateInquiryScreen(
-          aircraft: aircraft,
-          origin: widget.origin,
-          destination: widget.destination,
-          departureDate: widget.departureDate,
-          returnDate: widget.returnDate,
-          passengerCount: widget.passengerCount,
-          isRoundTrip: widget.isRoundTrip,
         ),
       ),
     );
@@ -626,7 +636,36 @@ class _AircraftResultsScreenState extends State<AircraftResultsScreen> {
                                       ? () => _selectAircraft(aircraft)
                                       : null,
                                   onInquiryTap: aircraft.totalPrice <= 0
-                                      ? () => _createInquiry(aircraft)
+                                      ? () {
+                                          // Convert AvailableAircraft to Aircraft
+                                          final aircraftModel = Aircraft(
+                                            id: aircraft.aircraftId,
+                                            name: aircraft.aircraftName,
+                                            model: aircraft.aircraftName,
+                                            capacity: aircraft.capacity,
+                                            pricePerHour: aircraft.basePrice /
+                                                2, // Estimate price per hour
+                                            baseAirport: null,
+                                            baseCity: null,
+                                            companyName: aircraft.companyName,
+                                            imageUrl: aircraft.images.isNotEmpty
+                                                ? aircraft.images.first
+                                                : null,
+                                            aircraftType: aircraft.aircraftType,
+                                            flightDurationHours:
+                                                aircraft.flightDuration / 60.0,
+                                          );
+
+                                          Navigator.push(
+                                            context,
+                                            MaterialPageRoute(
+                                              builder: (context) =>
+                                                  FlightConfigurationScreen(
+                                                aircraft: aircraftModel,
+                                              ),
+                                            ),
+                                          );
+                                        }
                                       : null,
                                 ),
                               );

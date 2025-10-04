@@ -15,21 +15,22 @@ class NavigationProvider extends ChangeNotifier {
 
   void setCurrentIndex(int index) {
     // Validate index bounds
-    final validIndex = index.clamp(0, 3); // 4 tabs: 0-3
-    
+    final validIndex = index.clamp(0, 4); // 5 tabs: 0-4
+
     if (_currentIndex != validIndex) {
       final previousRoute = getCurrentRouteName();
-      
+
       if (kDebugMode) {
-        print('NavigationProvider: Changing index from $_currentIndex to $validIndex');
+        print(
+            'NavigationProvider: Changing index from $_currentIndex to $validIndex');
       }
-      
+
       _currentIndex = validIndex;
       final newRoute = getCurrentRouteName();
-      
+
       // Record navigation analytics
       _recordNavigation(previousRoute, newRoute);
-      
+
       notifyListeners();
     }
   }
@@ -43,20 +44,24 @@ class NavigationProvider extends ChangeNotifier {
     if (kDebugMode) {
       print('NavigationProvider: Initializing for route: $routeName');
     }
-    
+
     switch (routeName) {
       case '/home':
+      case '/dashboard':
         setCurrentIndex(0);
         break;
-      case '/direct-charter':
+      case '/explore':
         setCurrentIndex(1);
         break;
-      case '/trips':
+      case '/direct-charter':
         setCurrentIndex(2);
+        break;
+      case '/trips':
+        setCurrentIndex(3);
         break;
       case '/settings':
       case '/profile':
-        setCurrentIndex(3);
+        setCurrentIndex(4);
         break;
       default:
         // Default to home if route is not recognized
@@ -74,15 +79,17 @@ class NavigationProvider extends ChangeNotifier {
   String getCurrentRouteName() {
     switch (_currentIndex) {
       case 0:
-        return AppRoutes.home;
+        return AppRoutes.dashboard;
       case 1:
-        return AppRoutes.directCharter;
+        return AppRoutes.home;
       case 2:
-        return AppRoutes.trips;
+        return AppRoutes.directCharter;
       case 3:
+        return AppRoutes.trips;
+      case 4:
         return AppRoutes.settings;
       default:
-        return AppRoutes.home;
+        return AppRoutes.dashboard;
     }
   }
 
@@ -90,7 +97,7 @@ class NavigationProvider extends ChangeNotifier {
   void _recordNavigation(String previousRoute, String newRoute) {
     _currentRoute = newRoute;
     _navigationHistory.add(newRoute);
-    
+
     // Record in analytics
     _analytics.recordNavigation(
       routeName: newRoute,
@@ -101,23 +108,25 @@ class NavigationProvider extends ChangeNotifier {
         'timestamp': DateTime.now().toIso8601String(),
       },
     );
-    
+
     if (kDebugMode) {
-      print('NavigationProvider: Recorded navigation from $previousRoute to $newRoute');
+      print(
+          'NavigationProvider: Recorded navigation from $previousRoute to $newRoute');
     }
   }
 
   // Record external navigation (from other parts of the app)
-  void recordExternalNavigation(String routeName, {String? previousRoute, Map<String, dynamic>? metadata}) {
+  void recordExternalNavigation(String routeName,
+      {String? previousRoute, Map<String, dynamic>? metadata}) {
     _currentRoute = routeName;
     _navigationHistory.add(routeName);
-    
+
     _analytics.recordNavigation(
       routeName: routeName,
       previousRoute: previousRoute,
       metadata: metadata,
     );
-    
+
     if (kDebugMode) {
       print('NavigationProvider: Recorded external navigation to $routeName');
     }
@@ -152,7 +161,7 @@ class NavigationProvider extends ChangeNotifier {
   void clearNavigationHistory() {
     _navigationHistory.clear();
     _analytics.clearData();
-    
+
     if (kDebugMode) {
       print('NavigationProvider: Navigation history cleared');
     }

@@ -291,9 +291,11 @@ class _LandingScreenState extends State<LandingScreen>
                                       borderRadius: BorderRadius.circular(16),
                                       onTap: () async {
                                         // Mark landing page as seen for this user
-                                        final authProvider = Provider.of<AuthProvider>(context, listen: false);
+                                        final authProvider =
+                                            Provider.of<AuthProvider>(context,
+                                                listen: false);
                                         await authProvider.markLandingAsSeen();
-                                        
+
                                         Navigator.of(context)
                                             .pushReplacementNamed('/login');
                                       },
