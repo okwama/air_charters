@@ -52,7 +52,7 @@ class UserTripModel {
         reviewDate: _parseNullableDateTime(json['reviewDate']),
         photos: _parseNullableString(json['photos']),
         videos: _parseNullableString(json['videos']),
-        createdAt: _parseDateTime(json['createdAt']),
+        createdAt: _parseNullableDateTime(json['createdAt']) ?? DateTime.now(),
         completedAt: _parseNullableDateTime(json['completedAt']),
         cancelledAt: _parseNullableDateTime(json['cancelledAt']),
         booking: json['booking'] != null
@@ -162,21 +162,6 @@ class UserTripModel {
     }
     if (value is double) return value.toInt();
     return null;
-  }
-
-  // Helper method to safely parse DateTime (required field)
-  static DateTime _parseDateTime(dynamic value) {
-    if (value == null) return DateTime.now();
-    if (value is DateTime) return value;
-    if (value is String) {
-      try {
-        return DateTime.parse(value);
-      } catch (e) {
-        print('Error parsing DateTime: $value');
-        return DateTime.now();
-      }
-    }
-    return DateTime.now();
   }
 
   // Helper method to safely parse nullable DateTime

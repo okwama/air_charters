@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:provider/provider.dart';
 import '../../shared/widgets/calendar_selector.dart';
 import '../../shared/widgets/loading_system.dart';
+import '../../shared/widgets/auth_required_dialog.dart';
 import '../../core/models/charter_deal_model.dart';
+import '../../core/providers/auth_provider.dart';
 import 'confirm_booking.dart';
 
 class BookingDetailPage extends StatefulWidget {
@@ -689,6 +692,14 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
   }
 
   void _showConfirmBooking(Map<String, dynamic> flight) {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    
+    // Check if user is in guest mode
+    if (authProvider.isGuest) {
+      _showGuestBookingPrompt();
+      return;
+    }
+    
     final deal = flight['deal'] as CharterDealModel?;
 
     showModalBottomSheet(
@@ -713,6 +724,10 @@ class _BookingDetailPageState extends State<BookingDetailPage> {
         ),
       ),
     );
+  }
+
+  void _showGuestBookingPrompt() {
+    QuickAuthPrompt.showForBooking(context);
   }
 
   void _showDateSelector() async {

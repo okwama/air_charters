@@ -12,7 +12,6 @@ import '../providers/passengers_provider.dart';
 import '../providers/trips_provider.dart';
 import '../providers/navigation_provider.dart';
 import '../providers/settings_provider.dart';
-import '../providers/theme_provider.dart';
 
 // Services
 import 'user_service.dart';
@@ -33,7 +32,6 @@ class DependencyInjectionService {
       ChangeNotifierProvider(create: (_) => PassengerProvider()),
       ChangeNotifierProvider(create: (_) => TripsProvider()),
       ChangeNotifierProvider(create: (_) => NavigationProvider()),
-      ChangeNotifierProvider(create: (_) => ThemeProvider()),
 
       // Services
       Provider<UserService>(create: (_) => UserService()),

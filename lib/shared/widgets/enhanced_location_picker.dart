@@ -1,16 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:lucide_icons/lucide_icons.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'dart:async';
-import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../config/theme/app_theme.dart';
 import '../../config/env/maps_config.dart';
 import '../../core/services/locations_service.dart';
 import '../../core/services/google_maps_service.dart';
+import '../../core/services/location_cache_service.dart';
 import '../../core/models/location_model.dart';
 
 /// Uber-like location picker for direct charter flights
@@ -38,20 +38,30 @@ class _EnhancedLocationPickerState extends State<EnhancedLocationPicker> {
   final TextEditingController _searchController = TextEditingController();
   final LocationsService _locationsService = LocationsService();
   final GoogleMapsService _googleMapsService = GoogleMapsService();
+  final LocationCacheService _cacheService = LocationCacheService();
+  final ScrollController _scrollController = ScrollController();
   List<LocationModel> _searchResults = [];
   List<GoogleLocation> _googleSearchResults = [];
   List<String> _recentSearches = [];
   bool _isSearching = false;
   bool _isLoadingInitialData = true;
+  bool _isLoadingMore = false;
   Position? _currentPosition;
   String? _currentCountry;
   Timer? _searchDebounce;
-  static const Duration _searchDelay = Duration(milliseconds: 500);
-  
+  static const Duration _searchDelay =
+      Duration(milliseconds: 250); // Reduced for instant feel
+
+  // Pagination state
+  int _dbOffset = 0;
+  bool _hasMoreDb = true;
+  String? _googleNextPageToken;
+  static const int _pageSize = 50;
+
   // Map view state
   bool _isMapView = false;
   GoogleMapController? _mapController;
-  Set<Marker> _markers = {};
+  final Set<Marker> _markers = {};
   LatLng _mapCenter = const LatLng(0.0, 0.0);
   double _mapZoom = 10.0;
 
@@ -62,14 +72,17 @@ class _EnhancedLocationPickerState extends State<EnhancedLocationPicker> {
     _getCurrentLocation();
     _loadPopularLocations();
     _loadRecentSearches();
+    _scrollController.addListener(_onScroll);
   }
 
   /// Initialize map center based on current location or default
   void _initializeMapCenter() {
     if (_currentPosition != null) {
-      _mapCenter = LatLng(_currentPosition!.latitude, _currentPosition!.longitude);
+      _mapCenter =
+          LatLng(_currentPosition!.latitude, _currentPosition!.longitude);
     } else {
-      _mapCenter = const LatLng(MapsConfig.defaultLatitude, MapsConfig.defaultLongitude);
+      _mapCenter =
+          const LatLng(MapsConfig.defaultLatitude, MapsConfig.defaultLongitude);
     }
     _mapZoom = MapsConfig.defaultZoom;
   }
@@ -77,8 +90,24 @@ class _EnhancedLocationPickerState extends State<EnhancedLocationPicker> {
   @override
   void dispose() {
     _searchController.dispose();
+    _scrollController.dispose();
     _searchDebounce?.cancel();
     super.dispose();
+  }
+
+  /// Handle scroll events for infinite scroll
+  void _onScroll() {
+    if (_isMapView) return; // Only for list view
+
+    final maxScroll = _scrollController.position.maxScrollExtent;
+    final currentScroll = _scrollController.position.pixels;
+    final threshold = maxScroll * 0.8; // Load more when 80% scrolled
+
+    if (currentScroll >= threshold &&
+        !_isLoadingMore &&
+        (_hasMoreDb || _googleNextPageToken != null)) {
+      _loadMoreResults();
+    }
   }
 
   /// Get user's current location for location-aware search
@@ -144,59 +173,70 @@ class _EnhancedLocationPickerState extends State<EnhancedLocationPicker> {
 
   Future<void> _loadPopularLocations() async {
     try {
-      // Load local popular locations
-      final localLocations = await _locationsService.getPopularLocations();
+      // UBER PATTERN: Show cached instantly, then update with fresh
+      final cacheKey = 'popular_${_currentCountry ?? 'global'}';
 
-      // Load location-aware Google results
-      List<GoogleLocation> googleLocations = [];
+      // STEP 1: Try cache first (INSTANT - 0ms)
+      final cached = await _cacheService.getCachedSearch(cacheKey);
+      if (cached != null && cached.isNotEmpty) {
+        print('⚡ INSTANT: Showing ${cached.length} cached popular locations');
+        setState(() {
+          _googleSearchResults = cached;
+          _searchResults = [];
+          _isLoadingInitialData = false; // Show screen NOW
+        });
+      }
 
-      if (_currentPosition != null) {
-        // Search for nearby airports first
+      // STEP 2: Fetch fresh in background (don't block UI)
+      SearchResult? googleResult;
+
+      if (_currentCountry != null) {
         try {
-          googleLocations = await _googleMapsService.searchLocations(
-            query: 'airport',
+          googleResult = await _googleMapsService.searchLocations(
+            query: 'airport in $_currentCountry',
             type: 'airport',
-            location:
-                '${_currentPosition!.latitude},${_currentPosition!.longitude}',
-            radius: 500000, // 500km radius
+            location: _currentPosition != null
+                ? '${_currentPosition!.latitude},${_currentPosition!.longitude}'
+                : null,
+            radius: _currentPosition != null ? 500000 : null,
           );
+          print(
+              '🔄 Background: Loaded ${googleResult.locations.length} fresh airports for $_currentCountry');
         } catch (e) {
-          print('Error loading nearby airports: $e');
+          print('Error loading country-specific airports: $e');
         }
       }
 
-      // If no nearby results or no location, do global search
-      if (googleLocations.isEmpty) {
+      if (googleResult == null || googleResult.locations.isEmpty) {
         try {
-          googleLocations = await _googleMapsService.searchLocations(
-            query: 'airport',
+          googleResult = await _googleMapsService.searchLocations(
+            query: 'major airport',
             type: 'airport',
           );
+          print(
+              '🔄 Background: Loaded ${googleResult.locations.length} global airports');
         } catch (e) {
           print('Error loading global airports: $e');
         }
       }
 
-      setState(() {
-        _searchResults = localLocations;
-        _googleSearchResults = googleLocations;
-        _isLoadingInitialData = false;
-      });
+      // STEP 3: Update UI with fresh data
+      if (googleResult != null && googleResult.locations.isNotEmpty) {
+        setState(() {
+          _googleSearchResults = googleResult!.locations;
+          _searchResults = [];
+          _isLoadingInitialData = false;
+        });
+
+        // Cache fresh results for next time
+        await _cacheService.cacheSearch(cacheKey, googleResult.locations);
+        print('💾 Cached ${googleResult.locations.length} popular locations');
+      }
     } catch (e) {
       print('Error loading popular locations: $e');
-      // Fallback to local only if Google fails
-      try {
-        final locations = await _locationsService.getPopularLocations();
-        setState(() {
-          _searchResults = locations;
-          _isLoadingInitialData = false;
-        });
-      } catch (fallbackError) {
-        print('Error loading local popular locations: $fallbackError');
-        setState(() {
-          _isLoadingInitialData = false;
-        });
-      }
+      setState(() {
+        _isLoadingInitialData = false;
+      });
     }
   }
 
@@ -209,23 +249,44 @@ class _EnhancedLocationPickerState extends State<EnhancedLocationPicker> {
     // Add to recent searches
     _addToRecentSearches(query);
 
+    // Reset pagination
+    _dbOffset = 0;
+    _hasMoreDb = true;
+    _googleNextPageToken = null;
+
     setState(() {
       _isSearching = true;
     });
 
     try {
-      // Location-aware search with priority
-      final List<GoogleLocation> googleResults =
-          await _performLocationAwareSearch(query);
-      final List<LocationModel> localResults =
-          await _locationsService.searchLocations(query);
+      // Search both Google Places and local database in parallel
+      final results = await Future.wait([
+        _searchGooglePlaces(query),
+        _locationsService.searchLocations(query, limit: _pageSize, offset: 0),
+      ]);
+
+      final SearchResult googleResults = results[0] as SearchResult;
+      final LocationSearchResult localResults =
+          results[1] as LocationSearchResult;
 
       setState(() {
-        _googleSearchResults = googleResults;
-        _searchResults = localResults;
+        _googleSearchResults = googleResults.locations;
+        _googleNextPageToken = googleResults.nextPageToken;
+        _searchResults = localResults.locations;
+        _hasMoreDb = localResults.hasMore;
+        _dbOffset = _pageSize;
         _isSearching = false;
       });
-      
+
+      print(
+          '🔍 Search completed: ${googleResults.locations.length} Google + ${localResults.locations.length} local results');
+      if (_googleNextPageToken != null) {
+        print('📄 Google has more pages available');
+      }
+      if (_hasMoreDb) {
+        print('📄 Database has more results (total: ${localResults.total})');
+      }
+
       // Update map markers if in map view
       if (_isMapView) {
         _updateMapMarkers();
@@ -238,109 +299,156 @@ class _EnhancedLocationPickerState extends State<EnhancedLocationPicker> {
     }
   }
 
-  /// Perform location-aware search with regional priority
-  Future<List<GoogleLocation>> _performLocationAwareSearch(String query) async {
-    List<GoogleLocation> allResults = [];
+  /// Load more results for infinite scroll
+  Future<void> _loadMoreResults() async {
+    if (_isLoadingMore) return;
 
-    if (_currentPosition != null) {
-      // Search with user's current location as center
-      try {
-        final nearbyResults = await _googleMapsService.searchLocations(
-          query: query,
-          type: 'airport|establishment',
-          location:
-              '${_currentPosition!.latitude},${_currentPosition!.longitude}',
-          radius: 500000, // 500km radius for regional search
-        );
-        allResults.addAll(nearbyResults);
-        print('Found ${nearbyResults.length} nearby results');
-      } catch (e) {
-        print('Error searching nearby locations: $e');
-      }
-    }
-
-    // If we have a country, search specifically in that country
-    if (_currentCountry != null) {
-      try {
-        final countryResults = await _googleMapsService.searchLocations(
-          query: '$query in $_currentCountry',
-          type: 'airport|establishment',
-        );
-        allResults.addAll(countryResults);
-        print('Found ${countryResults.length} country-specific results');
-      } catch (e) {
-        print('Error searching country-specific locations: $e');
-      }
-    }
-
-    // Global search as fallback
-    try {
-      final globalResults = await _googleMapsService.searchLocations(
-        query: query,
-        type: 'airport|establishment',
-      );
-      allResults.addAll(globalResults);
-      print('Found ${globalResults.length} global results');
-    } catch (e) {
-      print('Error searching global locations: $e');
-    }
-
-    // Remove duplicates and sort by priority
-    return _sortResultsByPriority(allResults);
-  }
-
-  /// Sort results by location priority (local -> regional -> global)
-  List<GoogleLocation> _sortResultsByPriority(List<GoogleLocation> results) {
-    // Remove duplicates based on placeId
-    final Map<String, GoogleLocation> uniqueResults = {};
-    for (final result in results) {
-      if (!uniqueResults.containsKey(result.placeId)) {
-        uniqueResults[result.placeId] = result;
-      }
-    }
-
-    final List<GoogleLocation> sortedResults = uniqueResults.values.toList();
-
-    // Sort by priority: current country first, then by distance
-    sortedResults.sort((a, b) {
-      // Priority 1: Current country
-      if (_currentCountry != null) {
-        final aInCountry = a.formattedAddress
-            .toLowerCase()
-            .contains(_currentCountry!.toLowerCase());
-        final bInCountry = b.formattedAddress
-            .toLowerCase()
-            .contains(_currentCountry!.toLowerCase());
-
-        if (aInCountry && !bInCountry) return -1;
-        if (!aInCountry && bInCountry) return 1;
-      }
-
-      // Priority 2: Distance from current location (if available)
-      if (_currentPosition != null) {
-        final aDistance = _calculateDistance(
-          _currentPosition!.latitude,
-          _currentPosition!.longitude,
-          a.latitude,
-          a.longitude,
-        );
-        final bDistance = _calculateDistance(
-          _currentPosition!.latitude,
-          _currentPosition!.longitude,
-          b.latitude,
-          b.longitude,
-        );
-
-        return aDistance.compareTo(bDistance);
-      }
-
-      // Priority 3: Rating (higher is better)
-      final aRating = a.rating ?? 0;
-      final bRating = b.rating ?? 0;
-      return bRating.compareTo(aRating);
+    setState(() {
+      _isLoadingMore = true;
     });
 
-    return sortedResults.take(20).toList(); // Limit to top 20 results
+    try {
+      final query = _searchController.text;
+
+      // Load more from both Google and Database if available
+      List<GoogleLocation> moreGoogleResults = [];
+      List<LocationModel> moreDbResults = [];
+
+      if (_googleNextPageToken != null) {
+        final googleResult =
+            await _searchGooglePlaces(query, pageToken: _googleNextPageToken);
+        moreGoogleResults = googleResult.locations;
+        _googleNextPageToken = googleResult.nextPageToken;
+        print('📄 Loaded ${moreGoogleResults.length} more Google results');
+      }
+
+      if (_hasMoreDb) {
+        final dbResult = await _locationsService.searchLocations(
+          query,
+          limit: _pageSize,
+          offset: _dbOffset,
+        );
+        moreDbResults = dbResult.locations;
+        _hasMoreDb = dbResult.hasMore;
+        _dbOffset += dbResult.locations.length;
+        print(
+            '📄 Loaded ${moreDbResults.length} more DB results (offset now: $_dbOffset)');
+      }
+
+      setState(() {
+        _googleSearchResults.addAll(moreGoogleResults);
+        _searchResults.addAll(moreDbResults);
+        _isLoadingMore = false;
+      });
+
+      // Update map markers if in map view
+      if (_isMapView) {
+        _updateMapMarkers();
+      }
+    } catch (e) {
+      setState(() {
+        _isLoadingMore = false;
+      });
+      print('Error loading more results: $e');
+    }
+  }
+
+  /// Search Google Places with cache-first (Uber pattern)
+  Future<SearchResult> _searchGooglePlaces(String query,
+      {String? pageToken}) async {
+    // If we have a pageToken, skip cache and fetch next page directly
+    if (pageToken != null) {
+      print('📄 Fetching next page of Google results');
+      return await _fetchFreshResults(query, pageToken: pageToken);
+    }
+
+    // STEP 1: Check cache first (INSTANT) - only for first page
+    final cached = await _cacheService.getCachedSearch(query);
+    if (cached != null && cached.isNotEmpty) {
+      print('⚡ INSTANT: Showing ${cached.length} cached results for "$query"');
+      // Return cached but continue fetching fresh in background
+      _fetchFreshResultsInBackground(query);
+      return SearchResult(locations: cached, nextPageToken: null);
+    }
+
+    // STEP 2: Cache miss - fetch fresh
+    print('❌ Cache miss for "$query" - fetching fresh');
+    return await _fetchFreshResults(query);
+  }
+
+  /// Fetch fresh results and cache them
+  Future<SearchResult> _fetchFreshResults(String query,
+      {String? pageToken}) async {
+    try {
+      // Build search query for airports/airstrips
+      final searchQuery = '$query airport';
+      final location = _currentPosition != null
+          ? '${_currentPosition!.latitude},${_currentPosition!.longitude}'
+          : null;
+
+      print(
+          '🔍 Fetching fresh results for "$searchQuery"${pageToken != null ? " (page ${pageToken.substring(0, 10)}...)" : ""}');
+
+      // Fetch from Google
+      SearchResult results;
+
+      if (_currentPosition != null) {
+        // Search nearby
+        results = await _googleMapsService.searchLocations(
+          query: searchQuery,
+          type: 'airport',
+          location: location,
+          radius: 500000, // 500km radius
+          pageToken: pageToken,
+        );
+      } else if (_currentCountry != null) {
+        // Search within country
+        results = await _googleMapsService.searchLocations(
+          query: '$searchQuery in $_currentCountry',
+          type: 'airport',
+          pageToken: pageToken,
+        );
+      } else {
+        // Global search
+        results = await _googleMapsService.searchLocations(
+          query: searchQuery,
+          type: 'airport',
+          pageToken: pageToken,
+        );
+      }
+
+      // Cache the first page results for 15 minutes
+      if (results.locations.isNotEmpty && pageToken == null) {
+        await _cacheService.cacheSearch(query, results.locations);
+        print('💾 Cached ${results.locations.length} results for "$query"');
+      }
+
+      return results;
+    } catch (e) {
+      print('Error searching Google Places: $e');
+      return SearchResult(locations: [], nextPageToken: null);
+    }
+  }
+
+  /// Fetch fresh results in background without blocking UI
+  void _fetchFreshResultsInBackground(String query) {
+    _fetchFreshResults(query).then((freshResults) {
+      if (mounted && freshResults.locations.isNotEmpty) {
+        // Only update if user is still on same search
+        if (_searchController.text
+            .toLowerCase()
+            .contains(query.toLowerCase())) {
+          setState(() {
+            _googleSearchResults = freshResults.locations;
+            _googleNextPageToken = freshResults.nextPageToken;
+          });
+          print(
+              '🔄 Updated with ${freshResults.locations.length} fresh results in background');
+        }
+      }
+    }).catchError((e) {
+      print('Background fetch error: $e');
+    });
   }
 
   /// Calculate distance between two coordinates in kilometers
@@ -354,7 +462,8 @@ class _EnhancedLocationPickerState extends State<EnhancedLocationPicker> {
   Future<void> _loadRecentSearches() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final recentSearchesJson = prefs.getStringList('location_recent_searches') ?? [];
+      final recentSearchesJson =
+          prefs.getStringList('location_recent_searches') ?? [];
       setState(() {
         _recentSearches = recentSearchesJson;
       });
@@ -376,7 +485,7 @@ class _EnhancedLocationPickerState extends State<EnhancedLocationPicker> {
   /// Add a search query to recent searches
   void _addToRecentSearches(String query) {
     if (query.trim().isEmpty) return;
-    
+
     setState(() {
       _recentSearches.remove(query); // Remove if already exists
       _recentSearches.insert(0, query); // Add to beginning
@@ -400,7 +509,7 @@ class _EnhancedLocationPickerState extends State<EnhancedLocationPicker> {
     setState(() {
       _isMapView = !_isMapView;
     });
-    
+
     if (_isMapView) {
       _updateMapMarkers();
     }
@@ -409,19 +518,20 @@ class _EnhancedLocationPickerState extends State<EnhancedLocationPicker> {
   /// Update map markers based on search results
   void _updateMapMarkers() {
     _markers.clear();
-    
+
     // Add current location marker if available
     if (_currentPosition != null) {
       _markers.add(
         Marker(
           markerId: const MarkerId('current_location'),
-          position: LatLng(_currentPosition!.latitude, _currentPosition!.longitude),
+          position:
+              LatLng(_currentPosition!.latitude, _currentPosition!.longitude),
           infoWindow: const InfoWindow(title: 'Current Location'),
           icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
         ),
       );
     }
-    
+
     // Add search result markers
     for (int i = 0; i < _googleSearchResults.length; i++) {
       final location = _googleSearchResults[i];
@@ -438,7 +548,7 @@ class _EnhancedLocationPickerState extends State<EnhancedLocationPicker> {
         ),
       );
     }
-    
+
     // Add local search result markers
     for (int i = 0; i < _searchResults.length; i++) {
       final location = _searchResults[i];
@@ -451,7 +561,8 @@ class _EnhancedLocationPickerState extends State<EnhancedLocationPicker> {
               title: location.name,
               snippet: location.country,
             ),
-            icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
+            icon: BitmapDescriptor.defaultMarkerWithHue(
+                BitmapDescriptor.hueGreen),
             onTap: () => _selectLocationFromMap(location),
           ),
         );
@@ -462,7 +573,7 @@ class _EnhancedLocationPickerState extends State<EnhancedLocationPicker> {
   /// Select location from map tap
   void _selectLocationFromMap(dynamic location) {
     LocationModel locationModel;
-    
+
     if (location is GoogleLocation) {
       locationModel = LocationModel(
         id: location.placeId.hashCode,
@@ -480,9 +591,8 @@ class _EnhancedLocationPickerState extends State<EnhancedLocationPicker> {
     } else {
       return;
     }
-    
+
     widget.onLocationSelected(locationModel);
-    Navigator.pop(context);
   }
 
   /// Handle map tap to add new location
@@ -502,28 +612,19 @@ class _EnhancedLocationPickerState extends State<EnhancedLocationPicker> {
         position.longitude,
       );
 
-      if (location != null) {
-        final locationModel = LocationModel(
-          id: location.placeId.hashCode,
-          name: location.name,
-          code: location.placeId,
-          country: location.formattedAddress,
-          type: LocationType.other,
-          latitude: location.latitude,
-          longitude: location.longitude,
-          createdAt: DateTime.now(),
-          updatedAt: DateTime.now(),
-        );
+      final locationModel = LocationModel(
+        id: location.placeId.hashCode,
+        name: location.name,
+        code: location.placeId,
+        country: location.formattedAddress,
+        type: LocationType.other,
+        latitude: location.latitude,
+        longitude: location.longitude,
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      );
 
-        widget.onLocationSelected(locationModel);
-        Navigator.pop(context);
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Could not determine location details. Please try again.'),
-          ),
-        );
-      }
+      widget.onLocationSelected(locationModel);
     } catch (e) {
       print('Error getting location from map tap: $e');
       ScaffoldMessenger.of(context).showSnackBar(
@@ -560,28 +661,19 @@ class _EnhancedLocationPickerState extends State<EnhancedLocationPicker> {
         _currentPosition!.longitude,
       );
 
-      if (location != null) {
-        final locationModel = LocationModel(
-          id: location.placeId.hashCode,
-          name: location.name,
-          code: location.placeId,
-          country: location.formattedAddress,
-          type: LocationType.other,
-          latitude: location.latitude,
-          longitude: location.longitude,
-          createdAt: DateTime.now(),
-          updatedAt: DateTime.now(),
-        );
+      final locationModel = LocationModel(
+        id: location.placeId.hashCode,
+        name: location.name,
+        code: location.placeId,
+        country: location.formattedAddress,
+        type: LocationType.other,
+        latitude: location.latitude,
+        longitude: location.longitude,
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      );
 
-        widget.onLocationSelected(locationModel);
-        Navigator.pop(context);
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Could not determine location details. Please try again.'),
-          ),
-        );
-      }
+      widget.onLocationSelected(locationModel);
     } catch (e) {
       print('Error using current location: $e');
       ScaffoldMessenger.of(context).showSnackBar(
@@ -596,46 +688,71 @@ class _EnhancedLocationPickerState extends State<EnhancedLocationPicker> {
     final isSelected = widget.selectedLocation?.id == location.id;
 
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       child: Material(
         color: Colors.transparent,
+        borderRadius: BorderRadius.circular(16),
+        elevation: 0,
         child: InkWell(
           onTap: () {
+            print('🔍 FLUTTER DEBUG: Selected Location - ${location.name}');
+            print('🔍 Latitude: ${location.latitude}, Longitude: ${location.longitude}');
             widget.onLocationSelected(location);
-            Navigator.pop(context);
           },
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(16),
           child: Container(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
               color: isSelected
-                  ? AppTheme.primaryColor.withValues(alpha: 0.1)
+                  ? AppTheme.primaryColor.withValues(alpha: 0.08)
                   : AppTheme.surfaceColor,
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(16),
               border: Border.all(
                 color: isSelected
-                    ? AppTheme.primaryColor
-                    : AppTheme.borderColor.withValues(alpha: 0.3),
-                width: isSelected ? 2 : 1,
+                    ? AppTheme.primaryColor.withValues(alpha: 0.3)
+                    : AppTheme.borderColor.withValues(alpha: 0.15),
+                width: isSelected ? 1.5 : 1,
               ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.03),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
             ),
             child: Row(
               children: [
+                // Icon container with gradient background
                 Container(
-                  padding: const EdgeInsets.all(8),
+                  padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: isSelected
-                        ? AppTheme.primaryColor
-                        : AppTheme.primaryColor.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(8),
+                    gradient: isSelected
+                        ? LinearGradient(
+                            colors: [
+                              AppTheme.primaryColor,
+                              AppTheme.primaryColor.withValues(alpha: 0.8),
+                            ],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          )
+                        : LinearGradient(
+                            colors: [
+                              AppTheme.primaryColor.withValues(alpha: 0.12),
+                              AppTheme.primaryColor.withValues(alpha: 0.08),
+                            ],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                    borderRadius: BorderRadius.circular(12),
                   ),
                   child: Icon(
                     _getLocationIcon(location.type.toString()),
                     color: isSelected ? Colors.white : AppTheme.primaryColor,
-                    size: 20,
+                    size: 22,
                   ),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 14),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -643,42 +760,84 @@ class _EnhancedLocationPickerState extends State<EnhancedLocationPicker> {
                       Text(
                         location.name,
                         style: GoogleFonts.inter(
-                          fontSize: 16,
+                          fontSize: 15.5,
                           fontWeight: FontWeight.w600,
                           color: isSelected
                               ? AppTheme.primaryColor
                               : AppTheme.textPrimaryColor,
+                          height: 1.3,
                         ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                       if (location.country.isNotEmpty) ...[
-                        const SizedBox(height: 2),
-                        Text(
-                          location.country,
-                          style: GoogleFonts.inter(
-                            fontSize: 14,
-                            color: AppTheme.textSecondaryColor,
-                          ),
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            Icon(
+                              LucideIcons.mapPin,
+                              size: 12,
+                              color: AppTheme.textSecondaryColor
+                                  .withValues(alpha: 0.7),
+                            ),
+                            const SizedBox(width: 4),
+                            Expanded(
+                              child: Text(
+                                location.country,
+                                style: GoogleFonts.inter(
+                                  fontSize: 13,
+                                  color: AppTheme.textSecondaryColor
+                                      .withValues(alpha: 0.85),
+                                  height: 1.2,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                       if (location.code.isNotEmpty) ...[
-                        const SizedBox(height: 2),
-                        Text(
-                          location.code,
-                          style: GoogleFonts.inter(
-                            fontSize: 12,
-                            color: AppTheme.textSecondaryColor,
-                            fontStyle: FontStyle.italic,
+                        const SizedBox(height: 3),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: isSelected
+                                ? AppTheme.primaryColor.withValues(alpha: 0.1)
+                                : AppTheme.borderColor.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            location.code,
+                            style: GoogleFonts.jetBrainsMono(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w500,
+                              color: isSelected
+                                  ? AppTheme.primaryColor
+                                  : AppTheme.textSecondaryColor
+                                      .withValues(alpha: 0.75),
+                              letterSpacing: 0.3,
+                            ),
                           ),
                         ),
                       ],
                     ],
                   ),
                 ),
+                const SizedBox(width: 8),
                 if (isSelected)
-                  Icon(
-                    LucideIcons.checkCircle,
-                    color: AppTheme.primaryColor,
-                    size: 20,
+                  Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      color: AppTheme.primaryColor.withValues(alpha: 0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      LucideIcons.check,
+                      color: AppTheme.primaryColor,
+                      size: 16,
+                    ),
                   ),
               ],
             ),
@@ -690,9 +849,11 @@ class _EnhancedLocationPickerState extends State<EnhancedLocationPicker> {
 
   Widget _buildGoogleLocationItem(GoogleLocation location) {
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       child: Material(
         color: Colors.transparent,
+        borderRadius: BorderRadius.circular(16),
+        elevation: 0,
         child: InkWell(
           onTap: () {
             // Convert GoogleLocation to LocationModel
@@ -708,33 +869,48 @@ class _EnhancedLocationPickerState extends State<EnhancedLocationPicker> {
               updatedAt: DateTime.now(),
             );
             widget.onLocationSelected(locationModel);
-            Navigator.pop(context);
           },
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(16),
           child: Container(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
               color: AppTheme.surfaceColor,
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(16),
               border: Border.all(
-                color: AppTheme.borderColor.withValues(alpha: 0.3),
+                color: AppTheme.borderColor.withValues(alpha: 0.15),
+                width: 1,
               ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.03),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
             ),
             child: Row(
               children: [
+                // Icon container with gradient
                 Container(
-                  padding: const EdgeInsets.all(8),
+                  padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: AppTheme.primaryColor.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(8),
+                    gradient: LinearGradient(
+                      colors: [
+                        AppTheme.primaryColor.withValues(alpha: 0.12),
+                        AppTheme.primaryColor.withValues(alpha: 0.08),
+                      ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(12),
                   ),
                   child: Icon(
                     _getLocationIcon(location.locationType),
                     color: AppTheme.primaryColor,
-                    size: 20,
+                    size: 22,
                   ),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 14),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -742,68 +918,125 @@ class _EnhancedLocationPickerState extends State<EnhancedLocationPicker> {
                       Text(
                         location.name,
                         style: GoogleFonts.inter(
-                          fontSize: 16,
+                          fontSize: 15.5,
                           fontWeight: FontWeight.w600,
                           color: AppTheme.textPrimaryColor,
+                          height: 1.3,
                         ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      const SizedBox(height: 2),
-                      Text(
-                        location.formattedAddress,
-                        style: GoogleFonts.inter(
-                          fontSize: 14,
-                          color: AppTheme.textSecondaryColor,
-                        ),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          Icon(
+                            LucideIcons.mapPin,
+                            size: 12,
+                            color: AppTheme.textSecondaryColor
+                                .withValues(alpha: 0.7),
+                          ),
+                          const SizedBox(width: 4),
+                          Expanded(
+                            child: Text(
+                              location.formattedAddress,
+                              style: GoogleFonts.inter(
+                                fontSize: 13,
+                                color: AppTheme.textSecondaryColor
+                                    .withValues(alpha: 0.85),
+                                height: 1.2,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
                       ),
-                      if (location.rating != null) ...[
-                        const SizedBox(height: 2),
+                      // Rating and distance row
+                      if (location.rating != null ||
+                          _currentPosition != null) ...[
+                        const SizedBox(height: 6),
                         Row(
                           children: [
-                            Icon(
-                              LucideIcons.star,
-                              size: 12,
-                              color: Colors.amber,
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              '${location.rating!.toStringAsFixed(1)} (${location.userRatingsTotal ?? 0} reviews)',
-                              style: GoogleFonts.inter(
-                                fontSize: 12,
-                                color: AppTheme.textSecondaryColor,
+                            // Rating badge
+                            if (location.rating != null) ...[
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 6, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: Colors.amber.withValues(alpha: 0.15),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      LucideIcons.star,
+                                      size: 11,
+                                      color: Colors.amber.shade700,
+                                    ),
+                                    const SizedBox(width: 3),
+                                    Text(
+                                      location.rating!.toStringAsFixed(1),
+                                      style: GoogleFonts.inter(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w600,
+                                        color: Colors.amber.shade900,
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
-                            ),
-                          ],
-                        ),
-                      ],
-                      // Show distance if current position is available
-                      if (_currentPosition != null) ...[
-                        const SizedBox(height: 2),
-                        Row(
-                          children: [
-                            Icon(
-                              LucideIcons.mapPin,
-                              size: 12,
-                              color: AppTheme.primaryColor,
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              '${_calculateDistance(_currentPosition!.latitude, _currentPosition!.longitude, location.latitude, location.longitude).toStringAsFixed(1)} km away',
-                              style: GoogleFonts.inter(
-                                fontSize: 12,
-                                color: AppTheme.primaryColor,
-                                fontWeight: FontWeight.w500,
+                              const SizedBox(width: 6),
+                            ],
+                            // Distance badge
+                            if (_currentPosition != null) ...[
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 6, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: AppTheme.primaryColor
+                                      .withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      LucideIcons.navigation,
+                                      size: 11,
+                                      color: AppTheme.primaryColor,
+                                    ),
+                                    const SizedBox(width: 3),
+                                    Text(
+                                      '${_calculateDistance(_currentPosition!.latitude, _currentPosition!.longitude, location.latitude, location.longitude).toStringAsFixed(1)} km',
+                                      style: GoogleFonts.inter(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w600,
+                                        color: AppTheme.primaryColor,
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
-                            ),
+                            ],
                           ],
                         ),
                       ],
                     ],
                   ),
                 ),
-                Icon(
-                  LucideIcons.externalLink,
-                  color: AppTheme.textSecondaryColor,
-                  size: 16,
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: AppTheme.borderColor.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(
+                    LucideIcons.arrowRight,
+                    color: AppTheme.textSecondaryColor.withValues(alpha: 0.6),
+                    size: 16,
+                  ),
                 ),
               ],
             ),
@@ -1001,9 +1234,11 @@ class _EnhancedLocationPickerState extends State<EnhancedLocationPicker> {
                 ? _buildMapView()
                 : (_isSearching || _isLoadingInitialData)
                     ? _buildSkeletonLoader()
-                    : _searchController.text.isEmpty && _recentSearches.isNotEmpty
+                    : _searchController.text.isEmpty &&
+                            _recentSearches.isNotEmpty
                         ? _buildRecentSearchesView()
-                        : (_searchResults.isEmpty && _googleSearchResults.isEmpty)
+                        : (_searchResults.isEmpty &&
+                                _googleSearchResults.isEmpty)
                             ? Center(
                                 child: Column(
                                   mainAxisAlignment: MainAxisAlignment.center,
@@ -1034,40 +1269,190 @@ class _EnhancedLocationPickerState extends State<EnhancedLocationPicker> {
                                 ),
                               )
                             : ListView(
+                                controller: _scrollController,
                                 children: [
-                                  // Google Places results (prioritized)
+                                  // Google Places results
                                   if (_googleSearchResults.isNotEmpty) ...[
-                                    Padding(
-                                      padding: const EdgeInsets.all(16),
-                                      child: Text(
-                                        'Airports & Locations',
-                                        style: GoogleFonts.inter(
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.w600,
-                                          color: AppTheme.textSecondaryColor,
+                                    Container(
+                                      margin: const EdgeInsets.fromLTRB(
+                                          16, 12, 16, 8),
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 12, vertical: 10),
+                                      decoration: BoxDecoration(
+                                        color: AppTheme.primaryColor
+                                            .withValues(alpha: 0.05),
+                                        borderRadius: BorderRadius.circular(12),
+                                        border: Border.all(
+                                          color: AppTheme.primaryColor
+                                              .withValues(alpha: 0.1),
+                                          width: 1,
                                         ),
+                                      ),
+                                      child: Row(
+                                        children: [
+                                          Container(
+                                            padding: const EdgeInsets.all(6),
+                                            decoration: BoxDecoration(
+                                              color: AppTheme.primaryColor
+                                                  .withValues(alpha: 0.12),
+                                              borderRadius:
+                                                  BorderRadius.circular(8),
+                                            ),
+                                            child: Icon(
+                                              LucideIcons.globe,
+                                              size: 14,
+                                              color: AppTheme.primaryColor,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 10),
+                                          Text(
+                                            _searchController.text.isEmpty
+                                                ? 'Suggested Airports'
+                                                : 'Top Results',
+                                            style: GoogleFonts.inter(
+                                              fontSize: 13.5,
+                                              fontWeight: FontWeight.w600,
+                                              color: AppTheme.textPrimaryColor,
+                                              letterSpacing: 0.2,
+                                            ),
+                                          ),
+                                          const Spacer(),
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(
+                                                horizontal: 8, vertical: 4),
+                                            decoration: BoxDecoration(
+                                              gradient: LinearGradient(
+                                                colors: [
+                                                  AppTheme.primaryColor
+                                                      .withValues(alpha: 0.15),
+                                                  AppTheme.primaryColor
+                                                      .withValues(alpha: 0.1),
+                                                ],
+                                              ),
+                                              borderRadius:
+                                                  BorderRadius.circular(8),
+                                            ),
+                                            child: Text(
+                                              '${_googleSearchResults.length}',
+                                              style: GoogleFonts.inter(
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.w700,
+                                                color: AppTheme.primaryColor,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
                                       ),
                                     ),
                                     ..._googleSearchResults.map((location) =>
                                         _buildGoogleLocationItem(location)),
                                   ],
 
-                                  // Local database results (secondary)
+                                  // Database results
                                   if (_searchResults.isNotEmpty) ...[
-                                    Padding(
+                                    Container(
+                                      margin: const EdgeInsets.fromLTRB(
+                                          16, 20, 16, 8),
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 12, vertical: 10),
+                                      decoration: BoxDecoration(
+                                        color: AppTheme.secondaryColor
+                                            .withValues(alpha: 0.05),
+                                        borderRadius: BorderRadius.circular(12),
+                                        border: Border.all(
+                                          color: AppTheme.secondaryColor
+                                              .withValues(alpha: 0.1),
+                                          width: 1,
+                                        ),
+                                      ),
+                                      child: Row(
+                                        children: [
+                                          Container(
+                                            padding: const EdgeInsets.all(6),
+                                            decoration: BoxDecoration(
+                                              color: AppTheme.secondaryColor
+                                                  .withValues(alpha: 0.12),
+                                              borderRadius:
+                                                  BorderRadius.circular(8),
+                                            ),
+                                            child: Icon(
+                                              LucideIcons.database,
+                                              size: 14,
+                                              color: AppTheme.secondaryColor,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 10),
+                                          Text(
+                                            'All Airports',
+                                            style: GoogleFonts.inter(
+                                              fontSize: 13.5,
+                                              fontWeight: FontWeight.w600,
+                                              color: AppTheme.textPrimaryColor,
+                                              letterSpacing: 0.2,
+                                            ),
+                                          ),
+                                          const Spacer(),
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(
+                                                horizontal: 8, vertical: 4),
+                                            decoration: BoxDecoration(
+                                              gradient: LinearGradient(
+                                                colors: [
+                                                  AppTheme.secondaryColor
+                                                      .withValues(alpha: 0.15),
+                                                  AppTheme.secondaryColor
+                                                      .withValues(alpha: 0.1),
+                                                ],
+                                              ),
+                                              borderRadius:
+                                                  BorderRadius.circular(8),
+                                            ),
+                                            child: Text(
+                                              '${_searchResults.length}${_hasMoreDb ? "+" : ""}',
+                                              style: GoogleFonts.inter(
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.w700,
+                                                color: AppTheme.secondaryColor,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    ..._searchResults.map((location) =>
+                                        _buildLocationItem(location)),
+                                  ],
+
+                                  // Loading indicator
+                                  if (_isLoadingMore)
+                                    Container(
                                       padding: const EdgeInsets.all(16),
-                                      child: Text(
-                                        'Saved Locations',
-                                        style: GoogleFonts.inter(
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.w600,
-                                          color: AppTheme.textSecondaryColor,
+                                      child: Center(
+                                        child: CircularProgressIndicator(
+                                          color: AppTheme.primaryColor,
                                         ),
                                       ),
                                     ),
-                                    ..._searchResults.map(
-                                        (location) => _buildLocationItem(location)),
-                                  ],
+
+                                  // End of results message
+                                  if (!_isLoadingMore &&
+                                      !_hasMoreDb &&
+                                      _googleNextPageToken == null &&
+                                      _searchResults.isNotEmpty)
+                                    Container(
+                                      padding: const EdgeInsets.all(16),
+                                      child: Center(
+                                        child: Text(
+                                          'All results loaded',
+                                          style: GoogleFonts.inter(
+                                            fontSize: 14,
+                                            color: AppTheme.textSecondaryColor,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+
+                                  const SizedBox(height: 16),
                                 ],
                               ),
           ),
@@ -1095,7 +1480,7 @@ class _EnhancedLocationPickerState extends State<EnhancedLocationPicker> {
           zoomControlsEnabled: true,
           mapType: MapType.normal,
         ),
-        
+
         // Map instructions overlay
         Positioned(
           top: 16,
@@ -1129,7 +1514,7 @@ class _EnhancedLocationPickerState extends State<EnhancedLocationPicker> {
             ),
           ),
         ),
-        
+
         // Current location button
         if (_currentPosition != null)
           Positioned(
@@ -1141,7 +1526,8 @@ class _EnhancedLocationPickerState extends State<EnhancedLocationPicker> {
               onPressed: () {
                 _mapController?.animateCamera(
                   CameraUpdate.newLatLng(
-                    LatLng(_currentPosition!.latitude, _currentPosition!.longitude),
+                    LatLng(_currentPosition!.latitude,
+                        _currentPosition!.longitude),
                   ),
                 );
               },
@@ -1213,11 +1599,13 @@ class _EnhancedLocationPickerState extends State<EnhancedLocationPicker> {
         const SizedBox(height: 8),
         // Show popular locations when no search
         if (_googleSearchResults.isNotEmpty)
-          ..._googleSearchResults.take(5).map((location) =>
-              _buildGoogleLocationItem(location)),
+          ..._googleSearchResults
+              .take(5)
+              .map((location) => _buildGoogleLocationItem(location)),
         if (_searchResults.isNotEmpty)
-          ..._searchResults.take(3).map((location) =>
-              _buildLocationItem(location)),
+          ..._searchResults
+              .take(3)
+              .map((location) => _buildLocationItem(location)),
       ],
     );
   }

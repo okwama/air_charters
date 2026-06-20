@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:lucide_icons/lucide_icons.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../config/theme/app_theme.dart';
 import '../../core/error/network_error_handler.dart';
@@ -150,6 +150,52 @@ class QuickNetworkErrorWidget extends StatelessWidget {
     this.onRetry,
   });
 
+  /// Determine if this is a network error or authentication error
+  bool _isNetworkError() {
+    if (error == null) return false;
+    final errorString = error.toString().toLowerCase();
+    return errorString.contains('socketexception') ||
+        errorString.contains('connection') ||
+        errorString.contains('network') ||
+        errorString.contains('timeout') ||
+        errorString.contains('failed host lookup');
+  }
+
+  /// Get appropriate icon based on error type
+  IconData _getErrorIcon() {
+    if (_isNetworkError()) {
+      return LucideIcons.wifiOff;
+    }
+    // Authentication/validation errors
+    return LucideIcons.alertCircle;
+  }
+
+  /// Get error message to display
+  String _getErrorMessage() {
+    if (error == null) return 'An error occurred';
+
+    // If it's a network error, show "Connection Lost"
+    if (_isNetworkError()) {
+      return 'Connection Lost';
+    }
+
+    // For other errors, show the actual error message
+    final errorString = error.toString();
+
+    // Clean up common error prefixes
+    if (errorString.startsWith('Exception: ')) {
+      return errorString.substring('Exception: '.length);
+    }
+    if (errorString.startsWith('AuthException: ')) {
+      return errorString.substring('AuthException: '.length);
+    }
+    if (errorString.startsWith('ValidationException: ')) {
+      return errorString.substring('ValidationException: '.length);
+    }
+
+    return errorString;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Center(
@@ -157,18 +203,19 @@ class QuickNetworkErrorWidget extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(
-            LucideIcons.wifiOff,
+            _getErrorIcon(),
             size: 48,
-            color: AppTheme.textSecondaryColor,
+            color: AppTheme.errorColor,
           ),
           const SizedBox(height: 16),
           Text(
-            'Connection Lost',
+            _getErrorMessage(),
             style: GoogleFonts.inter(
               fontSize: 16,
               fontWeight: FontWeight.w500,
               color: AppTheme.textSecondaryColor,
             ),
+            textAlign: TextAlign.center,
           ),
           if (onRetry != null) ...[
             const SizedBox(height: 12),

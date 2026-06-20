@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:lucide_icons/lucide_icons.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../../config/theme/app_theme.dart';
 
 class LegalSection extends StatelessWidget {
@@ -7,7 +7,6 @@ class LegalSection extends StatelessWidget {
   final Function(BuildContext) onPrivacyPolicyTap;
   final Function(BuildContext) onCookiePolicyTap;
   final Function(BuildContext) onDataProcessingTap;
-  final Function(BuildContext) onLicensesTap;
 
   const LegalSection({
     super.key,
@@ -15,7 +14,6 @@ class LegalSection extends StatelessWidget {
     required this.onPrivacyPolicyTap,
     required this.onCookiePolicyTap,
     required this.onDataProcessingTap,
-    required this.onLicensesTap,
   });
 
   @override
@@ -91,14 +89,6 @@ class LegalSection extends StatelessWidget {
                   title: 'Data Processing',
                   subtitle: 'GDPR and data processing info',
                   onTap: () => onDataProcessingTap(context),
-                ),
-
-                // Open Source Licenses
-                _buildPreferenceItem(
-                  icon: LucideIcons.code,
-                  title: 'Open Source Licenses',
-                  subtitle: 'Third-party library licenses',
-                  onTap: () => onLicensesTap(context),
                 ),
               ],
             ),

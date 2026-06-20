@@ -2,16 +2,58 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class VirtualCard extends StatelessWidget {
+  final String firstName;
+  final String lastName;
   final String points;
   final String walletBalance;
+  final String loyaltyTier;
   final VoidCallback? onTap;
 
   const VirtualCard({
     super.key,
+    required this.firstName,
+    required this.lastName,
     required this.points,
     required this.walletBalance,
+    required this.loyaltyTier,
     this.onTap,
   });
+
+  // Tier-based color schemes
+  List<Color> _getTierColors() {
+    switch (loyaltyTier.toLowerCase()) {
+      case 'bronze':
+        return [
+          Color(0xFFCD7F32), // Bronze
+          Color(0xFFB8860B), // Dark Goldenrod
+          Color(0xFF8B4513), // Saddle Brown
+        ];
+      case 'silver':
+        return [
+          Color(0xFFC0C0C0), // Silver
+          Color(0xFFA8A8A8), // Gray
+          Color(0xFF808080), // Dark Gray
+        ];
+      case 'gold':
+        return [
+          Color(0xFFFFD700), // Gold
+          Color(0xFFFFA500), // Orange
+          Color(0xFFB8860B), // Dark Goldenrod
+        ];
+      case 'platinum':
+        return [
+          Color(0xFFE5E4E2), // Platinum
+          Color(0xFFB8B8B8), // Light Gray
+          Color(0xFF808080), // Medium Gray
+        ];
+      default:
+        return [
+          Color(0xFF1a1a1a), // Default dark
+          Color(0xFF2d2d2d),
+          Color(0xFF1a1a1a),
+        ];
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -25,11 +67,7 @@ class VirtualCard extends StatelessWidget {
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [
-              Color(0xFF1a1a1a),
-              Color(0xFF2d2d2d),
-              Color(0xFF1a1a1a),
-            ],
+            colors: _getTierColors(),
           ),
           boxShadow: [
             BoxShadow(
@@ -41,28 +79,17 @@ class VirtualCard extends StatelessWidget {
         ),
         child: Stack(
           children: [
-            // Background pattern
+            // AirCharters Logo
             Positioned(
-              right: -50,
-              top: -50,
+              right: 20,
+              top: 20,
               child: Container(
-                width: 150,
-                height: 150,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Colors.white.withValues(alpha: 0.05),
-                ),
-              ),
-            ),
-            Positioned(
-              right: -20,
-              top: -20,
-              child: Container(
-                width: 100,
-                height: 100,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Colors.white.withValues(alpha: 0.08),
+                width: 60,
+                height: 60,
+                child: Image.asset(
+                  'assets/images/login.png',
+                  fit: BoxFit.contain,
+                  color: Colors.white.withValues(alpha: 0.9),
                 ),
               ),
             ),
@@ -78,37 +105,13 @@ class VirtualCard extends StatelessWidget {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        'VIRTUAL',
+                        loyaltyTier.toUpperCase(),
                         style: GoogleFonts.inter(
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
                           color: Colors.white.withValues(alpha: 0.9),
                           letterSpacing: 2,
                         ),
-                      ),
-                      // Mastercard circles
-                      Row(
-                        children: [
-                          Container(
-                            width: 24,
-                            height: 24,
-                            decoration: BoxDecoration(
-                              color: Colors.red.shade600,
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                          Transform.translate(
-                            offset: const Offset(-8, 0),
-                            child: Container(
-                              width: 24,
-                              height: 24,
-                              decoration: BoxDecoration(
-                                color: Colors.orange.shade600,
-                                shape: BoxShape.circle,
-                              ),
-                            ),
-                          ),
-                        ],
                       ),
                     ],
                   ),
@@ -135,7 +138,7 @@ class VirtualCard extends StatelessWidget {
 
                   // Card number
                   Text(
-                    '**** **** **** 1234',
+                    '${firstName} ${lastName}',
                     style: GoogleFonts.jetBrainsMono(
                       fontSize: 18,
                       fontWeight: FontWeight.w600,
@@ -146,7 +149,7 @@ class VirtualCard extends StatelessWidget {
 
                   const SizedBox(height: 16),
 
-                  // Bottom row - Name and details
+                  // Bottom row - Wallet Balance and Loyalty Points
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -154,7 +157,7 @@ class VirtualCard extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'CARD HOLDER',
+                            'WALLET BALANCE',
                             style: GoogleFonts.inter(
                               fontSize: 10,
                               fontWeight: FontWeight.w500,
@@ -164,7 +167,7 @@ class VirtualCard extends StatelessWidget {
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            'JOHN DOE',
+                            walletBalance,
                             style: GoogleFonts.inter(
                               fontSize: 14,
                               fontWeight: FontWeight.w600,
@@ -178,7 +181,7 @@ class VirtualCard extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
                           Text(
-                            'EXPIRES',
+                            'LOYALTY POINTS',
                             style: GoogleFonts.inter(
                               fontSize: 10,
                               fontWeight: FontWeight.w500,
@@ -188,7 +191,7 @@ class VirtualCard extends StatelessWidget {
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            '12/28',
+                            points,
                             style: GoogleFonts.inter(
                               fontSize: 14,
                               fontWeight: FontWeight.w600,

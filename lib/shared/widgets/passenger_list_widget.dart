@@ -5,6 +5,7 @@ import '../../core/models/passenger_model.dart';
 import '../../core/providers/passengers_provider.dart';
 import 'passenger_form.dart';
 import '../../core/providers/auth_provider.dart';
+import 'network_error_widget.dart';
 
 class PassengerListWidget extends StatelessWidget {
   final String bookingId;
@@ -189,64 +190,9 @@ class PassengerListWidget extends StatelessWidget {
   }
 
   Widget _buildErrorState(BuildContext context, PassengerProvider provider) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.red.shade50,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.red.shade200),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(
-                Icons.error_outline,
-                color: Colors.red.shade600,
-                size: 20,
-              ),
-              const SizedBox(width: 8),
-              Text(
-                'Failed to load passengers',
-                style: GoogleFonts.inter(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.red.shade600,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            provider.errorMessage ?? 'An unexpected error occurred',
-            style: GoogleFonts.inter(
-              fontSize: 12,
-              color: Colors.red.shade600,
-            ),
-          ),
-          const SizedBox(height: 12),
-          ElevatedButton(
-            onPressed: () => provider.refresh(),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red.shade600,
-              foregroundColor: Colors.white,
-              elevation: 0,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-            ),
-            child: Text(
-              'Retry',
-              style: GoogleFonts.inter(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-        ],
-      ),
+    return QuickNetworkErrorWidget(
+      error: provider.errorMessage ?? 'Failed to load passengers',
+      onRetry: () => provider.refresh(),
     );
   }
 

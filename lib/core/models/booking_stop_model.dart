@@ -14,8 +14,8 @@ class BookingStopModel {
   final int stopOrder;
   final LocationType locationType;
   final String? locationCode;
-  final DateTime createdAt;
-  final DateTime updatedAt;
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
 
   const BookingStopModel({
     required this.id,
@@ -27,23 +27,28 @@ class BookingStopModel {
     required this.stopOrder,
     required this.locationType,
     this.locationCode,
-    required this.createdAt,
-    required this.updatedAt,
+    this.createdAt,
+    this.updatedAt,
   });
 
   factory BookingStopModel.fromJson(Map<String, dynamic> json) {
+    final createdAtStr = json['createdAt'] ?? json['created_at'];
+    final updatedAtStr = json['updatedAt'] ?? json['updated_at'];
+
     return BookingStopModel(
       id: json['id'] ?? 0,
       bookingId: json['bookingId'] ?? json['booking_id'] ?? 0,
       stopName: json['stopName'] ?? json['stop_name'] ?? '',
-      longitude: json['longitude']?.toDouble() ?? 0.0,
-      latitude: json['latitude']?.toDouble() ?? 0.0,
-      datetime: json['datetime'] != null ? DateTime.parse(json['datetime']) : null,
+      longitude: double.tryParse(json['longitude']?.toString() ?? '0') ?? 0.0,
+      latitude: double.tryParse(json['latitude']?.toString() ?? '0') ?? 0.0,
+      datetime:
+          json['datetime'] != null ? DateTime.parse(json['datetime']) : null,
       stopOrder: json['stopOrder'] ?? json['stop_order'] ?? 0,
-      locationType: _parseLocationType(json['locationType'] ?? json['location_type'] ?? 'custom'),
+      locationType: _parseLocationType(
+          json['locationType'] ?? json['location_type'] ?? 'custom'),
       locationCode: json['locationCode'] ?? json['location_code'],
-      createdAt: DateTime.parse(json['createdAt'] ?? json['created_at']),
-      updatedAt: DateTime.parse(json['updatedAt'] ?? json['updated_at']),
+      createdAt: createdAtStr != null ? DateTime.parse(createdAtStr) : null,
+      updatedAt: updatedAtStr != null ? DateTime.parse(updatedAtStr) : null,
     );
   }
 
@@ -58,8 +63,8 @@ class BookingStopModel {
       'stopOrder': stopOrder,
       'locationType': locationType.name,
       'locationCode': locationCode,
-      'createdAt': createdAt.toIso8601String(),
-      'updatedAt': updatedAt.toIso8601String(),
+      'createdAt': createdAt?.toIso8601String(),
+      'updatedAt': updatedAt?.toIso8601String(),
     };
   }
 

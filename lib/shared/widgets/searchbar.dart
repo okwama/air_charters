@@ -36,6 +36,7 @@ class SearchBar extends StatelessWidget {
                 controller: controller,
                 onChanged: onChanged,
                 enabled: enabled,
+                style: const TextStyle(color: Colors.black),
                 decoration: InputDecoration(
                   hintText: hintText,
                   hintStyle: TextStyle(

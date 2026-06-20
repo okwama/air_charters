@@ -10,6 +10,7 @@ import 'experience_passenger_form.dart';
 
 class ExperienceBookingPage extends StatefulWidget {
   final int experienceId;
+  final int? companyId; // Company ID for the experience
   final String title;
   final String location;
   final String imageUrl;
@@ -21,6 +22,7 @@ class ExperienceBookingPage extends StatefulWidget {
   const ExperienceBookingPage({
     super.key,
     required this.experienceId,
+    this.companyId, // Optional company ID
     required this.title,
     required this.location,
     required this.imageUrl,
@@ -170,12 +172,6 @@ class _ExperienceBookingPageState extends State<ExperienceBookingPage> {
         .any((slot) => slot['time'] == time && slot['available'] == true);
   }
 
-  bool _hasAvailableSchedules(DateTime date) {
-    final dateKey = date.toIso8601String().split('T')[0];
-    final schedules = _dateSchedules[dateKey];
-    return schedules != null && schedules.isNotEmpty;
-  }
-
   Future<void> _preloadSchedulesForMonth(DateTime month) async {
     // Preload schedules for the current month to show available dates
     try {
@@ -304,6 +300,7 @@ class _ExperienceBookingPageState extends State<ExperienceBookingPage> {
         builder: (context) => ExperiencePassengerForm(
           booking: ExperienceBookingModel(
             experienceId: widget.experienceId,
+            companyId: widget.companyId, // Pass companyId from widget
             experienceTitle: widget.title,
             location: widget.location,
             imageUrl: widget.imageUrl,
@@ -505,19 +502,69 @@ class _ExperienceBookingPageState extends State<ExperienceBookingPage> {
         else
           const SizedBox.shrink(),
         const SizedBox(height: 12),
-        CalendarSelector(
-          initialDate: _selectedDate,
-          onDateSelected: _onDateSelected,
-          firstDate: DateTime.now().add(const Duration(days: 1)),
-          lastDate: DateTime.now().add(const Duration(days: 365)),
-          availableDates: _dateSchedules.keys.map((dateStr) {
-            final parts = dateStr.split('-');
-            return DateTime(
-                int.parse(parts[0]), int.parse(parts[1]), int.parse(parts[2]));
-          }).toList(),
+        // Date selector button
+        GestureDetector(
+          onTap: _showDatePicker,
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade50,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.grey.shade300),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.calendar_today,
+                  color: Colors.grey.shade700,
+                  size: 20,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    _selectedDate != null
+                        ? '${_selectedDate!.day}/${_selectedDate!.month}/${_selectedDate!.year}'
+                        : 'Tap to select a date',
+                    style: GoogleFonts.inter(
+                      fontSize: 16,
+                      color: _selectedDate != null
+                          ? Colors.black
+                          : Colors.grey.shade600,
+                      fontWeight: _selectedDate != null
+                          ? FontWeight.w600
+                          : FontWeight.w400,
+                    ),
+                  ),
+                ),
+                Icon(
+                  Icons.chevron_right,
+                  color: Colors.grey.shade600,
+                ),
+              ],
+            ),
+          ),
         ),
       ],
     );
+  }
+
+  Future<void> _showDatePicker() async {
+    final selectedDate = await showCalendarSelector(
+      context: context,
+      initialDate: _selectedDate,
+      firstDate: DateTime.now().add(const Duration(days: 1)),
+      lastDate: DateTime.now().add(const Duration(days: 365)),
+      availableDates: _dateSchedules.keys.map((dateStr) {
+        final parts = dateStr.split('-');
+        return DateTime(
+            int.parse(parts[0]), int.parse(parts[1]), int.parse(parts[2]));
+      }).toList(),
+      title: 'Select Date',
+    );
+
+    if (selectedDate != null) {
+      _onDateSelected(selectedDate);
+    }
   }
 
   Widget _buildTimeSelection() {
@@ -635,7 +682,6 @@ class _ExperienceBookingPageState extends State<ExperienceBookingPage> {
               final isSelected = _selectedTime == time;
               final isAvailable = slot['available'] == true;
               final seatsAvailable = slot['seatsAvailable'] as int? ?? 0;
-              final price = slot['price'] as String? ?? '';
 
               return GestureDetector(
                 onTap: isAvailable ? () => _onTimeSelected(time) : null,

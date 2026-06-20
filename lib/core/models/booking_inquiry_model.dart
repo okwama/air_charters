@@ -125,13 +125,14 @@ class BookingInquiry {
       estimatedArrivalTime: json['estimatedArrivalTime'] != null
           ? DateTime.parse(json['estimatedArrivalTime'])
           : null,
-      createdAt: json['createdAt'] != null 
+      createdAt: json['createdAt'] != null
           ? DateTime.parse(json['createdAt'])
           : DateTime.now(),
       totalAdults: json['totalAdults'] ?? 0,
       totalChildren: json['totalChildren'] ?? 0,
-      onboardDining: json['onboardDining'] ?? false,
-      updatedAt: json['updatedAt'] != null 
+      onboardDining:
+          json['onboardDining'] == true || json['onboardDining'] == 1,
+      updatedAt: json['updatedAt'] != null
           ? DateTime.parse(json['updatedAt'])
           : DateTime.now(),
       stops: json['stops'] != null

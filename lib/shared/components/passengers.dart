@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:lucide_icons/lucide_icons.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../config/theme/app_theme.dart';
 import '../widgets/passenger_form.dart';
 import '../../core/models/passenger_model.dart';
@@ -40,43 +40,93 @@ class _PassengerSelectorState extends State<PassengerSelector> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Compact header with inline counter
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
         color: AppTheme.surfaceColor,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppTheme.borderColor.withValues(alpha: 0.3)),
+            border:
+                Border.all(color: AppTheme.borderColor.withValues(alpha: 0.2)),
       ),
+          child: Row(
+            children: [
+              Icon(LucideIcons.users, size: 20, color: AppTheme.primaryColor),
+              const SizedBox(width: 10),
+              Expanded(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Passenger Information',
-            style: AppTheme.bodyMedium.copyWith(
+                      'PASSENGERS',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: AppTheme.textSecondaryColor,
               fontWeight: FontWeight.w500,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '$_passengerCount Passenger${_passengerCount > 1 ? 's' : ''}',
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
               color: AppTheme.textPrimaryColor,
             ),
           ),
-          const SizedBox(height: 12),
+                  ],
+                ),
+              ),
+              // Inline counter
+              _buildCountButton(
+                icon: LucideIcons.minus,
+                onPressed: _passengerCount > 1 ? _decreaseCount : null,
+              ),
+              const SizedBox(width: 12),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryColor.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  '$_passengerCount',
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: AppTheme.primaryColor,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              _buildCountButton(
+                icon: LucideIcons.plus,
+                onPressed: _passengerCount < widget.maxPassengers
+                    ? _increaseCount
+                    : null,
+              ),
+            ],
+          ),
+        ),
 
-          // Passenger count selector
-          _buildPassengerCountSelector(),
-          const SizedBox(height: 16),
+        const SizedBox(height: 8),
 
-          // Passenger list
-          if (_passengers.isNotEmpty) ...[
-            _buildPassengerList(),
-            const SizedBox(height: 12),
-          ],
+        // Passenger cards
+        ...List.generate(_passengerCount, (index) {
+          final hasPassenger = index < _passengers.length;
+          final passenger = hasPassenger ? _passengers[index] : null;
 
-          // Add passenger button - only show if we need more passengers
-          if (_passengers.length < _passengerCount) _buildAddPassengerButton(),
-
-          // Show completion status
-          if (_passengers.length == _passengerCount && _passengerCount > 0)
-            _buildCompletionStatus(),
-        ],
-      ),
+          return Container(
+            margin: const EdgeInsets.only(bottom: 8),
+            child: _buildPassengerCard(index, passenger),
+          );
+        }),
+      ],
     );
   }
 
@@ -355,6 +405,132 @@ class _PassengerSelectorState extends State<PassengerSelector> {
       });
       widget.onPassengersChanged?.call(_passengers);
     }
+  }
+
+  Widget _buildPassengerCard(int index, PassengerModel? passenger) {
+    final isLead = index == 0;
+    final hasDetails = passenger != null;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: AppTheme.surfaceColor,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: hasDetails
+              ? AppTheme.successColor.withValues(alpha: 0.3)
+              : AppTheme.borderColor.withValues(alpha: 0.2),
+        ),
+      ),
+      child: InkWell(
+        onTap: hasDetails ? () => _editPassenger(index) : _addPassenger,
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Row(
+            children: [
+              // Status indicator
+              Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: hasDetails
+                      ? AppTheme.successColor.withValues(alpha: 0.12)
+                      : AppTheme.secondaryColor.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Center(
+                  child: hasDetails
+                      ? Icon(
+                          LucideIcons.checkCircle,
+                          size: 16,
+                          color: AppTheme.successColor,
+                        )
+                      : Text(
+                          '${index + 1}',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                            color: AppTheme.secondaryColor,
+                          ),
+                        ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Text(
+                          hasDetails
+                              ? '${passenger.firstName} ${passenger.lastName}'
+                              : isLead
+                                  ? 'Lead Passenger (Required)'
+                                  : 'Passenger ${index + 1}',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: hasDetails
+                                ? AppTheme.textPrimaryColor
+                                : AppTheme.textSecondaryColor
+                                    .withValues(alpha: 0.7),
+                          ),
+                        ),
+                        if (isLead && !hasDetails) ...[
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color:
+                                  AppTheme.primaryColor.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: const Text(
+                              'YOU',
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                                color: AppTheme.primaryColor,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      hasDetails
+                          ? (passenger.nationality != null &&
+                                  passenger.nationality!.isNotEmpty
+                              ? 'Nationality: ${passenger.nationality}'
+                              : passenger.age != null
+                                  ? 'Age: ${passenger.age}'
+                                  : 'Details added')
+                          : 'Tap to add details',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color:
+                            AppTheme.textSecondaryColor.withValues(alpha: 0.8),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(
+                hasDetails ? LucideIcons.edit2 : LucideIcons.plus,
+                size: 16,
+                color: hasDetails
+                    ? AppTheme.primaryColor
+                    : AppTheme.secondaryColor,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   Widget _buildCompletionStatus() {

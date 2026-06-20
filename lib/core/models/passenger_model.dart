@@ -135,7 +135,9 @@ class PassengerModel {
       age: parseInt(json['age']) ?? 25,
       nationality: (json['nationality'] as String?) ?? 'Kenyan',
       idPassportNumber: json['idPassportNumber'] as String?,
-      isUser: (json['isUser'] as bool?) ?? false,
+      isUser: json['isUser'] is bool
+          ? json['isUser'] as bool
+          : (json['isUser'] == 1 || json['isUser'] == true),
     );
   }
 
@@ -148,9 +150,7 @@ class PassengerModel {
   }
 
   bool isValidForInternationalFlight() {
-    return isValid &&
-        idPassportNumber != null &&
-        idPassportNumber!.isNotEmpty;
+    return isValid && idPassportNumber != null && idPassportNumber!.isNotEmpty;
   }
 
   // Display name
@@ -184,19 +184,19 @@ class PassengerModel {
   // Validation errors
   List<String> getValidationErrors({bool isInternationalFlight = false}) {
     final errors = <String>[];
-    
+
     if (firstName.isEmpty) errors.add('First name is required');
     if (lastName.isEmpty) errors.add('Last name is required');
     if ((age ?? 0) <= 0) errors.add('Valid age is required');
     if ((nationality == null) || nationality!.isEmpty) {
       errors.add('Nationality is required');
     }
-    
-    if (isInternationalFlight && 
+
+    if (isInternationalFlight &&
         (idPassportNumber == null || idPassportNumber!.isEmpty)) {
       errors.add('Passport/ID number is required for international flights');
     }
-    
+
     return errors;
   }
 
@@ -276,10 +276,10 @@ class PassengerValidationHelper {
     ];
 
     // Check if both origin and destination are domestic
-    final isOriginDomestic = domesticAirports.any((airport) => 
-        origin.toLowerCase().contains(airport.toLowerCase()));
-    final isDestinationDomestic = domesticAirports.any((airport) => 
-        destination.toLowerCase().contains(airport.toLowerCase()));
+    final isOriginDomestic = domesticAirports
+        .any((airport) => origin.toLowerCase().contains(airport.toLowerCase()));
+    final isDestinationDomestic = domesticAirports.any(
+        (airport) => destination.toLowerCase().contains(airport.toLowerCase()));
 
     return !(isOriginDomestic && isDestinationDomestic);
   }
@@ -287,12 +287,12 @@ class PassengerValidationHelper {
   static int calculateAge(DateTime birthDate) {
     final now = DateTime.now();
     int age = now.year - birthDate.year;
-    
-    if (now.month < birthDate.month || 
+
+    if (now.month < birthDate.month ||
         (now.month == birthDate.month && now.day < birthDate.day)) {
       age--;
     }
-    
+
     return age;
   }
 }

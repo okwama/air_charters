@@ -1,5 +1,6 @@
 import 'dart:developer' as developer;
 import 'package:flutter/foundation.dart';
+import '../telemetry/telemetry.dart';
 
 /// Log levels for different types of messages
 enum LogLevel {
@@ -254,8 +255,13 @@ class AppLogger {
     // - CloudWatch
     // etc.
 
-    // For now, we'll just store locally or send to a simple endpoint
-    _storeLogLocally(logEntry);
+    // Send to Telemetry (Sentry) in production if enabled
+    try {
+      Telemetry().captureMessage(_formatLogMessage(logEntry), tags: logEntry);
+    } catch (e) {
+      // Fallback to local storage if telemetry fails
+      _storeLogLocally(logEntry);
+    }
   }
 
   /// Store log locally (for debugging or offline scenarios)

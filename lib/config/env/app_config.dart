@@ -1,10 +1,13 @@
 class AppConfig {
   // Authentication Configuration
   static const bool useBackend = true; // Backend-only authentication
+
+  // MICROSERVICES: Use API Gateway (Port 5008)
   static const String backendUrl =
-      //'http://172.20.10.3:5000'; ||
-     'http://192.168.100.2:5008';
-  //'http://139.59.44.175:5008'; //production
+  'https://gateway.aircharterss.com'; // Production microservices (VPS)
+ //'http://157.245.142.58:5007'; // Local microservices
+  //'http://localhost:5008'; // Local development
+  //'http://157.245.105.6:3000';  // OLD monolith (deprecated)
 
   // Storage Configuration
   static const String localAuthDataKey = 'local_auth_data';
@@ -16,16 +19,21 @@ class AppConfig {
   static const int tokenRefreshThresholdMinutes = 5;
 
   // Token Configuration (Configurable)
-  static const int accessTokenLifespanHours = 24; // Keep current user-friendly approach
+  static const int accessTokenLifespanHours =
+      24; // Keep current user-friendly approach
   static const int refreshTokenLifespanDays = 30; // Industry standard
   static const int biometricDataExpiryDays = 30; // Biometric data expiry
-  static const int sessionInactivityTimeoutMinutes = 0; // 0 = disabled (like Uber)
+  static const int sessionInactivityTimeoutMinutes =
+      0; // 0 = disabled (like Uber)
 
   // Biometric Authentication Configuration
   static const bool enableBiometricAuthentication = true;
-  static const bool requirePasswordForBiometricSetup = true; // Security best practice
-  static const bool enablePureBiometricLogin = false; // Requires additional backend validation
-  static const int biometricRefreshWarningDays = 7; // Warn user 7 days before expiry
+  static const bool requirePasswordForBiometricSetup =
+      true; // Security best practice
+  static const bool enablePureBiometricLogin =
+      false; // Requires additional backend validation
+  static const int biometricRefreshWarningDays =
+      7; // Warn user 7 days before expiry
 
   // App Configuration
   static const String appName = 'AirCharters';
@@ -34,11 +42,18 @@ class AppConfig {
   // Feature Flags
   static const bool enableAnalytics = false;
   static const bool enableCrashlytics = false;
-  static const bool enablePushNotifications = false;
+  static const bool enablePushNotifications = true;
+
+  // Sentry configuration
+  static const bool enableSentry = false; // Set to true in production to enable Sentry
+  static const String sentryDsn = ''; // Provide Sentry DSN in production
+  // OneSignal Configuration
+  // Get your App ID from: https://app.onesignal.com
+  static const String oneSignalAppId = '1939cf7f-9b99-4737-abb6-a40739f2f9df';
 
   // Development Configuration
-  static const bool isDevelopment = true;
-  static const bool enableDebugLogs = true;
+  static const bool isDevelopment = false; // Set to false for production
+  static const bool enableDebugLogs = false; // Disable debug logs in production
 
   // Backend API Endpoints (updated to match NestJS endpoints)
   static const String loginEndpoint = '/api/auth/login';
@@ -48,11 +63,12 @@ class AppConfig {
   static const String refreshTokenEndpoint = '/api/auth/refresh';
   static const String profileEndpoint = '/api/auth/profile';
   static const String logoutEndpoint = '/api/auth/logout';
+  static const String logoutAllDevicesEndpoint = '/api/auth/logout/all-devices';
 
-  // SMS Verification Endpoints
+  // SMS Verification Endpoints (Microservices: Communication Service)
   static const String sendSmsVerificationEndpoint =
-      '/api/sms/send-verification';
-  static const String verifySmsCodeEndpoint = '/api/sms/verify-code';
+      '/api/communication/send-sms';
+  static const String verifySmsCodeEndpoint = '/api/communication/send-sms';
 
   // Experience API Endpoints
   static const String experiencesEndpoint = '/api/experiences';
@@ -93,6 +109,11 @@ class AppConfig {
   // Payment Configuration
   // Note: All payment keys are managed server-side for security
   // Flutter only calls backend APIs that handle payment processing
+  static const bool enablePaystackNative =
+      true; // Try native first, fallback to WebView
+  static const String paystackPublicKey =
+      //'pk_test_6ad02ec12f811018e0d4c920ad79738d25d885ac';// TEST KEY
+      'pk_live_e3183e78d8d48d5fd76a0737de1740460d7f8f01';// LIVE KEY
 
   // Currency Configuration
   static const String defaultCurrency = 'USD';
@@ -111,15 +132,16 @@ class AppConfig {
   static const String paymentRefundEndpoint = '/api/payments';
   static const String paymentHistoryEndpoint = '/api/payments/history';
 
-  // Paystack API Endpoints
+  // Paystack API Endpoints (Microservices: Payment Service)
   static const String paystackInitializeEndpoint =
       '/api/payments/paystack/initialize';
   static const String paystackVerifyEndpoint = '/api/payments/paystack/verify';
   static const String paystackWebhookEndpoint =
       '/api/payments/paystack/webhook';
   static const String paystackSubaccountEndpoint =
-      '/api/payments/paystack/subaccount';
-  static const String paystackInfoEndpoint = '/api/payments/paystack/info';
+      '/api/payments/paystack/subaccount'; // Admin service handles this
+  static const String paystackInfoEndpoint =
+      '/api/payments/paystack/info'; // Admin service
 
   // Payment Verification URL Patterns
   static List<String> get paymentSuccessUrlPatterns {
@@ -139,19 +161,19 @@ class AppConfig {
     // Add environment-specific patterns
     if (isDevelopment) {
       basePatterns.addAll([
-        'localhost:5000/api/payments/verify', // Local development
-        'localhost:5000/api/payments/paystack/verify', // Local Paystack verification
-        '192.168.100.2:5000/api/payments/verify', // Local network
-        '192.168.100.2:5000/api/payments/paystack/verify', // Local network Paystack verification
-        '127.0.0.1:5000/api/payments/verify', // Localhost
-        '127.0.0.1:5000/api/payments/paystack/verify', // Localhost Paystack verification
+        'localhost:5008/api/payments/verify', // Local development
+        'localhost:5008/api/payments/paystack/verify', // Local Paystack verification
+        '192.168.100.2:5008/api/payments/verify', // Local network
+        '192.168.100.2:5008/api/payments/paystack/verify', // Local network Paystack verification
+        '127.0.0.1:5008/api/payments/verify', // Localhost
+        '127.0.0.1:5008/api/payments/paystack/verify', // Localhost Paystack verification
+        'gateway.aircharterss.com/api/payments/verify', // Production VPS
+        'gateway.aircharterss.com/api/payments/paystack/verify'// Production Paystack verification
       ]);
     } else {
       basePatterns.addAll([
-        'aircharters-api.vercel.app/api/payments/verify', // Production
-        'aircharters-api.vercel.app/api/payments/paystack/verify', // Production Paystack verification
-        'vercel.app/api/payments/verify', // Vercel deployment
-        'vercel.app/api/payments/paystack/verify', // Vercel Paystack verification
+        'gateway.aircharterss.com/api/payments/verify', // Production VPS
+        'gateway.aircharterss.com/api/payments/paystack/verify', // Production Paystack verification
       ]);
     }
 
@@ -200,10 +222,12 @@ class AppConfig {
 
   // Service Icons Configuration
   static const String dealsIconPath = 'assets/images/deal.png';
-  static const String directCharterIconPath = 'assets/images/direct_charter.png';
+  static const String directCharterIconPath =
+      'assets/images/direct_charter.png';
   static const String experiencesIconPath = 'assets/images/experiences.png';
   static const String cargoIconPath = 'assets/images/cargo.png';
   static const String medivacIconPath = 'assets/images/medivac.png';
+  static const String yachtIconPath = 'assets/images/yatch.png';
 
   // Service Configuration Helper
   static const Map<String, String> serviceIcons = {
@@ -212,14 +236,19 @@ class AppConfig {
     'Experiences': experiencesIconPath,
     'Cargo': cargoIconPath,
     'Medical': medivacIconPath,
+    'Yacht': yachtIconPath,
   };
 
   // Legal Documents Configuration
   static const String legalDocumentsPath = 'assets/legal/';
-  static const String termsOfServicePdfPath = '${legalDocumentsPath}terms_of_service.pdf';
-  static const String privacyPolicyPdfPath = '${legalDocumentsPath}privacy_policy.pdf';
-  static const String cookiePolicyPdfPath = '${legalDocumentsPath}cookie_policy.pdf';
-  static const String dataProcessingPdfPath = '${legalDocumentsPath}data_processing.pdf';
+  static const String termsOfServicePdfPath =
+      '${legalDocumentsPath}terms_of_service.pdf';
+  static const String privacyPolicyPdfPath =
+      '${legalDocumentsPath}privacy_policy.pdf';
+  static const String cookiePolicyPdfPath =
+      '${legalDocumentsPath}cookie_policy.pdf';
+  static const String dataProcessingPdfPath =
+      '${legalDocumentsPath}data_processing.pdf';
 
   // Legal Documents Configuration Helper
   static const Map<String, String> legalDocuments = {

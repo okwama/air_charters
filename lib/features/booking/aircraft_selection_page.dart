@@ -298,7 +298,6 @@ class _AircraftSelectionPageState extends State<AircraftSelectionPage> {
                   const SizedBox(height: 16),
 
                   // Flight Details
-                  _buildDetailRow('Company', widget.aircraft.companyName),
                   _buildDetailRow(
                       'Capacity', '${widget.aircraft.capacity} passengers'),
                   _buildDetailRow('Available Seats',

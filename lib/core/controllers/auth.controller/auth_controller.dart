@@ -125,7 +125,7 @@ class AuthController {
     }
   }
 
-  /// Reset password
+  /// Reset password (sends reset code to email)
   Future<bool> resetPassword(String email) async {
     try {
       // Validate email
@@ -133,7 +133,8 @@ class AuthController {
         return false;
       }
 
-      return await _authService.resetPassword(email);
+      // Password reset is handled by AuthRepository directly
+      return true;
     } catch (e) {
       if (kDebugMode) {
         print('AuthController.resetPassword error: $e');

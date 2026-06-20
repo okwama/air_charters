@@ -1,12 +1,13 @@
 import 'package:air_charters/features/auth/login_screen.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:air_charters/core/providers/auth_provider.dart';
 import 'package:air_charters/shared/widgets/success_toast.dart';
 import 'package:air_charters/core/network/api_client.dart';
 import 'package:air_charters/config/theme/app_theme.dart';
+import 'package:air_charters/core/routes/app_routes.dart';
+import 'package:air_charters/shared/widgets/network_error_widget.dart';
 import 'dart:developer' as dev;
 
 class SignupScreen extends StatefulWidget {
@@ -28,11 +29,11 @@ class _SignupScreenState extends State<SignupScreen> {
   bool _passwordVisibility = false;
   bool _confirmPasswordVisibility = false;
   final ApiClient _apiClient = ApiClient();
-  
+
   // Phone number settings
   String _selectedCountryCode = '+254'; // Default to Kenya
   String _selectedCountryFlag = '🇰🇪';
-  
+
   // Form validation errors
   String? _firstNameError;
   String? _lastNameError;
@@ -55,8 +56,10 @@ class _SignupScreenState extends State<SignupScreen> {
   void _showErrorSnackBar(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(message, style: GoogleFonts.inter(color: Colors.white)),
-        backgroundColor: Colors.red.shade600,
+        content: Text(message,
+            style:
+                AppTheme.bodyMedium.copyWith(color: AppTheme.backgroundColor)),
+        backgroundColor: AppTheme.errorColor,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       ),
@@ -107,7 +110,7 @@ class _SignupScreenState extends State<SignupScreen> {
       if (cleanPhone.startsWith('0')) {
         cleanPhone = cleanPhone.substring(1);
       }
-      
+
       // Check if it's a valid phone number (7-12 digits)
       final digitsOnly = cleanPhone.replaceAll(RegExp(r'[^\d]'), '');
       if (digitsOnly.length < 7 || digitsOnly.length > 12) {
@@ -186,14 +189,15 @@ class _SignupScreenState extends State<SignupScreen> {
 
       dev.log('About to call authProvider.signUpWithEmail',
           name: 'SignupScreen-DEBUG');
-      
+
       // Format phone number if provided
       String? formattedPhone;
       if (phone.isNotEmpty) {
         formattedPhone = _formatPhoneNumber(phone);
       }
-      
-      await authProvider.signUpWithEmail(email, password, firstName, lastName, phoneNumber: formattedPhone);
+
+      await authProvider.signUpWithEmail(email, password, firstName, lastName,
+          phoneNumber: formattedPhone);
       dev.log('authProvider.signUpWithEmail completed',
           name: 'SignupScreen-DEBUG');
 
@@ -207,7 +211,8 @@ class _SignupScreenState extends State<SignupScreen> {
           if (authProvider.successMessage != null) {
             showSuccessToast(context, authProvider.successMessage!);
           }
-          Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
+          Navigator.of(context)
+              .pushNamedAndRemoveUntil(AppRoutes.root, (route) => false);
         } else {
           dev.log('User is NOT authenticated after signup',
               name: 'SignupScreen-WARNING');
@@ -247,7 +252,8 @@ class _SignupScreenState extends State<SignupScreen> {
   }
 
   void _selectCountry() async {
-    final result = await Navigator.of(context).pushNamed('/country-selection');
+    final result =
+        await Navigator.of(context).pushNamed(AppRoutes.countrySelection);
     if (result != null && result is Map<String, dynamic>) {
       setState(() {
         _selectedCountryCode = result['code'];
@@ -259,12 +265,12 @@ class _SignupScreenState extends State<SignupScreen> {
   String _formatPhoneNumber(String phoneNumber) {
     // Remove any spaces, dashes, or parentheses
     String cleanNumber = phoneNumber.replaceAll(RegExp(r'[\s\-\(\)]'), '');
-    
+
     // Remove leading 0 if present (Kenya format: 0706166875 -> 706166875)
     if (cleanNumber.startsWith('0')) {
       cleanNumber = cleanNumber.substring(1);
     }
-    
+
     // Combine with country code
     return _selectedCountryCode + cleanNumber;
   }
@@ -339,9 +345,11 @@ class _SignupScreenState extends State<SignupScreen> {
           SnackBar(
             content: Text(
               isHealthy ? '✅ Backend is reachable!' : '❌ Backend not reachable',
-              style: GoogleFonts.inter(color: Colors.white),
+              style:
+                  AppTheme.bodyMedium.copyWith(color: AppTheme.backgroundColor),
             ),
-            backgroundColor: isHealthy ? Colors.green : Colors.red,
+            backgroundColor:
+                isHealthy ? AppTheme.successColor : AppTheme.errorColor,
             behavior: SnackBarBehavior.floating,
             shape:
                 RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
@@ -355,9 +363,10 @@ class _SignupScreenState extends State<SignupScreen> {
           SnackBar(
             content: Text(
               '❌ Backend test failed: $e',
-              style: GoogleFonts.inter(color: Colors.white),
+              style:
+                  AppTheme.bodyMedium.copyWith(color: AppTheme.backgroundColor),
             ),
-            backgroundColor: Colors.red,
+            backgroundColor: AppTheme.errorColor,
             behavior: SnackBarBehavior.floating,
             shape:
                 RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
@@ -372,7 +381,7 @@ class _SignupScreenState extends State<SignupScreen> {
     return GestureDetector(
       onTap: () => FocusScope.of(context).unfocus(),
       child: Scaffold(
-        backgroundColor: Colors.white,
+        backgroundColor: AppTheme.backgroundColor,
         resizeToAvoidBottomInset: true,
         body: SafeArea(
           child: Consumer<AuthProvider>(
@@ -388,50 +397,19 @@ class _SignupScreenState extends State<SignupScreen> {
                         // More spacious Header
                         Text(
                           'Create Account',
-                          style: GoogleFonts.interTight(
-                              fontSize: 32,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.black),
+                          style: AppTheme.heading1
+                              .copyWith(fontSize: 32, letterSpacing: -0.5),
                         ),
                         const SizedBox(height: 8),
                         Text(
                           'Start your journey with us today.',
-                          style: GoogleFonts.inter(
-                              fontSize: 16, color: const Color(0xFF666666)),
+                          style: AppTheme.bodyMedium
+                              .copyWith(color: AppTheme.textSecondaryColor),
                         ),
                         const SizedBox(height: 40),
 
-                        // Test Backend Button (temporary)
-                        SizedBox(
-                          width: double.infinity,
-                          height: 48,
-                          child: ElevatedButton(
-                            onPressed: _testBackendConnection,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.orange,
-                              shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12)),
-                            ),
-                            child: Text('Test Backend Connection',
-                                style: GoogleFonts.inter(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w600,
-                                    color: Colors.white)),
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-
                         // Signup Form
                         _buildEmailForm(authProvider),
-
-                        const SizedBox(height: 24),
-
-                        // More spacious Divider
-                        _buildDivider(),
-                        const SizedBox(height: 20),
-
-                        // More spacious Social Login
-                        _buildSocialButtons(authProvider),
 
                         const SizedBox(height: 32),
 
@@ -493,7 +471,7 @@ class _SignupScreenState extends State<SignupScreen> {
           onChanged: (value) => _clearFieldError('email'),
         ),
         const SizedBox(height: 16),
-        
+
         // Phone Number Field with Country Code
         Row(
           children: [
@@ -501,7 +479,8 @@ class _SignupScreenState extends State<SignupScreen> {
             GestureDetector(
               onTap: _selectCountry,
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
                 decoration: BoxDecoration(
                   border: Border.all(color: AppTheme.borderColor),
                   borderRadius: BorderRadius.circular(14),
@@ -517,7 +496,8 @@ class _SignupScreenState extends State<SignupScreen> {
                     const SizedBox(width: 8),
                     Text(
                       _selectedCountryCode,
-                      style: AppTheme.bodyMedium.copyWith(color: AppTheme.textPrimaryColor),
+                      style: AppTheme.bodyMedium
+                          .copyWith(color: AppTheme.textPrimaryColor),
                     ),
                     const SizedBox(width: 4),
                     Icon(
@@ -530,7 +510,7 @@ class _SignupScreenState extends State<SignupScreen> {
               ),
             ),
             const SizedBox(width: 12),
-            
+
             // Phone Number Input
             Expanded(
               child: TextFormField(
@@ -592,22 +572,12 @@ class _SignupScreenState extends State<SignupScreen> {
 
         // More spacious Error message
         if (authProvider.errorMessage != null) ...[
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.red.shade50,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.red.shade200),
-            ),
-            child: Text(
-              authProvider.errorMessage!,
-              style: GoogleFonts.inter(
-                fontSize: 14,
-                color: Colors.red.shade700,
-              ),
-              textAlign: TextAlign.center,
-            ),
+          QuickNetworkErrorWidget(
+            error: authProvider.errorMessage,
+            onRetry: () {
+              // Clear error and retry signup
+              authProvider.clearError();
+            },
           ),
           const SizedBox(height: 16),
         ],
@@ -617,11 +587,7 @@ class _SignupScreenState extends State<SignupScreen> {
           height: 52,
           child: ElevatedButton(
             onPressed: authProvider.isLoading ? null : _handleSignUpWithEmail,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.black,
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12)),
-            ),
+            style: AppTheme.primaryButtonStyle,
             child: authProvider.isLoading
                 ? Row(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -631,88 +597,27 @@ class _SignupScreenState extends State<SignupScreen> {
                         height: 16,
                         child: CircularProgressIndicator(
                           strokeWidth: 2,
-                          valueColor:
-                              AlwaysStoppedAnimation<Color>(Colors.white),
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                              AppTheme.backgroundColor),
                         ),
                       ),
                       const SizedBox(width: 8),
                       Text(
                         'Creating Account...',
-                        style: GoogleFonts.interTight(
-                          fontSize: 16,
+                        style: AppTheme.bodyMedium.copyWith(
                           fontWeight: FontWeight.w600,
-                          color: Colors.white,
+                          color: AppTheme.backgroundColor,
                         ),
                       ),
                     ],
                   )
                 : Text(
                     'Sign Up',
-                    style: GoogleFonts.interTight(
-                      fontSize: 16,
+                    style: AppTheme.bodyMedium.copyWith(
                       fontWeight: FontWeight.w600,
-                      color: Colors.white,
+                      color: AppTheme.backgroundColor,
                     ),
                   ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildDivider() {
-    return Row(
-      children: [
-        const Expanded(child: Divider(color: Color(0xFFE5E5E5))),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Text('OR',
-              style: GoogleFonts.inter(
-                  color: const Color(0xFF888888),
-                  fontWeight: FontWeight.w500,
-                  fontSize: 14)),
-        ),
-        const Expanded(child: Divider(color: Color(0xFFE5E5E5))),
-      ],
-    );
-  }
-
-  Widget _buildSocialButtons(AuthProvider authProvider) {
-    return Row(
-      children: [
-        Expanded(
-          child: SizedBox(
-            height: 52,
-            child: OutlinedButton.icon(
-              onPressed: authProvider.isLoading
-                  ? null
-                  : () {}, //TODO: Implement Google Sign In
-              icon: const Icon(Icons.login, color: Colors.black, size: 18),
-              label: Text('Google',
-                  style: GoogleFonts.interTight(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.black)),
-              style: _socialButtonStyle(),
-            ),
-          ),
-        ),
-        const SizedBox(width: 16),
-        Expanded(
-          child: SizedBox(
-            height: 52,
-            child: OutlinedButton.icon(
-              onPressed: authProvider.isLoading
-                  ? null
-                  : () {}, //TODO: Implement Apple Sign In
-              icon: const Icon(Icons.apple, color: Colors.black, size: 18),
-              label: Text('Apple',
-                  style: GoogleFonts.interTight(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.black)),
-              style: _socialButtonStyle(),
-            ),
           ),
         ),
       ],
@@ -724,12 +629,13 @@ class _SignupScreenState extends State<SignupScreen> {
       child: RichText(
         text: TextSpan(
           text: 'Already have an account? ',
-          style: GoogleFonts.inter(fontSize: 16, color: Colors.grey.shade600),
+          style:
+              AppTheme.bodyMedium.copyWith(color: AppTheme.textSecondaryColor),
           children: [
             TextSpan(
               text: 'Log In',
-              style: GoogleFonts.inter(
-                  fontWeight: FontWeight.w600, color: Colors.black),
+              style: AppTheme.bodyMedium.copyWith(
+                  fontWeight: FontWeight.w600, color: AppTheme.primaryColor),
               recognizer: TapGestureRecognizer()
                 ..onTap = () {
                   if (!authProvider.isLoading) {
@@ -753,15 +659,6 @@ class _SignupScreenState extends State<SignupScreen> {
       hintStyle:
           AppTheme.bodyMedium.copyWith(color: AppTheme.textSecondaryColor),
       errorStyle: AppTheme.bodySmall.copyWith(color: AppTheme.errorColor),
-    );
-  }
-
-  ButtonStyle _socialButtonStyle() {
-    return OutlinedButton.styleFrom(
-      foregroundColor: Colors.black,
-      backgroundColor: const Color(0xFFF5F5F5),
-      side: const BorderSide(color: Color(0xFFE5E5E5), width: 1),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
     );
   }
 }

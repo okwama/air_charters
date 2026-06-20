@@ -17,6 +17,8 @@ class AppRoutes {
   static const String verify = '/verify';
   static const String countrySelection = '/country-selection';
   static const String landing = '/landing';
+  static const String forgotPassword = '/forgot-password';
+  static const String resetPassword = '/reset-password';
 
   // Main feature routes
   static const String directCharter = '/direct-charter';
@@ -73,6 +75,8 @@ class AppRoutes {
     verify,
     countrySelection,
     landing,
+    forgotPassword,
+    resetPassword,
   ];
 
   static const List<String> mainTabRoutes = [

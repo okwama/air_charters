@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:lucide_icons/lucide_icons.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../../config/theme/app_theme.dart';
 
 class AccountSecuritySection extends StatelessWidget {
@@ -7,7 +7,7 @@ class AccountSecuritySection extends StatelessWidget {
   final Function(BuildContext) onBiometricTap;
   final Function(BuildContext) onExportDataTap;
   final Function(BuildContext) onDeleteAccountTap;
-  final Function(BuildContext)? onBiometricDiagnosticTap;
+  final Function(BuildContext)? onLogoutAllDevicesTap;
 
   const AccountSecuritySection({
     super.key,
@@ -15,7 +15,7 @@ class AccountSecuritySection extends StatelessWidget {
     required this.onBiometricTap,
     required this.onExportDataTap,
     required this.onDeleteAccountTap,
-    this.onBiometricDiagnosticTap,
+    this.onLogoutAllDevicesTap,
   });
 
   @override
@@ -77,15 +77,6 @@ class AccountSecuritySection extends StatelessWidget {
                   onTap: () => onBiometricTap(context),
                 ),
 
-                // Biometric Diagnostic (if available)
-                if (onBiometricDiagnosticTap != null)
-                  _buildPreferenceItem(
-                    icon: LucideIcons.bug,
-                    title: 'Biometric Diagnostic',
-                    subtitle: 'Troubleshoot biometric issues',
-                    onTap: () => onBiometricDiagnosticTap!(context),
-                  ),
-
                 // Data Export
                 _buildPreferenceItem(
                   icon: LucideIcons.download,
@@ -93,6 +84,16 @@ class AccountSecuritySection extends StatelessWidget {
                   subtitle: 'Download your personal data',
                   onTap: () => onExportDataTap(context),
                 ),
+
+                // Logout from All Devices
+                if (onLogoutAllDevicesTap != null)
+                  _buildPreferenceItem(
+                    icon: LucideIcons.logOut,
+                    title: 'Logout from All Devices',
+                    subtitle: 'Sign out from all active sessions',
+                    onTap: () => onLogoutAllDevicesTap!(context),
+                    isWarning: true,
+                  ),
 
                 // Delete Account
                 _buildPreferenceItem(
@@ -116,7 +117,19 @@ class AccountSecuritySection extends StatelessWidget {
     required String subtitle,
     required VoidCallback onTap,
     bool isDestructive = false,
+    bool isWarning = false,
   }) {
+    Color iconColor = Colors.grey.shade700;
+    Color textColor = AppTheme.textPrimaryColor;
+
+    if (isDestructive) {
+      iconColor = Colors.red.shade600;
+      textColor = AppTheme.errorColor;
+    } else if (isWarning) {
+      iconColor = Colors.orange.shade600;
+      textColor = Colors.orange.shade700;
+    }
+
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       child: InkWell(
@@ -129,8 +142,7 @@ class AccountSecuritySection extends StatelessWidget {
               Icon(
                 icon,
                 size: 20,
-                color:
-                    isDestructive ? Colors.red.shade600 : Colors.grey.shade700,
+                color: iconColor,
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -141,9 +153,7 @@ class AccountSecuritySection extends StatelessWidget {
                       title,
                       style: AppTheme.bodySmall.copyWith(
                         fontWeight: FontWeight.w600,
-                        color: isDestructive
-                            ? AppTheme.errorColor
-                            : AppTheme.textPrimaryColor,
+                        color: textColor,
                       ),
                     ),
                     const SizedBox(height: 2),

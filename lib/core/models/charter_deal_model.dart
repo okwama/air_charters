@@ -14,8 +14,8 @@ class CharterDealModel {
   final int discountPerHour; // ✅ Fixed: was discountFullCharter
   final int availableSeats;
   final String dealType;
-  final DateTime createdAt;
-  final DateTime updatedAt;
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
 
   // Related data from joins
   final String? companyName;
@@ -48,8 +48,8 @@ class CharterDealModel {
     this.discountPerHour = 0, // ✅ Fixed: was discountFullCharter
     required this.availableSeats,
     required this.dealType,
-    required this.createdAt,
-    required this.updatedAt,
+    this.createdAt,
+    this.updatedAt,
     this.companyName,
     this.companyLogo,
     this.origin,
@@ -84,8 +84,12 @@ class CharterDealModel {
         availableSeats: json['availableSeats'] as int,
         dealType: json['dealType'] as String? ??
             'privateCharter', // Handle null dealType
-        createdAt: DateTime.parse(json['createdAt'] as String),
-        updatedAt: DateTime.parse(json['updatedAt'] as String),
+        createdAt: json['createdAt'] != null
+            ? DateTime.parse(json['createdAt'] as String)
+            : null,
+        updatedAt: json['updatedAt'] != null
+            ? DateTime.parse(json['updatedAt'] as String)
+            : null,
         companyName: json['companyName'] as String?,
         companyLogo: json['companyLogo'] as String?,
         origin: json['originName'] as String? ??
@@ -140,8 +144,8 @@ class CharterDealModel {
       'discountPerHour': discountPerHour, // ✅ Fixed: was discountFullCharter
       'availableSeats': availableSeats,
       'dealType': dealType,
-      'createdAt': createdAt.toIso8601String(),
-      'updatedAt': updatedAt.toIso8601String(),
+      'createdAt': createdAt?.toIso8601String(),
+      'updatedAt': updatedAt?.toIso8601String(),
       'companyName': companyName,
       'companyLogo': companyLogo,
       'origin': origin,

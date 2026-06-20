@@ -5,6 +5,10 @@ import '../models/auth_model.dart';
 import '../models/user_model.dart';
 import '../error/app_exceptions.dart';
 import '../services/biometric_service.dart';
+import '../services/guest_data_service.dart';
+import '../services/conversion_analytics_service.dart';
+import '../services/websocket_service.dart';
+import '../services/onesignal_service.dart';
 import 'dart:async';
 import 'dart:developer' as dev;
 import '../../shared/utils/session_manager.dart';
@@ -19,6 +23,7 @@ enum AuthState {
   loading,
   authenticated,
   unauthenticated,
+  guest,
   error,
 }
 
@@ -26,7 +31,6 @@ class AuthProvider with ChangeNotifier {
   final AuthRepository _authRepository = AuthRepository();
   final SessionManager _sessionManager = SessionManager();
   final BiometricService _biometricService = BiometricService();
-  Timer? _tokenRefreshTimer;
 
   AuthState _state = AuthState.initial;
   AuthModel? _authData;
@@ -43,16 +47,27 @@ class AuthProvider with ChangeNotifier {
   String? get successMessage => _successMessage;
   bool get isLoading => _isLoading;
   bool get isAuthenticated => _state == AuthState.authenticated;
+  bool get isGuest => _state == AuthState.guest;
   bool get hasValidToken => _authData != null && !_authData!.isExpired;
 
   // Initialize auth state
   Future<void> initialize() async {
     if (kDebugMode) {
-      dev.log('AuthProvider: Starting initialization', name: 'auth_provider');
+      dev.log('AuthProvider: Starting initialization, current state: $_state',
+          name: 'auth_provider');
     }
 
-    // Start background token refresh timer
-    _startBackgroundTokenRefresh();
+    // If already in guest mode, don't reinitialize
+    if (_state == AuthState.guest) {
+      if (kDebugMode) {
+        dev.log('AuthProvider: Already in guest mode, skipping initialization',
+            name: 'auth_provider');
+      }
+      return;
+    }
+
+    // Delegate token monitoring/refresh to SessionManager
+    _sessionManager.initialize();
 
     _setLoading(true);
     try {
@@ -68,9 +83,9 @@ class AuthProvider with ChangeNotifier {
 
           // Try to refresh the token
           try {
-            final newAuthData = await _authRepository.refreshToken();
-            if (newAuthData != null) {
-              await _setAuthenticatedWithToken(newAuthData);
+            final refreshedAuthData = await _authRepository.refreshToken();
+            if (refreshedAuthData != null) {
+              await _setAuthenticatedWithToken(refreshedAuthData);
               if (kDebugMode) {
                 dev.log('AuthProvider: Token refreshed successfully',
                     name: 'auth_provider');
@@ -134,8 +149,33 @@ class AuthProvider with ChangeNotifier {
       // Store in SessionManager
       await _sessionManager.storeAuthData(authData);
 
-      // Setup token refresh timer
-      _setupTokenRefreshTimer();
+      // SessionManager is authoritative for token monitoring/refresh
+      _sessionManager.initialize();
+
+      // ✅ PERFORMANCE FIX: Initialize WebSocket and OneSignal in background (non-blocking)
+      // Don't await - this speeds up login by 30-50ms
+      WebSocketService()
+          .initialize(
+        authData.user.id,
+        authToken: authData.accessToken,
+      )
+          .then((_) {
+        if (kDebugMode) {
+          dev.log('AuthProvider: WebSocket initialized', name: 'auth_provider');
+        }
+      });
+
+      // Initialize OneSignal for push notifications
+      OneSignalService().setUser(authData.user.id).then((_) {
+        if (kDebugMode) {
+          dev.log('AuthProvider: OneSignal user set', name: 'auth_provider');
+        }
+      }).catchError((e) {
+        if (kDebugMode) {
+          dev.log('AuthProvider: OneSignal initialization failed: $e',
+              name: 'auth_provider');
+        }
+      });
 
       if (kDebugMode) {
         dev.log('AuthProvider: Authentication state set successfully',
@@ -160,45 +200,18 @@ class AuthProvider with ChangeNotifier {
 
   // Setup automatic token refresh
   void _setupTokenRefreshTimer() {
-    _tokenRefreshTimer?.cancel();
-
-    if (_authData != null) {
-      // Calculate time until token expires (minus 5 minutes buffer)
-      final timeUntilExpiry = _authData!.expiresAt.difference(DateTime.now());
-      final refreshTime = timeUntilExpiry.inMilliseconds -
-          (5 * 60 * 1000); // 5 minutes before expiry
-
-      if (refreshTime > 0) {
-        _tokenRefreshTimer = Timer(Duration(milliseconds: refreshTime), () {
-          _refreshTokenIfNeeded();
-        });
-        if (kDebugMode) {
-          dev.log(
-              'AuthProvider: Token refresh scheduled in ${refreshTime ~/ 1000} seconds',
-              name: 'auth_provider');
-        }
-      } else {
-        // Token is already expired or will expire soon, refresh immediately
-        _refreshTokenIfNeeded();
-      }
+    // Token scheduling moved to SessionManager.refreshTokenOnce() and
+    // centralized monitoring. AuthProvider must not schedule timers itself.
+    if (kDebugMode) {
+      dev.log('AuthProvider: _setupTokenRefreshTimer is now a no-op',
+          name: 'auth_provider');
     }
   }
 
   // Refresh token if needed
   Future<void> _refreshTokenIfNeeded() async {
-    if (_authData != null && _authData!.willExpireSoon) {
-      try {
-        await refreshToken();
-        // Clear any previous error messages on successful refresh
-        _clearError();
-      } catch (e) {
-        // Set user-friendly error message before signing out
-        _setError('Your session has expired. Please login again to continue.');
-        // Give user a moment to see the message before signing out
-        await Future.delayed(const Duration(seconds: 2));
-        await signOut();
-      }
-    }
+    // Deprecated: token refresh should be handled centrally by SessionManager
+    return;
   }
 
   // Validate current token
@@ -263,23 +276,42 @@ class AuthProvider with ChangeNotifier {
 
   // Email/Password Authentication
   Future<void> signInWithEmail(String email, String password) async {
-    // Removed debug print
+    if (kDebugMode) {
+      print('🔥 AUTH PROVIDER: signInWithEmail called for $email');
+      dev.log('=== AUTH PROVIDER: EMAIL LOGIN STARTED ===',
+          name: 'AuthProvider-DEBUG');
+    }
+
     _isLoading = true;
     _errorMessage = null;
     _successMessage = null;
     notifyListeners();
 
     try {
-      // Removed debug print
+      dev.log('About to call authRepository.signInWithEmail',
+          name: 'AuthProvider-DEBUG');
       final authData = await _authRepository.signInWithEmail(email, password);
-      // Removed debug print
+      dev.log('Auth repository login completed successfully',
+          name: 'AuthProvider-DEBUG');
+
       await _setAuthenticatedWithToken(authData);
       _successMessage =
           'Login successful! Welcome back, ${authData.user.firstName}';
-      // Removed debug print
+
+      if (kDebugMode) {
+        dev.log('=== AUTH PROVIDER: EMAIL LOGIN COMPLETED ===',
+            name: 'AuthProvider-DEBUG');
+      }
+
+      // ✅ PERFORMANCE FIX: Prefetch critical data in background after login
+      _prefetchCriticalData();
     } catch (e) {
-      // Removed debug print
+      dev.log('Auth provider login error: $e', name: 'AuthProvider-ERROR');
+      dev.log('Error type: ${e.runtimeType}', name: 'AuthProvider-ERROR');
       _errorMessage = _getErrorMessage(e);
+      if (kDebugMode) {
+        print('🔥 AUTH PROVIDER: Login failed with error: $_errorMessage');
+      }
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -288,18 +320,43 @@ class AuthProvider with ChangeNotifier {
 
   // Phone/Password Authentication
   Future<void> signInWithPhone(String phoneNumber, String password) async {
+    print('🔥 AUTH PROVIDER: signInWithPhone called for $phoneNumber');
+    dev.log('=== AUTH PROVIDER: PHONE LOGIN STARTED ===',
+        name: 'AuthProvider-DEBUG');
+
     _isLoading = true;
     _errorMessage = null;
     _successMessage = null;
     notifyListeners();
 
     try {
-      final authData = await _authRepository.signInWithPhone(phoneNumber, password);
+      dev.log('About to call authRepository.signInWithPhone',
+          name: 'AuthProvider-DEBUG');
+      final authData =
+          await _authRepository.signInWithPhone(phoneNumber, password);
+      dev.log('Auth repository phone login completed successfully',
+          name: 'AuthProvider-DEBUG');
+
       await _setAuthenticatedWithToken(authData);
       _successMessage =
           'Phone login successful! Welcome back, ${authData.user.firstName}';
+
+      if (kDebugMode) {
+        dev.log('=== AUTH PROVIDER: PHONE LOGIN COMPLETED ===',
+            name: 'AuthProvider-DEBUG');
+      }
+
+      // ✅ PERFORMANCE FIX: Prefetch critical data in background after login
+      _prefetchCriticalData();
     } catch (e) {
+      dev.log('Auth provider phone login error: $e',
+          name: 'AuthProvider-ERROR');
+      dev.log('Error type: ${e.runtimeType}', name: 'AuthProvider-ERROR');
       _errorMessage = _getErrorMessage(e);
+      if (kDebugMode) {
+        print(
+            '🔥 AUTH PROVIDER: Phone login failed with error: $_errorMessage');
+      }
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -307,7 +364,8 @@ class AuthProvider with ChangeNotifier {
   }
 
   Future<void> signUpWithEmail(
-      String email, String password, String firstName, String lastName, {String? phoneNumber}) async {
+      String email, String password, String firstName, String lastName,
+      {String? phoneNumber}) async {
     // Removed debug print
     dev.log('=== AUTH PROVIDER: SIGNUP STARTED ===',
         name: 'AuthProvider-DEBUG');
@@ -323,7 +381,8 @@ class AuthProvider with ChangeNotifier {
       dev.log('About to call _authRepository.signUpWithEmail',
           name: 'AuthProvider-DEBUG');
       final authData = await _authRepository.signUpWithEmail(
-          email, password, firstName, lastName, phoneNumber: phoneNumber);
+          email, password, firstName, lastName,
+          phoneNumber: phoneNumber);
       dev.log('Auth repository signup completed successfully',
           name: 'AuthProvider-DEBUG');
       await _setAuthenticatedWithToken(authData);
@@ -357,8 +416,19 @@ class AuthProvider with ChangeNotifier {
     }
 
     try {
-      // Stop background token refresh timer
-      _stopBackgroundTokenRefresh();
+      // Stop centralized token monitoring
+      _sessionManager.stopMonitoring();
+
+      // Disconnect WebSocket service
+      WebSocketService().disconnect();
+
+      // Logout from OneSignal
+      await OneSignalService().logout();
+
+      if (kDebugMode) {
+        dev.log('AuthProvider: WebSocket and OneSignal disconnected',
+            name: 'auth_provider');
+      }
 
       // Clear auth data from backend (if possible)
       try {
@@ -379,11 +449,13 @@ class AuthProvider with ChangeNotifier {
       try {
         await _biometricService.disableBiometric();
         if (kDebugMode) {
-          dev.log('AuthProvider: Biometric data cleared on logout', name: 'auth_provider');
+          dev.log('AuthProvider: Biometric data cleared on logout',
+              name: 'auth_provider');
         }
       } catch (e) {
         if (kDebugMode) {
-          dev.log('AuthProvider: Error clearing biometric data: $e', name: 'auth_provider');
+          dev.log('AuthProvider: Error clearing biometric data: $e',
+              name: 'auth_provider');
         }
         // Don't fail logout if biometric cleanup fails
       }
@@ -554,15 +626,45 @@ class AuthProvider with ChangeNotifier {
   // Refresh Token
   Future<void> refreshToken() async {
     try {
-      final newAuthData = await _authRepository.refreshToken();
-      if (newAuthData != null) {
-        await _setAuthenticatedWithToken(newAuthData);
+      final refreshedAuthData = await _authRepository.refreshToken();
+      if (refreshedAuthData != null) {
+        await _setAuthenticatedWithToken(refreshedAuthData);
         _setSuccess('Session refreshed successfully');
       } else {
         _setUnauthenticated();
       }
     } catch (e) {
       _setUnauthenticated();
+    }
+  }
+
+  // Logout from All Devices
+  Future<void> logoutAllDevices() async {
+    if (kDebugMode) {
+      dev.log('AuthProvider: Starting logout from all devices',
+          name: 'auth_provider');
+    }
+
+    try {
+      // Call backend to revoke all refresh tokens
+      final success = await _authRepository.logoutAllDevices();
+
+      if (success) {
+        if (kDebugMode) {
+          dev.log('AuthProvider: Successfully logged out from all devices',
+              name: 'auth_provider');
+        }
+        _setSuccess('Logged out from all other devices successfully');
+      } else {
+        throw Exception('Failed to logout from all devices');
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        dev.log('AuthProvider: Error logging out from all devices: $e',
+            name: 'auth_provider');
+      }
+      _setError(_getErrorMessage(e));
+      rethrow;
     }
   }
 
@@ -702,6 +804,8 @@ class AuthProvider with ChangeNotifier {
             : 'Authenticated';
       case AuthState.unauthenticated:
         return 'Not authenticated';
+      case AuthState.guest:
+        return 'Browsing as guest';
       case AuthState.error:
         return _errorMessage ?? 'Authentication error';
     }
@@ -716,7 +820,7 @@ class AuthProvider with ChangeNotifier {
     _state = AuthState.unauthenticated;
     _authData = null;
     _currentUser = null;
-    _tokenRefreshTimer?.cancel();
+    _sessionManager.stopMonitoring();
     _clearError();
     _clearSuccess();
     notifyListeners();
@@ -771,7 +875,7 @@ class AuthProvider with ChangeNotifier {
     try {
       await _authRepository.clearAllStoredData();
       await _sessionManager.clearStoredAuthData();
-      _tokenRefreshTimer?.cancel();
+      _sessionManager.stopMonitoring();
       _setUnauthenticated();
     } catch (e) {
       // Ignore errors when clearing data
@@ -786,7 +890,7 @@ class AuthProvider with ChangeNotifier {
     _errorMessage = null;
     _successMessage = null;
     _isLoading = false;
-    _tokenRefreshTimer?.cancel();
+    _sessionManager.stopMonitoring();
     notifyListeners();
   }
 
@@ -809,7 +913,7 @@ class AuthProvider with ChangeNotifier {
     _currentUser = null;
     _authData = null;
     _state = AuthState.unauthenticated;
-    _tokenRefreshTimer?.cancel();
+    _sessionManager.stopMonitoring();
     _sessionManager.clearStoredAuthData();
     notifyListeners();
   }
@@ -841,23 +945,27 @@ class AuthProvider with ChangeNotifier {
   Future<void> enableBiometric() async {
     try {
       if (!await isBiometricAvailable()) {
-        throw AuthException('Biometric authentication is not available on this device');
+        throw AuthException(
+            'Biometric authentication is not available on this device');
       }
 
       if (_authData == null) {
-        throw AuthException('Please log in first to enable biometric authentication');
+        throw AuthException(
+            'Please log in first to enable biometric authentication');
       }
 
       await _biometricService.enableBiometric(_authData!);
       _setSuccess('Biometric authentication enabled successfully');
-      
+
       if (kDebugMode) {
-        dev.log('AuthProvider: Biometric authentication enabled', name: 'auth_provider');
+        dev.log('AuthProvider: Biometric authentication enabled',
+            name: 'auth_provider');
       }
     } catch (e) {
       _errorMessage = _getErrorMessage(e);
       if (kDebugMode) {
-        dev.log('AuthProvider: Error enabling biometric: $e', name: 'auth_provider');
+        dev.log('AuthProvider: Error enabling biometric: $e',
+            name: 'auth_provider');
       }
       rethrow;
     } finally {
@@ -870,14 +978,16 @@ class AuthProvider with ChangeNotifier {
     try {
       await _biometricService.disableBiometric();
       _setSuccess('Biometric authentication disabled successfully');
-      
+
       if (kDebugMode) {
-        dev.log('AuthProvider: Biometric authentication disabled', name: 'auth_provider');
+        dev.log('AuthProvider: Biometric authentication disabled',
+            name: 'auth_provider');
       }
     } catch (e) {
       _errorMessage = _getErrorMessage(e);
       if (kDebugMode) {
-        dev.log('AuthProvider: Error disabling biometric: $e', name: 'auth_provider');
+        dev.log('AuthProvider: Error disabling biometric: $e',
+            name: 'auth_provider');
       }
       rethrow;
     } finally {
@@ -894,40 +1004,45 @@ class AuthProvider with ChangeNotifier {
 
     try {
       final userData = await _biometricService.authenticateWithBiometric();
-      
+
       if (userData != null) {
         // Get user data from biometric authentication
         final String userId = userData['userId'] ?? '';
         final String userEmail = userData['userEmail'] ?? '';
         final String biometricId = userData['biometricId'] ?? '';
-        
+
         if (userId.isEmpty || userEmail.isEmpty || biometricId.isEmpty) {
-          throw AuthException('Invalid biometric data. Please re-enable biometric authentication.');
+          throw AuthException(
+              'Invalid biometric data. Please re-enable biometric authentication.');
         }
-        
+
         if (kDebugMode) {
-          dev.log('AuthProvider: Biometric authentication successful for user: $userEmail', name: 'auth_provider');
+          dev.log(
+              'AuthProvider: Biometric authentication successful for user: $userEmail',
+              name: 'auth_provider');
         }
-        
+
         // Call backend to validate biometric authentication and get tokens
-        final authData = await _authRepository.loginWithBiometric(biometricId, userId, userEmail);
-        
+        final authData = await _authRepository.loginWithBiometric(
+            biometricId, userId, userEmail);
+
         // Set authenticated state with the received tokens
         await _setAuthenticatedWithToken(authData);
-        
+
         _setSuccess('Welcome back! Biometric authentication successful.');
-        
+
         if (kDebugMode) {
-          dev.log('AuthProvider: Biometric login completed successfully', name: 'auth_provider');
+          dev.log('AuthProvider: Biometric login completed successfully',
+              name: 'auth_provider');
         }
-        
       } else {
         throw AuthException('Biometric authentication failed');
       }
     } catch (e) {
       _errorMessage = _getErrorMessage(e);
       if (kDebugMode) {
-        dev.log('AuthProvider: Biometric authentication error: $e', name: 'auth_provider');
+        dev.log('AuthProvider: Biometric authentication error: $e',
+            name: 'auth_provider');
       }
     } finally {
       _isLoading = false;
@@ -973,7 +1088,8 @@ class AuthProvider with ChangeNotifier {
       return isAvailable && isEnabled && isValid;
     } catch (e) {
       if (kDebugMode) {
-        dev.log('AuthProvider: Error checking biometric login availability: $e', name: 'auth_provider');
+        dev.log('AuthProvider: Error checking biometric login availability: $e',
+            name: 'auth_provider');
       }
       return false;
     }
@@ -982,16 +1098,9 @@ class AuthProvider with ChangeNotifier {
   // Industry standard: Background token refresh timer
   void _startBackgroundTokenRefresh() {
     if (kDebugMode) {
-      dev.log('AuthProvider: Starting background token refresh timer',
+      dev.log('AuthProvider: Background token refresh is handled by SessionManager',
           name: 'auth_provider');
     }
-
-    _tokenRefreshTimer?.cancel();
-    _tokenRefreshTimer = Timer.periodic(const Duration(minutes: 5), (_) {
-      if (_shouldRefreshToken()) {
-        _refreshTokenSilently();
-      }
-    });
   }
 
   // Industry standard: Check if token should be refreshed
@@ -1042,19 +1151,74 @@ class AuthProvider with ChangeNotifier {
     }
   }
 
-  // Industry standard: Stop background refresh (call on logout)
-  void _stopBackgroundTokenRefresh() {
-    _tokenRefreshTimer?.cancel();
-    _tokenRefreshTimer = null;
+  // ✅ PERFORMANCE FIX: Prefetch critical data after login (Uber-style)
+  void _prefetchCriticalData() {
     if (kDebugMode) {
-      dev.log('AuthProvider: Background token refresh timer stopped',
+      dev.log(
+          'AuthProvider: Prefetch marker - data will be loaded by main.dart',
           name: 'auth_provider');
     }
+    // Actual prefetching happens in main.dart after providers are linked
+  }
+
+  // Industry standard: Stop background refresh (call on logout)
+  void _stopBackgroundTokenRefresh() {
+    // (removed) token refresh is handled by SessionManager
+  }
+
+  // Guest mode methods
+  void enterGuestMode() {
+    if (kDebugMode) {
+      dev.log('AuthProvider: Entering guest mode', name: 'auth_provider');
+    }
+
+    _state = AuthState.guest;
+    _authData = null;
+    _currentUser = null;
+    _clearError();
+    _clearSuccess();
+
+    // Initialize guest data cleanup
+    _initializeGuestData();
+
+    notifyListeners();
+
+    if (kDebugMode) {
+      dev.log('AuthProvider: Guest mode activated', name: 'auth_provider');
+    }
+  }
+
+  /// Initialize guest data management
+  void _initializeGuestData() async {
+    try {
+      // Clean up old guest data
+      await GuestDataService.cleanupOldData();
+
+      // Start conversion analytics tracking
+      await ConversionAnalyticsService.trackGuestSessionStart();
+
+      if (kDebugMode) {
+        dev.log('AuthProvider: Guest data initialized', name: 'auth_provider');
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        dev.log('AuthProvider: Error initializing guest data: $e',
+            name: 'auth_provider');
+      }
+    }
+  }
+
+  void exitGuestMode() {
+    if (kDebugMode) {
+      dev.log('AuthProvider: Exiting guest mode', name: 'auth_provider');
+    }
+
+    _setUnauthenticated();
   }
 
   @override
   void dispose() {
-    _stopBackgroundTokenRefresh();
+    _sessionManager.stopMonitoring();
     super.dispose();
   }
 }

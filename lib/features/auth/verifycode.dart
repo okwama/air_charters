@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:air_charters/config/theme/app_theme.dart';
 import 'package:air_charters/core/providers/auth_provider.dart';
+import 'package:air_charters/core/routes/app_routes.dart';
 import 'package:air_charters/shared/widgets/custom_button.dart';
 import 'package:air_charters/shared/widgets/app_spinner.dart';
 
@@ -87,7 +88,7 @@ class _VerifyCodeScreenState extends State<VerifyCodeScreen> {
       await context.read<AuthProvider>().verifyPhoneCode(phoneNumber, _code);
 
       if (mounted) {
-        Navigator.of(context).pushReplacementNamed('/home');
+        Navigator.of(context).pushReplacementNamed(AppRoutes.root);
       }
     } catch (e) {
       if (mounted) {

@@ -21,12 +21,23 @@ enum PaymentMethod {
   wallet,
 }
 
+enum BookingType {
+  direct,
+  deal,
+  experience,
+  yacht,
+}
+
 class BookingModel {
   final String? id;
   final String? referenceNumber;
   final String userId;
   final int dealId;
   final int? companyId; // Added: Company ID from backend
+  final BookingType
+      bookingType; // Type of booking: direct, deal, experience, yacht
+  final int?
+      experienceTemplateId; // Experience template ID for experience bookings
   final double totalPrice;
   final BookingStatus bookingStatus;
   final PaymentStatus paymentStatus;
@@ -54,12 +65,19 @@ class BookingModel {
   final String? aircraftName;
   final String? companyName;
 
+  // Experience-specific data
+  final String? experienceTitle;
+  final String? experienceLocation;
+  final String? experienceImageUrl;
+
   const BookingModel({
     this.id,
     this.referenceNumber,
     required this.userId,
     required this.dealId,
     this.companyId,
+    this.bookingType = BookingType.deal,
+    this.experienceTemplateId,
     required this.totalPrice,
     this.bookingStatus = BookingStatus.pending,
     this.paymentStatus = PaymentStatus.pending,
@@ -85,6 +103,10 @@ class BookingModel {
     this.basePrice,
     this.aircraftName,
     this.companyName,
+    // Experience-specific data
+    this.experienceTitle,
+    this.experienceLocation,
+    this.experienceImageUrl,
   });
 
   factory BookingModel.fromJson(Map<String, dynamic> json) {
@@ -98,14 +120,21 @@ class BookingModel {
       final userId = json['userId'] as String? ?? '';
       final dealId = json['dealId'] as int? ?? 0;
       final companyId = json['companyId'] as int?;
+      final bookingType = _parseBookingType(json['bookingType'] as String?);
+      final experienceTemplateId = json['experienceTemplateId'] as int?;
       final totalPrice =
           double.tryParse(json['totalPrice']?.toString() ?? '0') ?? 0.0;
       final bookingStatus =
           _parseBookingStatus(json['bookingStatus'] as String?);
       final paymentStatus =
           _parsePaymentStatus(json['paymentStatus'] as String?);
-      final onboardDining = (json['onboardDining'] as int?) == 1;
-      final groundTransportation = (json['groundTransportation'] as int?) == 1;
+      final onboardDining = json['onboardDining'] is bool
+          ? json['onboardDining'] as bool
+          : (json['onboardDining'] == 1 || json['onboardDining'] == true);
+      final groundTransportation = json['groundTransportation'] is bool
+          ? json['groundTransportation'] as bool
+          : (json['groundTransportation'] == 1 ||
+              json['groundTransportation'] == true);
       final specialRequirements = json['specialRequirements'] as String?;
       final billingRegion = json['billingRegion'] as String?;
       print('=== PARSING PAYMENT METHOD FIELD ===');
@@ -217,8 +246,11 @@ class BookingModel {
         }
       } else {
         // Fallback to direct fields (from bookings API)
-        departure = json['departure'] as String? ?? json['origin'] as String?;
-        destination = json['destination'] as String?;
+        departure = json['departure'] as String? ??
+            json['origin'] as String? ??
+            json['originName'] as String?;
+        destination = json['destination'] as String? ??
+            json['destinationName'] as String?;
 
         if (json['departureDate'] != null) {
           departureDate = DateTime.parse(json['departureDate'] as String);
@@ -232,11 +264,28 @@ class BookingModel {
           } catch (_) {}
         }
 
-        departureTime = json['departureTime'] as String?;
+        // Only override departureTime if explicitly provided and not already set
+        if (json['departureTime'] != null) {
+          departureTime = json['departureTime'] as String;
+        }
+
         duration = json['duration'] as int?;
         basePrice = double.tryParse(json['basePrice']?.toString() ?? '0');
         aircraftName = json['aircraftName'] as String?;
         companyName = json['companyName'] as String?;
+      }
+
+      // Parse experience-specific data
+      String? experienceTitle;
+      String? experienceLocation;
+      String? experienceImageUrl;
+
+      if (bookingType == BookingType.experience &&
+          json['experienceTemplate'] != null) {
+        final template = json['experienceTemplate'] as Map<String, dynamic>;
+        experienceTitle = template['title'] as String?;
+        experienceLocation = template['location'] as String?;
+        experienceImageUrl = template['imageUrl'] as String?;
       }
 
       print('All fields parsed successfully');
@@ -247,6 +296,8 @@ class BookingModel {
         userId: userId,
         dealId: dealId,
         companyId: companyId,
+        bookingType: bookingType,
+        experienceTemplateId: experienceTemplateId,
         totalPrice: totalPrice,
         bookingStatus: bookingStatus,
         paymentStatus: paymentStatus,
@@ -271,6 +322,9 @@ class BookingModel {
         basePrice: basePrice,
         aircraftName: aircraftName,
         companyName: companyName,
+        experienceTitle: experienceTitle,
+        experienceLocation: experienceLocation,
+        experienceImageUrl: experienceImageUrl,
       );
     } catch (e, stackTrace) {
       print('=== ERROR PARSING BOOKING MODEL ===');
@@ -351,6 +405,8 @@ class BookingModel {
     String? userId,
     int? dealId,
     int? companyId,
+    BookingType? bookingType,
+    int? experienceTemplateId,
     double? totalPrice,
     BookingStatus? bookingStatus,
     PaymentStatus? paymentStatus,
@@ -376,6 +432,10 @@ class BookingModel {
     double? basePrice,
     String? aircraftName,
     String? companyName,
+    // Experience-specific data
+    String? experienceTitle,
+    String? experienceLocation,
+    String? experienceImageUrl,
   }) {
     return BookingModel(
       id: id ?? this.id,
@@ -383,6 +443,8 @@ class BookingModel {
       userId: userId ?? this.userId,
       dealId: dealId ?? this.dealId,
       companyId: companyId ?? this.companyId,
+      bookingType: bookingType ?? this.bookingType,
+      experienceTemplateId: experienceTemplateId ?? this.experienceTemplateId,
       totalPrice: totalPrice ?? this.totalPrice,
       bookingStatus: bookingStatus ?? this.bookingStatus,
       paymentStatus: paymentStatus ?? this.paymentStatus,
@@ -409,6 +471,10 @@ class BookingModel {
       basePrice: basePrice ?? this.basePrice,
       aircraftName: aircraftName ?? this.aircraftName,
       companyName: companyName ?? this.companyName,
+      // Experience-specific data
+      experienceTitle: experienceTitle ?? this.experienceTitle,
+      experienceLocation: experienceLocation ?? this.experienceLocation,
+      experienceImageUrl: experienceImageUrl ?? this.experienceImageUrl,
     );
   }
 
@@ -485,6 +551,21 @@ class BookingModel {
   // Helper method to get additional passengers
   List<PassengerModel> get additionalPassengers {
     return passengers.where((p) => p.isUser != true).toList();
+  }
+
+  static BookingType _parseBookingType(String? type) {
+    switch (type?.toLowerCase()) {
+      case 'direct':
+        return BookingType.direct;
+      case 'deal':
+        return BookingType.deal;
+      case 'experience':
+        return BookingType.experience;
+      case 'yacht':
+        return BookingType.yacht;
+      default:
+        return BookingType.deal; // Default to deal for backward compatibility
+    }
   }
 
   static BookingStatus _parseBookingStatus(String? status) {

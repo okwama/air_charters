@@ -4,6 +4,7 @@ import 'package:webview_flutter/webview_flutter.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
+// import 'package:flutter_paystack_plus/flutter_paystack_plus.dart' as paystack;
 import '../../../core/providers/booking_provider.dart';
 import '../../../core/providers/auth_provider.dart';
 import '../../../config/theme/app_theme.dart';
@@ -35,6 +36,7 @@ class InAppCheckoutScreen extends StatefulWidget {
 
 class _InAppCheckoutScreenState extends State<InAppCheckoutScreen> {
   late final WebViewController _controller;
+  // final paystack.PaystackPlusPlugin _paystack = paystack.PaystackPlusPlugin();
   bool _isLoading = true;
   bool _isProcessing = false;
   String? _errorMessage;
@@ -58,6 +60,13 @@ class _InAppCheckoutScreenState extends State<InAppCheckoutScreen> {
     super.initState();
     _initializeWebView();
     _initializeConnectivityMonitoring();
+
+    // Initialize Paystack native SDK (native-first flow)
+    // TODO: Re-enable once we verify correct API
+    // if (AppConfig.paystackPublicKey.isNotEmpty &&
+    //     AppConfig.paystackPublicKey != 'YOUR_PAYSTACK_PUBLIC_KEY') {
+    //   _paystack.initialize(publicKey: AppConfig.paystackPublicKey);
+    // }
 
     // Initialize payment after the first frame is built to avoid setState during build
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -120,12 +129,29 @@ class _InAppCheckoutScreenState extends State<InAppCheckoutScreen> {
             _handleWebViewError(error);
           },
           onNavigationRequest: (NavigationRequest request) {
-            // Allow navigation but log for security
+            // Intercept success/callback URLs to avoid loading unreachable pages
             AppLogger().log(
               'Navigation request: ${request.url}',
               level: LogLevel.debug,
               category: LogCategory.payment,
             );
+
+            final url = request.url;
+            final isCallback =
+                url.contains('/api/payments/paystack/callback') ||
+                    _isSuccessUrl(url);
+
+            if (isCallback && !_hasPaymentCompleted && !_isProcessing) {
+              _isProcessing = true;
+              _verifyPayment();
+              return NavigationDecision.prevent;
+            }
+
+            // Prevent navigating to localhost callback on device to avoid network errors
+            if (url.contains('http://localhost') || url.contains('127.0.0.1')) {
+              return NavigationDecision.prevent;
+            }
+
             return NavigationDecision.navigate;
           },
         ),
@@ -258,13 +284,25 @@ class _InAppCheckoutScreenState extends State<InAppCheckoutScreen> {
         data: {'paymentData': paymentData},
       );
 
-      if (paymentData != null &&
-          paymentData['nextAction']?['redirect_to_url']?['url'] != null) {
-        _authorizationUrl = paymentData['nextAction']['redirect_to_url']['url'];
-        _reference = paymentData['id'];
+      if (paymentData != null) {
+        // Use WebView with Paystack hosted checkout (stable, PCI-safe)
+        _reference = paymentData['reference'] ?? paymentData['id'];
+        final detectedUrl = paymentData['authorization_url'] ??
+            paymentData['paymentUrl'] ??
+            paymentData['nextAction']?['redirect_to_url']?['url'];
 
-        // Load the Paystack checkout page in WebView
-        await _controller.loadRequest(Uri.parse(_authorizationUrl!));
+        if (detectedUrl != null &&
+            detectedUrl is String &&
+            detectedUrl.isNotEmpty) {
+          _authorizationUrl = detectedUrl;
+          await _controller.loadRequest(Uri.parse(_authorizationUrl!));
+        } else {
+          setState(() {
+            _errorMessage =
+                'Failed to initialize payment - no authorization URL received';
+            _isLoading = false;
+          });
+        }
       } else {
         setState(() {
           _errorMessage =
@@ -470,7 +508,7 @@ class _InAppCheckoutScreenState extends State<InAppCheckoutScreen> {
       );
 
       if (result != null && result['success'] == true) {
-        final status = result['data']['status'];
+        final status = result['status'];
 
         if (status == 'succeeded' || status == 'success') {
           // Payment successful - STOP POLLING
@@ -513,9 +551,7 @@ class _InAppCheckoutScreenState extends State<InAppCheckoutScreen> {
         } else {
           // Payment failed - STOP POLLING
           _hasPaymentCompleted = true;
-          final failureReason = result['data']['metadata']?['failureReason'] ??
-              result['data']['metadata']?['gateway_response'] ??
-              'Payment failed';
+          final failureReason = result['gateway_response'] ?? 'Payment failed';
           _showPaymentFailure(failureReason);
           return; // Exit immediately
         }
@@ -571,14 +607,11 @@ class _InAppCheckoutScreenState extends State<InAppCheckoutScreen> {
       );
 
       if (result != null && result['success'] == true) {
-        final status = result['data']['status'];
+        final status = result['status'];
 
         if (status == 'succeeded' || status == 'success') {
           // Payment successful
           _hasPaymentCompleted = true;
-
-          // Add a small delay to ensure WebView processes the success URL
-          await Future.delayed(Duration(milliseconds: 500));
 
           _showPaymentSuccess();
         } else if (status == 'abandoned') {
@@ -588,9 +621,7 @@ class _InAppCheckoutScreenState extends State<InAppCheckoutScreen> {
         } else {
           // Payment failed
           _hasPaymentCompleted = true;
-          final failureReason = result['data']['metadata']?['failureReason'] ??
-              result['data']['metadata']?['gateway_response'] ??
-              'Payment failed';
+          final failureReason = result['gateway_response'] ?? 'Payment failed';
           _showPaymentFailure(failureReason);
         }
       } else {
@@ -617,59 +648,172 @@ class _InAppCheckoutScreenState extends State<InAppCheckoutScreen> {
   void _showPaymentSuccess() {
     if (!mounted) return;
 
-    // Update progress to show completion
     setState(() {
       _paymentProgress = 1.0;
+      _hasPaymentCompleted = true;
     });
 
-    // Show success message with better styling
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            Icon(Icons.check_circle, color: Colors.white, size: 24),
-            const SizedBox(width: 12),
-            Expanded(
+    // Stop any further polling once success is detected
+    _stopStatusChecking();
+
+    final parentContext = context;
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.only(
+          topLeft: Radius.circular(16),
+          topRight: Radius.circular(16),
+        ),
+      ),
+      builder: (sheetCtx) {
+        return FractionallySizedBox(
+          heightFactor: 0.98,
+          child: SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
               child: Column(
-                mainAxisSize: MainAxisSize.min,
+                mainAxisSize: MainAxisSize.max,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    'Payment Successful!',
-                    style: GoogleFonts.inter(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white,
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Container(
+                        width: 40,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: Colors.grey[300],
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.green[50],
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.check,
+                            color: Colors.green, size: 28),
+                      ),
+                      const SizedBox(width: 12),
+                      const Expanded(
+                        child: Text(
+                          'Payment Successful',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[50],
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.grey[200]!),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _infoRow('Amount',
+                            '${widget.currency} ${widget.amount.toStringAsFixed(2)}'),
+                        const SizedBox(height: 8),
+                        if (_reference != null)
+                          _infoRow('Reference', _reference!),
+                        const SizedBox(height: 8),
+                        _infoRow('Booking ID', widget.bookingId),
+                        const SizedBox(height: 8),
+                        _infoRow('Date', DateTime.now().toLocal().toString()),
+                      ],
                     ),
                   ),
-                  Text(
-                    'Redirecting to booking details...',
-                    style: GoogleFonts.inter(
-                      fontSize: 14,
-                      color: Colors.white70,
-                    ),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Next steps',
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
                   ),
+                  const SizedBox(height: 6),
+                  const Text(
+                    'You can view your ticket now or return to Trips. A confirmation has been sent to your email.',
+                    style: TextStyle(fontSize: 13, color: Colors.black54),
+                  ),
+                  const Spacer(),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: () {
+                            Navigator.of(sheetCtx).pop();
+                            Navigator.of(parentContext)
+                                .pop({'action': 'view_ticket'});
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.green,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                          child: const Text('View Ticket'),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () {
+                            Navigator.of(sheetCtx).pop();
+                            Navigator.of(parentContext).pop({'action': 'done'});
+                          },
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                          child: const Text('Done'),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
                 ],
               ),
             ),
-          ],
-        ),
-        backgroundColor: Colors.green[600],
-        duration: Duration(seconds: 3),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
-        margin: EdgeInsets.all(16),
-      ),
+          ),
+        );
+      },
     );
+  }
 
-    // Close WebView and navigate to booking confirmation after user sees success message
-    Future.delayed(Duration(seconds: 2), () {
-      if (mounted) {
-        Navigator.of(context).pop(true); // Return success to previous screen
-      }
-    });
+  Widget _infoRow(String label, String value) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(label,
+            style: const TextStyle(fontSize: 13, color: Colors.black54)),
+        const SizedBox(width: 12),
+        Flexible(
+          child: Text(
+            value,
+            textAlign: TextAlign.right,
+            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+      ],
+    );
   }
 
   void _showPaymentFailure(String reason) {

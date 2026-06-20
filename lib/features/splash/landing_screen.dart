@@ -100,9 +100,7 @@ class _LandingScreenState extends State<LandingScreen>
             decoration: const BoxDecoration(
               image: DecorationImage(
                 fit: BoxFit.cover,
-                image: NetworkImage(
-                  'https://ik.imagekit.io/bja2qwwdjjy/qr_YTtuZ9loi.png?updatedAt=1755500192573',
-                ),
+                image: AssetImage('assets/images/landing.jpeg'),
               ),
             ),
             child: Container(

@@ -11,7 +11,7 @@ class SkeletonCard extends StatelessWidget {
     super.key,
     this.width,
     this.height,
-    this.margin,
+    this.margin, required int borderRadius,
   });
 
   @override

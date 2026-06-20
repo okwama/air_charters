@@ -6,8 +6,10 @@ class TripsService {
   final ApiClient _apiClient = ApiClient();
 
   /// Get all trips for the current user
+  /// Uses the same authentication approach as profile endpoint
   Future<List<UserTripModel>> fetchUserTrips() async {
     try {
+      // Use same ApiClient method as profile - ensures identical header format
       final response = await _apiClient.get('/api/trips');
 
       if (response['success'] == true && response['data'] != null) {
@@ -17,6 +19,8 @@ class TripsService {
 
       return [];
     } catch (e) {
+      // Enhanced error logging to match profile endpoint behavior
+      print('TripsService: Error fetching trips: $e');
       throw NetworkException('Failed to fetch trips: ${e.toString()}');
     }
   }

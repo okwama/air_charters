@@ -41,7 +41,7 @@ class BookingInquiryService {
       print('stops is null: ${stops == null}');
       print('stops is empty: ${stops?.isEmpty ?? true}');
       print('stops length: ${stops?.length ?? 0}');
-      
+
       // Prepare booking stops
       List<CreateBookingStopRequest> bookingStops = [];
 
@@ -89,40 +89,57 @@ class BookingInquiryService {
 
       switch (bookingType.toLowerCase()) {
         case 'direct':
-          // Use direct-charter endpoint for direct aircraft bookings
-          endpoint = '$_baseUrl/api/direct-charter/book';
+          // Use standard bookings endpoint for inquiries
+          endpoint = '$_baseUrl/api/bookings';
           requestBody = {
             'aircraftId': aircraftId,
-            'origin': origin.name,
-            'destination': destination.name,
+            'originName': origin.name,
+            'destinationName': destination.name,
+            // ✅ ADD COORDINATES
+            if (origin.latitude != null) 'originLatitude': origin.latitude,
+            if (origin.longitude != null) 'originLongitude': origin.longitude,
+            if (destination.latitude != null)
+              'destinationLatitude': destination.latitude,
+            if (destination.longitude != null)
+              'destinationLongitude': destination.longitude,
             'departureDateTime': departureDate.toIso8601String(),
-            'returnDateTime': returnDate?.toIso8601String(),
-            'passengerCount': requestedSeats,
-            'totalPrice':
-                0.0, // Always 0 for inquiries - admin will set final price
-            'pricePerHour': 0.0, // Will be calculated by admin
-            'repositioningCost': 0.0,
-            'tripType': returnDate != null ? 'roundtrip' : 'oneway',
-            'specialRequests': specialRequirements,
-            'passengers': passengers ?? [], // Include passenger data
+            if (returnDate != null)
+              'returnDateTime': returnDate.toIso8601String(),
+            'totalAdults': requestedSeats,
+            'totalChildren': 0,
+            'totalPrice': 0.0, // INQUIRY - no price yet
+            'bookingStatus': 'pending',
+            'paymentStatus': 'pending',
+            'bookingType':
+                'direct', // Changed from 'direct_charter' to match backend BookingType enum
+            'onboardDining': false,
+            'groundTransportation': false,
+            'billingRegion': 'US',
+            if (specialRequirements != null && specialRequirements.isNotEmpty)
+              'specialRequirements': specialRequirements,
+            'passengers': passengers ?? [],
           };
-          
+
           // Add stops if provided
           if (stops != null && stops.isNotEmpty) {
             print('=== BOOKING INQUIRY: ADDING STOPS ===');
             print('Stops count: ${stops.length}');
             print('Stops: $stops');
-            
-            requestBody['stops'] = stops.map((stop) => {
-              'stopName': stop.name,
-              'longitude': stop.longitude ?? 0.0,
-              'latitude': stop.latitude ?? 0.0,
-              'datetime': departureDate.add(Duration(hours: stops.indexOf(stop) + 1)).toIso8601String(),
-              'stopOrder': stops.indexOf(stop) + 1,
-              'locationType': 'custom',
-              'locationCode': stop.code,
-            }).toList();
-            
+
+            requestBody['stops'] = stops
+                .map((stop) => {
+                      'stopName': stop.name,
+                      'longitude': stop.longitude ?? 0.0,
+                      'latitude': stop.latitude ?? 0.0,
+                      'datetime': departureDate
+                          .add(Duration(hours: stops.indexOf(stop) + 1))
+                          .toIso8601String(),
+                      'stopOrder': stops.indexOf(stop) + 1,
+                      'locationType': 'custom',
+                      'locationCode': stop.code,
+                    })
+                .toList();
+
             print('Processed stops for request: ${requestBody['stops']}');
           } else {
             print('=== BOOKING INQUIRY: NO STOPS PROVIDED ===');
@@ -158,39 +175,50 @@ class BookingInquiryService {
           break;
 
         default:
-          // Default to direct charter
-          endpoint = '$_baseUrl/api/direct-charter/book';
+          // Default to standard bookings endpoint
+          endpoint = '$_baseUrl/api/bookings';
           requestBody = {
             'aircraftId': aircraftId,
-            'origin': origin.name,
-            'destination': destination.name,
+            'originName': origin.name,
+            'destinationName': destination.name,
             'departureDateTime': departureDate.toIso8601String(),
-            'returnDateTime': returnDate?.toIso8601String(),
-            'passengerCount': requestedSeats,
-            'totalPrice':
-                0.0, // Always 0 for inquiries - admin will set final price
-            'pricePerHour': 0.0,
-            'repositioningCost': 0.0,
-            'tripType': returnDate != null ? 'roundtrip' : 'oneway',
-            'specialRequests': specialRequirements,
+            if (returnDate != null)
+              'returnDateTime': returnDate.toIso8601String(),
+            'totalAdults': requestedSeats,
+            'totalChildren': 0,
+            'totalPrice': 0.0, // INQUIRY - no price yet
+            'bookingStatus': 'pending',
+            'paymentStatus': 'pending',
+            'bookingType':
+                'direct', // Changed from 'direct_charter' to match backend BookingType enum
+            'onboardDining': false,
+            'groundTransportation': false,
+            'billingRegion': 'US',
+            if (specialRequirements != null && specialRequirements.isNotEmpty)
+              'specialRequirements': specialRequirements,
+            'passengers': passengers ?? [],
           };
-          
+
           // Add stops if provided
           if (stops != null && stops.isNotEmpty) {
             print('=== BOOKING INQUIRY: ADDING STOPS ===');
             print('Stops count: ${stops.length}');
             print('Stops: $stops');
-            
-            requestBody['stops'] = stops.map((stop) => {
-              'stopName': stop.name,
-              'longitude': stop.longitude ?? 0.0,
-              'latitude': stop.latitude ?? 0.0,
-              'datetime': departureDate.add(Duration(hours: stops.indexOf(stop) + 1)).toIso8601String(),
-              'stopOrder': stops.indexOf(stop) + 1,
-              'locationType': 'custom',
-              'locationCode': stop.code,
-            }).toList();
-            
+
+            requestBody['stops'] = stops
+                .map((stop) => {
+                      'stopName': stop.name,
+                      'longitude': stop.longitude ?? 0.0,
+                      'latitude': stop.latitude ?? 0.0,
+                      'datetime': departureDate
+                          .add(Duration(hours: stops.indexOf(stop) + 1))
+                          .toIso8601String(),
+                      'stopOrder': stops.indexOf(stop) + 1,
+                      'locationType': 'custom',
+                      'locationCode': stop.code,
+                    })
+                .toList();
+
             print('Processed stops for request: ${requestBody['stops']}');
           } else {
             print('=== BOOKING INQUIRY: NO STOPS PROVIDED ===');
@@ -231,12 +259,16 @@ class BookingInquiryService {
         Map<String, dynamic> inquiryData;
         if (bookingType.toLowerCase() == 'direct') {
           // Direct charter returns booking data nested under 'booking' key
-          inquiryData = responseData['data']?['booking'] ?? responseData['data'] ?? responseData;
-          print('Direct charter - Using data: ${responseData['data']?['booking'] != null ? 'responseData[\'data\'][\'booking\']' : 'responseData[\'data\']'}');
+          inquiryData = responseData['data']?['booking'] ??
+              responseData['data'] ??
+              responseData;
+          print(
+              'Direct charter - Using data: ${responseData['data']?['booking'] != null ? 'responseData[\'data\'][\'booking\']' : 'responseData[\'data\']'}');
         } else {
           // Deal/experience bookings return structured response
           inquiryData = responseData['data']?['booking'] ?? responseData;
-          print('Deal/Experience - Using data: ${responseData['data']?['booking'] != null ? 'responseData[\'data\'][\'booking\']' : 'responseData'}');
+          print(
+              'Deal/Experience - Using data: ${responseData['data']?['booking'] != null ? 'responseData[\'data\'][\'booking\']' : 'responseData'}');
         }
 
         print('Final inquiry data: $inquiryData');
@@ -244,7 +276,8 @@ class BookingInquiryService {
         print('Reference Number: ${inquiryData['referenceNumber']}');
 
         // Ensure inquiryData has required fields
-        if (inquiryData['id'] == null || inquiryData['referenceNumber'] == null) {
+        if (inquiryData['id'] == null ||
+            inquiryData['referenceNumber'] == null) {
           print('ERROR: Missing required fields in inquiry data');
           print('Available keys in inquiryData: ${inquiryData.keys.toList()}');
           return BookingInquiryResult(
@@ -255,8 +288,9 @@ class BookingInquiryService {
 
         try {
           final inquiry = BookingInquiry.fromJson(inquiryData);
-          print('Successfully parsed BookingInquiry: ${inquiry.referenceNumber}');
-          
+          print(
+              'Successfully parsed BookingInquiry: ${inquiry.referenceNumber}');
+
           return BookingInquiryResult(
             success: true,
             inquiry: inquiry,
@@ -273,7 +307,7 @@ class BookingInquiryService {
         final errorData = jsonDecode(response.body);
         print('=== ERROR RESPONSE ===');
         print('Error Data: $errorData');
-        
+
         return BookingInquiryResult(
           success: false,
           message: errorData['message'] ?? 'Failed to create inquiry',
@@ -284,7 +318,7 @@ class BookingInquiryService {
       print('Error Type: ${e.runtimeType}');
       print('Error Message: $e');
       print('Stack Trace: ${StackTrace.current}');
-      
+
       return BookingInquiryResult(
         success: false,
         message: 'Network error: $e',

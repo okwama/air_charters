@@ -1,5 +1,4 @@
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
 
 class MapsConfig {
   // Google Maps API Key - Same key for all platforms

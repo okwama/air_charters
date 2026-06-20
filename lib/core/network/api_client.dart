@@ -2,12 +2,14 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:dio/dio.dart' as dio;
 import '../models/auth_model.dart';
 import '../error/app_exceptions.dart';
 import '../../config/env/app_config.dart';
 import '../../shared/utils/session_manager.dart';
 import 'dart:developer' as dev;
 import 'package:flutter/foundation.dart' show kDebugMode;
+import 'dio_client.dart';
 
 class ApiClient {
   static const FlutterSecureStorage _storage = FlutterSecureStorage();
@@ -18,7 +20,14 @@ class ApiClient {
   factory ApiClient() => _instance;
   ApiClient._internal();
 
-  http.Client get _client => http.Client();
+  // 🚀 NEW: Use DioClient for caching and performance
+  final DioClient _dioClient = DioClient();
+
+  // ✅ PERFORMANCE FIX: Persistent HTTP client for connection pooling (fallback)
+  final http.Client _client = http.Client();
+
+  // Flag to enable/disable DioClient (for gradual migration)
+  final bool _useDioClient = true;
 
   // Headers
   Map<String, String> get _defaultHeaders => {
@@ -50,63 +59,130 @@ class ApiClient {
   }
 
   // GET Request with retry logic
-  Future<dynamic> get(String endpoint, {int maxRetries = 3}) async {
+  Future<dynamic> get(String endpoint, {int maxRetries = 3, Map<String, String>? queryParams}) async {
+    // 🚀 Use DioClient for caching and performance
+    if (_useDioClient) {
+      try {
+        if (kDebugMode) {
+          dev.log('Making GET request via DioClient to $endpoint',
+              name: 'api_client');
+        }
+        final response = await _dioClient.get(endpoint, queryParameters: queryParams);
+        return response;
+      } on dio.DioException catch (e) {
+        // Convert DioException to ApiClient exceptions
+        throw _handleDioError(e);
+      } catch (e) {
+        throw _handleError(e);
+      }
+    }
+
+    // Fallback to old http client
     return await _retryRequest(() async {
-      print('🔍 ApiClient: Making GET request to $_baseUrl$endpoint');
+      if (kDebugMode) {
+        dev.log('Making GET request to $_baseUrl$endpoint', name: 'api_client');
+      }
+
       final headers = await _authHeaders;
-      print('🔍 ApiClient: Headers: $headers');
 
-      final response = await _client
-          .get(Uri.parse('$_baseUrl$endpoint'), headers: headers)
-          .timeout(const Duration(seconds: 30));
+      if (kDebugMode) {
+        dev.log('Headers: ${headers.keys.join(", ")}', name: 'api_client');
+      }
 
-      print('🔍 ApiClient: Response status: ${response.statusCode}');
-      print('🔍 ApiClient: Response body: ${response.body}');
+      // ✅ PERFORMANCE FIX: Optimized timeout for auth endpoints
+      final timeout = _getTimeoutForEndpoint(endpoint);
+        final uri = queryParams != null && queryParams.isNotEmpty
+          ? Uri.parse('$_baseUrl$endpoint').replace(queryParameters: queryParams)
+          : Uri.parse('$_baseUrl$endpoint');
+
+        final response = await _client
+          .get(uri, headers: headers)
+          .timeout(timeout);
+
+      if (kDebugMode) {
+        dev.log('Response status: ${response.statusCode}', name: 'api_client');
+      }
 
       return _handleResponse(response);
     }, maxRetries: maxRetries);
   }
 
-  // POST Request
-  Future<dynamic> post(String endpoint, Map<String, dynamic> data) async {
-    try {
-      // Removed debug print
-      // Removed debug print
-      // Removed debug print
+  // POST Request with retry logic
+  Future<dynamic> post(String endpoint, Map<String, dynamic> data,
+      {int maxRetries = 3}) async {
+    // 🚀 Use DioClient for retry logic and performance
+    if (_useDioClient) {
+      try {
+        if (kDebugMode) {
+          dev.log('Making POST request via DioClient to $endpoint',
+              name: 'api_client');
+        }
+        final response = await _dioClient.post(endpoint, data: data);
+        return response;
+      } on dio.DioException catch (e) {
+        // Convert DioException to ApiClient exceptions
+        throw _handleDioError(e);
+      } catch (e) {
+        throw _handleError(e);
+      }
+    }
+
+    // Fallback to old http client
+    return await _retryRequest(() async {
+      if (kDebugMode) {
+        dev.log('ApiClient: Making POST request to $_baseUrl$endpoint',
+            name: 'api_client');
+      }
 
       final headers = await _authHeaders;
       final jsonBody = jsonEncode(data);
-      // Removed debug print
 
+      // ✅ PERFORMANCE FIX: Optimized timeout
+      final timeout = _getTimeoutForEndpoint(endpoint);
       final response = await _client
           .post(
             Uri.parse('$_baseUrl$endpoint'),
             headers: headers,
             body: jsonBody,
           )
-          .timeout(const Duration(seconds: 30));
+          .timeout(timeout);
 
-      // Removed debug print
-      // Removed debug print
+      if (kDebugMode) {
+        dev.log('ApiClient: POST Response status: ${response.statusCode}',
+            name: 'api_client');
+      }
 
       return _handleResponse(response);
-    } catch (e) {
-      // Removed debug print
-      throw _handleError(e);
-    }
+    }, maxRetries: maxRetries);
   }
 
   // PUT Request
   Future<dynamic> put(String endpoint, Map<String, dynamic> data) async {
+    // 🚀 Use DioClient
+    if (_useDioClient) {
+      try {
+        final response = await _dioClient.put(endpoint, data: data);
+        return response;
+      } on dio.DioException catch (e) {
+        throw _handleDioError(e);
+      } catch (e) {
+        throw _handleError(e);
+      }
+    }
+
+    // Fallback
     try {
       final headers = await _authHeaders;
+
+      // ✅ PERFORMANCE FIX: Optimized timeout
+      final timeout = _getTimeoutForEndpoint(endpoint);
       final response = await _client
           .put(
             Uri.parse('$_baseUrl$endpoint'),
             headers: headers,
             body: jsonEncode(data),
           )
-          .timeout(const Duration(seconds: 30));
+          .timeout(timeout);
 
       return _handleResponse(response);
     } catch (e) {
@@ -115,12 +191,28 @@ class ApiClient {
   }
 
   // DELETE Request
-  Future<dynamic> delete(String endpoint) async {
+  Future<dynamic> delete(String endpoint, Map<String, String?> map) async {
+    // 🚀 Use DioClient
+    if (_useDioClient) {
+      try {
+        final response = await _dioClient.delete(endpoint);
+        return response;
+      } on dio.DioException catch (e) {
+        throw _handleDioError(e);
+      } catch (e) {
+        throw _handleError(e);
+      }
+    }
+
+    // Fallback
     try {
       final headers = await _authHeaders;
+
+      // ✅ PERFORMANCE FIX: Optimized timeout
+      final timeout = _getTimeoutForEndpoint(endpoint);
       final response = await _client
           .delete(Uri.parse('$_baseUrl$endpoint'), headers: headers)
-          .timeout(const Duration(seconds: 30));
+          .timeout(timeout);
 
       return _handleResponse(response);
     } catch (e) {
@@ -217,6 +309,14 @@ class ApiClient {
     }
   }
 
+  // ✅ PERFORMANCE FIX: Optimized timeout based on endpoint type
+  Duration _getTimeoutForEndpoint(String endpoint) {
+    if (endpoint.contains('/auth/')) return const Duration(seconds: 8);
+    if (endpoint.contains('/profile')) return const Duration(seconds: 10);
+    if (endpoint.contains('/payment')) return const Duration(seconds: 30);
+    return const Duration(seconds: 15); // Default
+  }
+
   // Retry logic with exponential backoff
   Future<dynamic> _retryRequest(Future<dynamic> Function() request,
       {int maxRetries = 3}) async {
@@ -224,16 +324,25 @@ class ApiClient {
       try {
         return await request();
       } catch (e) {
-        print('🔄 ApiClient: Attempt ${attempt + 1}/$maxRetries failed: $e');
+        if (kDebugMode) {
+          dev.log('Attempt ${attempt + 1}/$maxRetries failed: $e',
+              name: 'api_client');
+        }
 
         if (attempt == maxRetries - 1) {
-          print('❌ ApiClient: All retry attempts failed, throwing error');
+          if (kDebugMode) {
+            dev.log('All retry attempts failed, throwing error',
+                name: 'api_client');
+          }
           throw _handleError(e);
         }
 
         // Exponential backoff: 1s, 2s, 4s
         final delay = Duration(seconds: 1 << attempt);
-        print('⏳ ApiClient: Waiting ${delay.inSeconds}s before retry...');
+        if (kDebugMode) {
+          dev.log('Waiting ${delay.inSeconds}s before retry...',
+              name: 'api_client');
+        }
         await Future.delayed(delay);
       }
     }
@@ -293,14 +402,14 @@ class ApiClient {
       final currentAuth = await _getStoredAuth();
       if (currentAuth == null) return null;
 
-      final response = await _client
-          .post(
-            Uri.parse('$_baseUrl/api/auth/refresh'),
-            headers: _defaultHeaders,
-            body: jsonEncode({
-              'refresh_token': currentAuth.refreshToken,
-            }),
-          )
+        final response = await _client
+            .post(
+              Uri.parse('$_baseUrl/api/auth/refresh'),
+              headers: _defaultHeaders,
+              body: jsonEncode({
+                'refreshToken': currentAuth.refreshToken,
+              }),
+            )
           .timeout(const Duration(seconds: 30));
 
       if (response.statusCode == 200) {
@@ -373,14 +482,18 @@ class ApiClient {
   // User Profile Methods
   Future<Map<String, dynamic>> getUserProfile() async {
     try {
-      print('🔥 API: getUserProfile');
-      dev.log('Fetching user profile...', name: 'ApiClient');
+      if (kDebugMode) {
+        dev.log('Fetching user profile...', name: 'ApiClient');
+      }
       final result = await get('/api/users/profile');
-      print('🔥 API: getUserProfile - Success');
+      if (kDebugMode) {
+        dev.log('User profile fetched successfully', name: 'ApiClient');
+      }
       return result;
     } catch (e) {
-      print('🔥 API: getUserProfile - Error: $e');
-      dev.log('Error fetching user profile: $e', name: 'ApiClient-ERROR');
+      if (kDebugMode) {
+        dev.log('Error fetching user profile: $e', name: 'ApiClient-ERROR');
+      }
       throw _handleError(e);
     }
   }
@@ -417,5 +530,49 @@ class ApiClient {
       dev.log('Error fetching user wallet: $e', name: 'ApiClient-ERROR');
       throw _handleError(e);
     }
+  }
+
+  // Handle DioException and convert to ApiClient exceptions
+  Exception _handleDioError(dio.DioException error) {
+    switch (error.type) {
+      case dio.DioExceptionType.connectionTimeout:
+      case dio.DioExceptionType.sendTimeout:
+      case dio.DioExceptionType.receiveTimeout:
+        return NetworkException(
+            'Connection timeout. Please check your internet connection.');
+
+      case dio.DioExceptionType.badResponse:
+        final statusCode = error.response?.statusCode;
+        final message = error.response?.data?['message'];
+
+        switch (statusCode) {
+          case 401:
+            return AuthException(message ?? 'Authentication failed');
+          case 403:
+            return AuthException(message ?? 'Access denied');
+          case 404:
+            return ServerException(message ?? 'Resource not found');
+          case 422:
+            return ValidationException(message ?? 'Validation failed');
+          case 500:
+            return ServerException(message ?? 'Internal server error');
+          default:
+            return ServerException(message ?? 'Server error');
+        }
+
+      case dio.DioExceptionType.cancel:
+        return NetworkException('Request cancelled');
+
+      case dio.DioExceptionType.connectionError:
+        return NetworkException('No internet connection');
+
+      default:
+        return NetworkException('Network error: ${error.message}');
+    }
+  }
+
+  // ✅ PERFORMANCE FIX: Dispose method to clean up persistent client
+  void dispose() {
+    _client.close();
   }
 }

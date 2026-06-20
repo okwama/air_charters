@@ -10,23 +10,26 @@ class ExperiencesService {
   Future<List<Map<String, dynamic>>> getExperiences() async {
     try {
       print(
-          '🔍 ExperiencesService: Making API call to ${AppConfig.experiencesEndpoint}');
+        '🔍 ExperiencesService: Making API call to ${AppConfig.experiencesEndpoint}',
+      );
       final response = await _apiClient.get(AppConfig.experiencesEndpoint);
       print(
-          '🔍 ExperiencesService: API Response received: ${response.toString()}');
+        '🔍 ExperiencesService: API Response received: ${response.toString()}',
+      );
 
-      if (response['success']) {
-        final categories = response['data']['categories'];
+      // Backend now returns properly grouped categories
+      if (response['categories'] != null) {
+        final categories = response['categories'] as List<dynamic>;
         print('🔍 ExperiencesService: Categories found: ${categories.length}');
-        print('🔍 ExperiencesService: First category: ${categories.first}');
 
         final result = List<Map<String, dynamic>>.from(categories);
         print(
-            '🔍 ExperiencesService: Parsed result: ${result.length} categories');
+          '🔍 ExperiencesService: Parsed result: ${result.length} categories',
+        );
         return result;
       } else {
-        print('❌ ExperiencesService: API returned success: false');
-        throw Exception('Failed to load experiences');
+        print('❌ ExperiencesService: No categories in response');
+        throw Exception('Failed to load experiences - no categories');
       }
     } catch (e) {
       print('❌ ExperiencesService: Error: $e');
@@ -37,13 +40,15 @@ class ExperiencesService {
   /// Get experience details by ID
   Future<Map<String, dynamic>> getExperienceDetails(int id) async {
     try {
-      final response =
-          await _apiClient.get('${AppConfig.experienceDetailsEndpoint}/$id');
+      final response = await _apiClient.get(
+        '${AppConfig.experienceDetailsEndpoint}/$id',
+      );
 
-      if (response['success']) {
-        return Map<String, dynamic>.from(response['data']);
+      // Backend returns unwrapped experience object directly
+      if (response is Map<String, dynamic>) {
+        return response;
       } else {
-        throw Exception('Failed to load experience details');
+        throw Exception('Invalid response format');
       }
     } catch (e) {
       throw Exception('Network error: $e');
@@ -52,10 +57,12 @@ class ExperiencesService {
 
   /// Get experiences by category
   Future<List<Map<String, dynamic>>> getExperiencesByCategory(
-      String category) async {
+    String category,
+  ) async {
     try {
-      final response = await _apiClient
-          .get('${AppConfig.experienceCategoryEndpoint}/$category');
+      final response = await _apiClient.get(
+        '${AppConfig.experienceCategoryEndpoint}/$category',
+      );
 
       if (response['success']) {
         return List<Map<String, dynamic>>.from(response['data']);
@@ -98,11 +105,13 @@ class ExperiencesService {
           .map((e) => '${e.key}=${Uri.encodeComponent(e.value.toString())}')
           .join('&');
 
-      final response = await _apiClient
-          .get('${AppConfig.experienceSearchEndpoint}?$queryString');
+      final response = await _apiClient.get(
+        '${AppConfig.experienceSearchEndpoint}?$queryString',
+      );
 
-      if (response['success']) {
-        return List<Map<String, dynamic>>.from(response['data']);
+      // Backend returns grouped categories
+      if (response['categories'] != null) {
+        return List<Map<String, dynamic>>.from(response['categories']);
       } else {
         throw Exception('Failed to search experiences');
       }
@@ -114,8 +123,9 @@ class ExperiencesService {
   /// Get experience categories
   Future<List<String>> getExperienceCategories() async {
     try {
-      final response =
-          await _apiClient.get(AppConfig.experienceCategoriesEndpoint);
+      final response = await _apiClient.get(
+        AppConfig.experienceCategoriesEndpoint,
+      );
 
       if (response['success']) {
         return List<String>.from(response['data']);
@@ -128,11 +138,13 @@ class ExperiencesService {
   }
 
   /// Get popular experiences
-  Future<List<Map<String, dynamic>>> getPopularExperiences(
-      {int limit = 10}) async {
+  Future<List<Map<String, dynamic>>> getPopularExperiences({
+    int limit = 10,
+  }) async {
     try {
-      final response = await _apiClient
-          .get('${AppConfig.experiencePopularEndpoint}?limit=$limit');
+      final response = await _apiClient.get(
+        '${AppConfig.experiencePopularEndpoint}?limit=$limit',
+      );
 
       if (response['success']) {
         return List<Map<String, dynamic>>.from(response['data']);
@@ -145,11 +157,13 @@ class ExperiencesService {
   }
 
   /// Get featured experiences
-  Future<List<Map<String, dynamic>>> getFeaturedExperiences(
-      {int limit = 5}) async {
+  Future<List<Map<String, dynamic>>> getFeaturedExperiences({
+    int limit = 5,
+  }) async {
     try {
-      final response = await _apiClient
-          .get('${AppConfig.experienceFeaturedEndpoint}?limit=$limit');
+      final response = await _apiClient.get(
+        '${AppConfig.experienceFeaturedEndpoint}?limit=$limit',
+      );
 
       if (response['success']) {
         return List<Map<String, dynamic>>.from(response['data']);

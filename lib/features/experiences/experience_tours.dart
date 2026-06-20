@@ -5,6 +5,7 @@ import 'package:air_charters/shared/components/experience_card.dart';
 import 'package:air_charters/features/experiences/tour_list.dart';
 import 'package:air_charters/features/experiences/tour_detail.dart';
 import 'package:air_charters/core/providers/experiences_provider.dart';
+import 'package:air_charters/config/theme/app_theme.dart';
 
 import 'dart:developer' as dev;
 import 'package:flutter/foundation.dart' show kDebugMode;
@@ -110,18 +111,14 @@ class _ExperienceToursScreenState extends State<ExperienceToursScreen> {
     }
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: AppTheme.backgroundColor,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: AppTheme.backgroundColor,
         elevation: 0,
         automaticallyImplyLeading: false,
         title: Text(
           'Experience Top Destinations',
-          style: GoogleFonts.inter(
-            fontSize: 24,
-            fontWeight: FontWeight.w700,
-            color: Colors.black,
-          ),
+          style: AppTheme.heading2,
         ),
         actions: [
           IconButton(
@@ -132,7 +129,7 @@ class _ExperienceToursScreenState extends State<ExperienceToursScreen> {
             },
             icon: Icon(
               _showFilters ? Icons.filter_list : Icons.filter_list_outlined,
-              color: Colors.black,
+              color: AppTheme.textPrimaryColor,
             ),
           ),
         ],
@@ -416,23 +413,37 @@ class _ExperienceToursScreenState extends State<ExperienceToursScreen> {
 
           const SizedBox(height: 16),
 
-          // Experience Categories
-          ...provider.categories.map((category) {
-            try {
-              final title = category['title'] as String? ?? 'Unknown Category';
-              final deals = (category['deals'] as List<dynamic>?)
-                      ?.cast<Map<String, dynamic>>() ??
-                  [];
+          // Experience Categories - deduplicate by title
+          ...provider.categories
+              .fold<Map<String, Map<String, dynamic>>>(
+                {},
+                (seen, category) {
+                  final title = (category['title'] as String? ?? 'Unknown Category')
+                      .toLowerCase()
+                      .trim();
+                  if (!seen.containsKey(title)) {
+                    seen[title] = category;
+                  }
+                  return seen;
+                },
+              )
+              .values
+              .map((category) {
+                try {
+                  final title = category['title'] as String? ?? 'Unknown Category';
+                  final deals = (category['deals'] as List<dynamic>?)
+                          ?.cast<Map<String, dynamic>>() ??
+                      [];
 
-              return _buildTourCategorySection(title, deals);
-            } catch (e) {
-              if (kDebugMode) {
-                dev.log('Error building category section: $e',
-                    name: 'experiences_screen');
-              }
-              return const SizedBox.shrink();
-            }
-          }),
+                  return _buildTourCategorySection(title, deals);
+                } catch (e) {
+                  if (kDebugMode) {
+                    dev.log('Error building category section: $e',
+                        name: 'experiences_screen');
+                  }
+                  return const SizedBox.shrink();
+                }
+              }),
 
           // Loading more indicator
           if (provider.isLoadingMore)

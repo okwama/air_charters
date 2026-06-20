@@ -90,18 +90,75 @@ class AuthService {
     }
   }
 
-  /// Reset password
-  Future<bool> resetPassword(String email) async {
+  /// Request password reset code
+  Future<Map<String, dynamic>> requestPasswordReset(String email) async {
     try {
       final response = await _apiClient.post(
-        '/api/auth/reset-password',
+        '/api/auth/forgot-password',
         {'email': email},
       );
 
-      return response['success'] == true;
+      return {
+        'success': true,
+        'message': response['message'] ?? 'Reset code sent to your email',
+      };
     } catch (e) {
       if (e is AppException) rethrow;
-      throw NetworkException('Failed to reset password: ${e.toString()}');
+      return {
+        'success': false,
+        'message': 'Failed to send reset code: ${e.toString()}',
+      };
+    }
+  }
+
+  /// Verify reset code
+  Future<Map<String, dynamic>> verifyResetCode(String email, String code) async {
+    try {
+      final response = await _apiClient.post(
+        '/api/auth/verify-reset-code',
+        {
+          'email': email,
+          'code': code,
+        },
+      );
+
+      return {
+        'valid': response['valid'] == true,
+      };
+    } catch (e) {
+      if (e is AppException) rethrow;
+      return {
+        'valid': false,
+      };
+    }
+  }
+
+  /// Reset password with code
+  Future<Map<String, dynamic>> resetPassword(
+    String email,
+    String code,
+    String newPassword,
+  ) async {
+    try {
+      final response = await _apiClient.post(
+        '/api/auth/reset-password',
+        {
+          'email': email,
+          'code': code,
+          'newPassword': newPassword,
+        },
+      );
+
+      return {
+        'success': true,
+        'message': response['message'] ?? 'Password reset successfully',
+      };
+    } catch (e) {
+      if (e is AppException) rethrow;
+      return {
+        'success': false,
+        'message': 'Failed to reset password: ${e.toString()}',
+      };
     }
   }
 }

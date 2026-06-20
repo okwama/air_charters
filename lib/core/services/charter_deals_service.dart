@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import '../models/charter_deal_model.dart';
 import '../error/app_exceptions.dart';
@@ -35,9 +36,11 @@ class CharterDealsService {
     bool groupBy = false,
     bool forceRefresh = false,
   }) async {
-    print('===========================================================');
-    print('✅✅✅ SERVICE: fetchCharterDeals CALLED ✅✅✅');
-    print('===========================================================');
+    if (kDebugMode) {
+      print('===========================================================');
+      print('✅✅✅ SERVICE: fetchCharterDeals CALLED ✅✅✅');
+      print('===========================================================');
+    }
 
     try {
       // Check cache first (unless force refresh is requested)
@@ -47,8 +50,10 @@ class CharterDealsService {
           _lastCacheTime != null) {
         final timeSinceLastCache = DateTime.now().difference(_lastCacheTime!);
         if (timeSinceLastCache < _cacheValidDuration) {
-          print(
-              '✅ SERVICE: Returning ${_cachedDeals!.length} deals from CACHE.');
+          if (kDebugMode) {
+            print(
+                '✅ SERVICE: Returning ${_cachedDeals!.length} deals from CACHE.');
+          }
           return _filterCachedDeals(
             searchQuery: searchQuery,
             dealType: dealType,
@@ -58,7 +63,9 @@ class CharterDealsService {
         }
       }
 
-      print('➡️ SERVICE: Cache miss or force refresh. Making API call...');
+      if (kDebugMode) {
+        print('➡️ SERVICE: Cache miss or force refresh. Making API call...');
+      }
 
       // Build query parameters
       final queryParams = <String, String>{

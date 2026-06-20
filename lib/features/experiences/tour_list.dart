@@ -4,6 +4,7 @@ import 'package:air_charters/shared/components/experience_card.dart';
 import 'package:air_charters/features/experiences/tour_detail.dart';
 import 'package:air_charters/core/services/experiences_service.dart';
 import 'package:air_charters/core/network/api_client.dart';
+import 'package:air_charters/config/theme/app_theme.dart';
 
 class TourListScreen extends StatefulWidget {
   final String category;
@@ -31,21 +32,17 @@ class _TourListScreenState extends State<TourListScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: AppTheme.backgroundColor,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: AppTheme.backgroundColor,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
+          icon: Icon(Icons.arrow_back, color: AppTheme.textPrimaryColor),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
           widget.category,
-          style: GoogleFonts.inter(
-            fontSize: 20,
-            fontWeight: FontWeight.w700,
-            color: Colors.black,
-          ),
+          style: AppTheme.heading3,
         ),
       ),
       body: SingleChildScrollView(
@@ -55,10 +52,8 @@ class _TourListScreenState extends State<TourListScreen> {
           children: [
             Text(
               'Explore ${widget.deals.length} ${widget.category.toLowerCase()} experiences',
-              style: GoogleFonts.inter(
-                fontSize: 16,
-                fontWeight: FontWeight.w500,
-                color: Colors.grey.shade600,
+              style: AppTheme.bodyMedium.copyWith(
+                color: AppTheme.textSecondaryColor,
               ),
             ),
             const SizedBox(height: 20),
@@ -67,12 +62,12 @@ class _TourListScreenState extends State<TourListScreen> {
             ...widget.deals.map((deal) => Container(
                   margin: const EdgeInsets.only(bottom: 16),
                   child: ExperienceCard(
-                    imageUrl: deal['imageUrl'],
-                    title: deal['title'],
-                    location: deal['location'],
-                    duration: deal['duration'],
-                    price: deal['price'],
-                    rating: deal['rating'],
+                    imageUrl: deal['imageUrl']?.toString() ?? '',
+                    title: deal['title']?.toString() ?? '',
+                    location: deal['location']?.toString() ?? '',
+                    duration: deal['duration']?.toString() ?? '',
+                    price: _formatPrice(deal['price']),
+                    rating: _formatRating(deal['rating']),
                     onTap: () => _showDealDetail(context, deal),
                   ),
                 )),
@@ -93,12 +88,12 @@ class _TourListScreenState extends State<TourListScreen> {
           context,
           MaterialPageRoute(
             builder: (context) => TourDetailPage(
-              imageUrl: deal['imageUrl'],
-              title: deal['title'],
-              location: deal['location'],
-              duration: deal['duration'],
-              price: deal['price'],
-              rating: deal['rating'],
+              imageUrl: deal['imageUrl']?.toString() ?? '',
+              title: deal['title']?.toString() ?? '',
+              location: deal['location']?.toString() ?? '',
+              duration: deal['duration']?.toString() ?? '',
+              price: _formatPrice(deal['price']),
+              rating: _formatRating(deal['rating']),
               description: experienceDetails['description'] ??
                   'Experience details coming soon...',
               experienceId: deal['id'],
@@ -111,11 +106,25 @@ class _TourListScreenState extends State<TourListScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Failed to load experience details: ${e.toString()}'),
-            backgroundColor: Colors.red,
+            backgroundColor: AppTheme.errorColor,
             duration: const Duration(seconds: 3),
           ),
         );
       }
     }
+  }
+
+  String _formatPrice(dynamic price) {
+    if (price == null) return '\$0.00';
+    if (price is String) return price.startsWith('\$') ? price : '\$$price';
+    if (price is num) return '\$${price.toStringAsFixed(2)}';
+    return '\$${price.toString()}';
+  }
+
+  String? _formatRating(dynamic rating) {
+    if (rating == null) return null;
+    if (rating is String) return rating;
+    if (rating is num) return rating.toStringAsFixed(1);
+    return rating.toString();
   }
 }

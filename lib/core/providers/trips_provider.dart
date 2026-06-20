@@ -1,11 +1,17 @@
 import 'package:flutter/foundation.dart';
 import '../models/user_trip_model.dart';
 import '../services/trips_service.dart';
+import '../services/websocket_service.dart';
+import '../services/cache_service.dart';
 import 'auth_provider.dart';
 
 class TripsProvider extends ChangeNotifier {
   final TripsService _tripsService = TripsService();
+  final WebSocketService _webSocketService = WebSocketService();
+  final CacheService _cacheService = CacheService();
   AuthProvider? _authProvider;
+  bool _isWebSocketListening = false;
+  DateTime? _lastFetchTime;
 
   List<UserTripModel> _trips = [];
   List<UserTripModel> _pendingTrips = [];
@@ -20,6 +26,21 @@ class TripsProvider extends ChangeNotifier {
   // Set the auth provider reference
   void setAuthProvider(AuthProvider authProvider) {
     _authProvider = authProvider;
+    _setupWebSocketListener();
+  }
+
+  /// Setup WebSocket listener for real-time trip updates
+  void _setupWebSocketListener() {
+    if (_isWebSocketListening) return;
+
+    _webSocketService.onTripUpdate(() {
+      debugPrint(
+          'TripsProvider: Received WebSocket trip update, refreshing...');
+      fetchUserTrips();
+    });
+
+    _isWebSocketListening = true;
+    debugPrint('TripsProvider: WebSocket listener registered');
   }
 
   // Getters
@@ -80,35 +101,67 @@ class TripsProvider extends ChangeNotifier {
   }
 
   /// Fetch all trips for the current user
-  Future<void> fetchUserTrips() async {
+  /// Implements Stale-While-Revalidate (SWR) pattern
+  Future<void> fetchUserTrips({bool forceRefresh = false}) async {
     // Check if user is authenticated before making API call
     final isAuthenticated = _authProvider?.isAuthenticated == true &&
         _authProvider?.hasValidToken == true;
 
     if (!isAuthenticated) {
+      debugPrint('TripsProvider: User not authenticated, skipping API call');
       // User not authenticated, just return empty list
       _trips = [];
       _groupTripsByStatus();
+      notifyListeners();
       return;
     }
+    
+    debugPrint('TripsProvider: User authenticated, proceeding with fetch');
 
     try {
+      // STEP 1: Check if cache is stale first
+      final isStale = _cacheService.isTripsCacheStale();
+
+      // STEP 2: Load from cache FIRST (instant display) - but only notify if cache is fresh
+      if (!forceRefresh) {
+        final cachedTrips = _cacheService.getCachedTrips();
+        if (cachedTrips != null && cachedTrips.isNotEmpty) {
+          debugPrint(
+              'TripsProvider: ⚡ INSTANT: Loaded ${cachedTrips.length} trips from cache');
+          _trips =
+              cachedTrips.map((json) => UserTripModel.fromJson(json)).toList();
+          _groupTripsByStatus();
+          // Only notify if cache is fresh (won't refetch), otherwise wait for network data
+          if (!isStale) {
+            notifyListeners(); // Show cached data immediately
+          }
+        }
+      }
+
+      // STEP 3: If cache is fresh and we're not forcing refresh, skip network call
+      if (!isStale && !forceRefresh && _trips.isNotEmpty) {
+        debugPrint(
+            'TripsProvider: ✅ Cache fresh (${_cacheService.getCacheAge()}s old), skipping network call');
+        return;
+      }
+
+      // STEP 3: Fetch from network (background revalidation)
+      debugPrint(
+          'TripsProvider: 🔄 Background: Fetching fresh data from server');
       _setLoading(true);
       _setError(null);
 
-      // Fetch both regular trips and pending bookings
-      final List<Future<List<UserTripModel>>> futures = [
-        _tripsService.fetchUserTrips(),
-        _tripsService.fetchPendingBookings(),
-      ];
-
-      final results = await Future.wait(futures);
-      final regularTrips = results[0];
-      final pendingBookings = results[1];
-
-      // Combine all trips (regular trips + pending bookings)
-      _trips = [...regularTrips, ...pendingBookings];
+      // Fetch all user trips (backend already includes all bookings)
+      _trips = await _tripsService.fetchUserTrips();
       _groupTripsByStatus();
+
+      // STEP 4: Save fresh data to cache
+      final tripsJson = _trips.map((trip) => trip.toJson()).toList();
+      await _cacheService.saveTrips(tripsJson);
+      debugPrint('TripsProvider: 💾 Cached ${_trips.length} trips');
+
+      // Update last fetch time
+      _lastFetchTime = DateTime.now();
 
       _setLoading(false);
     } catch (e) {
@@ -122,6 +175,43 @@ class TripsProvider extends ChangeNotifier {
       }
       _setError(e.toString());
     }
+  }
+
+  /// Add optimistic trip (show immediately before server confirmation)
+  void addOptimisticTrip(UserTripModel trip) {
+    debugPrint(
+        'TripsProvider: ✨ Optimistic: Adding trip ${trip.booking?.referenceNumber}');
+
+    // Add to trips list
+    _trips.insert(0, trip);
+    _groupTripsByStatus();
+    notifyListeners();
+
+    // Save to cache
+    final tripJson = trip.toJson();
+    _cacheService.saveOptimisticTrip(tripJson);
+  }
+
+  /// Update trip in cache and list (for status changes)
+  void updateTrip(String bookingId, Map<String, dynamic> updates) {
+    debugPrint('TripsProvider: 🔄 Updating trip: $bookingId');
+
+    final index = _trips.indexWhere((trip) => trip.bookingId == bookingId);
+    if (index != -1) {
+      // Update in memory (simplified - in production you'd merge properly)
+      _groupTripsByStatus();
+      notifyListeners();
+
+      // Update in cache
+      _cacheService.updateTripInCache(bookingId, updates);
+    }
+  }
+
+  /// Check if data is stale and needs refresh
+  bool get isDataStale {
+    if (_lastFetchTime == null) return true;
+    return DateTime.now().difference(_lastFetchTime!) >
+        const Duration(seconds: 30);
   }
 
   /// Fetch trip by ID

@@ -5,27 +5,25 @@ import '../error/app_exceptions.dart';
 import '../../core/network/api_client.dart';
 import 'dart:developer' as dev;
 
-enum ExperienceState {
-  initial,
-  loading,
-  loaded,
-  error,
-  loadingMore,
-}
+enum ExperienceState { initial, loading, loaded, error, loadingMore }
 
 class ExperiencesProvider extends ChangeNotifier {
   ExperiencesProvider() {
     if (kDebugMode) {
-      dev.log('ExperiencesProvider: Constructor called',
-          name: 'experiences_provider');
+      dev.log(
+        'ExperiencesProvider: Constructor called',
+        name: 'experiences_provider',
+      );
     }
   }
 
   @override
   void dispose() {
     if (kDebugMode) {
-      dev.log('ExperiencesProvider: dispose called',
-          name: 'experiences_provider');
+      dev.log(
+        'ExperiencesProvider: dispose called',
+        name: 'experiences_provider',
+      );
     }
     super.dispose();
   }
@@ -73,16 +71,20 @@ class ExperiencesProvider extends ChangeNotifier {
     bool forceRefresh = false,
   }) async {
     if (kDebugMode) {
-      dev.log('ExperiencesProvider: loadExperiences method called',
-          name: 'experiences_provider');
+      dev.log(
+        'ExperiencesProvider: loadExperiences method called',
+        name: 'experiences_provider',
+      );
     }
 
     if (_state == ExperienceState.loading && !forceRefresh) return;
 
     // Experiences don't require authentication - proceed with API call
     if (kDebugMode) {
-      dev.log('ExperiencesProvider: Loading experiences (no auth required)',
-          name: 'experiences_provider');
+      dev.log(
+        'ExperiencesProvider: Loading experiences (no auth required)',
+        name: 'experiences_provider',
+      );
     }
 
     try {
@@ -97,19 +99,29 @@ class ExperiencesProvider extends ChangeNotifier {
         _priceRange = RangeValues(minPrice, maxPrice);
       }
       if (minDuration != null && maxDuration != null) {
-        _durationRange =
-            RangeValues(minDuration.toDouble(), maxDuration.toDouble());
+        _durationRange = RangeValues(
+          minDuration.toDouble(),
+          maxDuration.toDouble(),
+        );
       }
 
       if (kDebugMode) {
-        dev.log('ExperiencesProvider: Loading experiences...',
-            name: 'experiences_provider');
-        dev.log('ExperiencesProvider: Search query: $searchQuery',
-            name: 'experiences_provider');
-        dev.log('ExperiencesProvider: Category: $category',
-            name: 'experiences_provider');
-        dev.log('ExperiencesProvider: Location: $location',
-            name: 'experiences_provider');
+        dev.log(
+          'ExperiencesProvider: Loading experiences...',
+          name: 'experiences_provider',
+        );
+        dev.log(
+          'ExperiencesProvider: Search query: $searchQuery',
+          name: 'experiences_provider',
+        );
+        dev.log(
+          'ExperiencesProvider: Category: $category',
+          name: 'experiences_provider',
+        );
+        dev.log(
+          'ExperiencesProvider: Location: $location',
+          name: 'experiences_provider',
+        );
       }
 
       final experiencesService = ExperiencesService(ApiClient());
@@ -125,8 +137,10 @@ class ExperiencesProvider extends ChangeNotifier {
           maxDuration != null ||
           date != null) {
         if (kDebugMode) {
-          dev.log('ExperiencesProvider: Using search API with filters',
-              name: 'experiences_provider');
+          dev.log(
+            'ExperiencesProvider: Using search API with filters',
+            name: 'experiences_provider',
+          );
         }
 
         final searchResults = await experiencesService.searchExperiences(
@@ -140,58 +154,82 @@ class ExperiencesProvider extends ChangeNotifier {
           date: date,
         );
 
-        // Group search results by category
-        categories = _groupSearchResultsByCategory(searchResults);
+        // Backend returns already grouped categories
+        categories = searchResults;
       } else {
         if (kDebugMode) {
-          dev.log('ExperiencesProvider: Using regular experiences API',
-              name: 'experiences_provider');
+          dev.log(
+            'ExperiencesProvider: Using regular experiences API',
+            name: 'experiences_provider',
+          );
         }
         categories = await experiencesService.getExperiences();
       }
 
       if (kDebugMode) {
-        dev.log('ExperiencesProvider: Fetched ${categories.length} categories',
-            name: 'experiences_provider');
+        dev.log(
+          'ExperiencesProvider: Fetched ${categories.length} categories',
+          name: 'experiences_provider',
+        );
         if (categories.isNotEmpty) {
           try {
             dev.log(
-                'ExperiencesProvider: First category: ${categories.first['title']}',
-                name: 'experiences_provider');
+              'ExperiencesProvider: First category: ${categories.first['title']}',
+              name: 'experiences_provider',
+            );
             // Fix type casting issue - cast to List<dynamic> first, then convert
             final dealsList = categories.first['deals'] as List<dynamic>? ?? [];
             final deals = dealsList.cast<Map<String, dynamic>>();
             dev.log(
-                'ExperiencesProvider: First category has ${deals.length} deals',
-                name: 'experiences_provider');
+              'ExperiencesProvider: First category has ${deals.length} deals',
+              name: 'experiences_provider',
+            );
           } catch (e) {
-            dev.log('ExperiencesProvider: Error parsing first category: $e',
-                name: 'experiences_provider');
+            dev.log(
+              'ExperiencesProvider: Error parsing first category: $e',
+              name: 'experiences_provider',
+            );
           }
         }
       }
 
-      _categories = categories;
+      // Deduplicate categories by title (case-insensitive)
+      final seenTitles = <String>{};
+      _categories = categories.where((cat) {
+        final title = (cat['title'] as String? ?? '').toLowerCase().trim();
+        if (seenTitles.contains(title)) {
+          return false; // Skip duplicate
+        }
+        seenTitles.add(title);
+        return true;
+      }).toList();
+      
       _currentPage = 1;
       _hasMoreData = categories.isNotEmpty;
 
       if (kDebugMode) {
-        dev.log('ExperiencesProvider: Setting state to loaded',
-            name: 'experiences_provider');
+        dev.log(
+          'ExperiencesProvider: Setting state to loaded',
+          name: 'experiences_provider',
+        );
       }
 
       _setState(ExperienceState.loaded);
     } on AppException catch (e) {
       if (kDebugMode) {
-        dev.log('ExperiencesProvider: Error loading experiences: ${e.message}',
-            name: 'experiences_provider');
+        dev.log(
+          'ExperiencesProvider: Error loading experiences: ${e.message}',
+          name: 'experiences_provider',
+        );
       }
       _errorMessage = e.message;
       _setState(ExperienceState.error);
     } catch (e) {
       if (kDebugMode) {
-        dev.log('ExperiencesProvider: Unexpected error: $e',
-            name: 'experiences_provider');
+        dev.log(
+          'ExperiencesProvider: Unexpected error: $e',
+          name: 'experiences_provider',
+        );
       }
       _errorMessage = 'An unexpected error occurred';
       _setState(ExperienceState.error);
@@ -209,7 +247,17 @@ class ExperiencesProvider extends ChangeNotifier {
       final moreCategories = await experiencesService.getExperiences();
 
       if (moreCategories.isNotEmpty) {
-        _categories.addAll(moreCategories);
+        // Deduplicate before adding - only add categories we don't already have
+        final existingTitles = _categories
+            .map((cat) => (cat['title'] as String? ?? '').toLowerCase().trim())
+            .toSet();
+        
+        final newCategories = moreCategories.where((cat) {
+          final title = (cat['title'] as String? ?? '').toLowerCase().trim();
+          return !existingTitles.contains(title);
+        }).toList();
+        
+        _categories.addAll(newCategories);
         _currentPage++;
         _hasMoreData = moreCategories.length >= _pageSize;
       } else {
@@ -298,9 +346,11 @@ class ExperiencesProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Group search results by category
+  /// DEPRECATED: Backend now groups by category
+  /// This method kept for backward compatibility but is no longer used
   List<Map<String, dynamic>> _groupSearchResultsByCategory(
-      List<Map<String, dynamic>> searchResults) {
+    List<Map<String, dynamic>> searchResults,
+  ) {
     final Map<String, List<Map<String, dynamic>>> groupedResults = {};
 
     for (final experience in searchResults) {
@@ -312,8 +362,10 @@ class ExperiencesProvider extends ChangeNotifier {
         groupedResults[category]!.add(experience);
       } catch (e) {
         if (kDebugMode) {
-          dev.log('ExperiencesProvider: Error grouping experience: $e',
-              name: 'experiences_provider');
+          dev.log(
+            'ExperiencesProvider: Error grouping experience: $e',
+            name: 'experiences_provider',
+          );
         }
         // Add to "Other" category if there's an error
         if (!groupedResults.containsKey('Other')) {
@@ -324,10 +376,7 @@ class ExperiencesProvider extends ChangeNotifier {
     }
 
     return groupedResults.entries.map((entry) {
-      return {
-        'title': entry.key,
-        'deals': entry.value,
-      };
+      return {'title': entry.key, 'deals': entry.value};
     }).toList();
   }
 
@@ -361,8 +410,10 @@ class ExperiencesProvider extends ChangeNotifier {
       }
     } catch (e) {
       if (kDebugMode) {
-        dev.log('ExperiencesProvider: Error extracting category: $e',
-            name: 'experiences_provider');
+        dev.log(
+          'ExperiencesProvider: Error extracting category: $e',
+          name: 'experiences_provider',
+        );
       }
       return 'Adventure Tours'; // Default category
     }
@@ -371,8 +422,10 @@ class ExperiencesProvider extends ChangeNotifier {
   /// Set state and notify listeners
   void _setState(ExperienceState newState) {
     if (kDebugMode) {
-      dev.log('ExperiencesProvider: State changing from $_state to $newState',
-          name: 'experiences_provider');
+      dev.log(
+        'ExperiencesProvider: State changing from $_state to $newState',
+        name: 'experiences_provider',
+      );
     }
     _state = newState;
     notifyListeners();

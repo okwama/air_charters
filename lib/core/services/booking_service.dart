@@ -682,7 +682,9 @@ class PaymentIntent {
       id: json['id']?.toString() ?? '',
       clientSecret: json['clientSecret']?.toString() ?? '',
       status: json['status']?.toString() ?? '',
-      requiresAction: json['requiresAction'] as bool? ?? false,
+      requiresAction: json['requiresAction'] is bool
+          ? json['requiresAction'] as bool
+          : (json['requiresAction'] == 1 || json['requiresAction'] == true),
       nextAction: json['nextAction'] as Map<String, dynamic>?,
     );
   }

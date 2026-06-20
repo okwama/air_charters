@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import '../../core/services/aircraft_type_service.dart';
 import '../../config/theme/app_theme.dart';
 import '../../shared/components/skeleton/skeleton_loading.dart';
 import '../../shared/components/skeleton/skeleton_list_tile.dart';
 import '../../shared/widgets/network_error_widget.dart';
+import '../../shared/widgets/image_carousel.dart';
 import '../../core/error/network_error_handler.dart';
 import 'flight_configuration_screen.dart';
 
@@ -198,168 +198,142 @@ class _AircraftResultsScreenState extends State<AircraftResultsScreen> {
   }
 
   Widget _buildAircraftCard(Aircraft aircraft) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      decoration: AppTheme.cardDecoration,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Aircraft image
-          Container(
-            height: 150,
-            width: double.infinity,
-            decoration: BoxDecoration(
-              borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(12),
-              ),
-              color: AppTheme.borderColor,
+    return GestureDetector(
+      onTap: () => _navigateToConfiguration(aircraft),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.grey.shade200, width: 1),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.08),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+              spreadRadius: 0,
             ),
-            child: ClipRRect(
-              borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(12),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Aircraft image carousel
+            ImageCarousel(
+              images: aircraft.images,
+              height: 200,
+              borderRadius:
+                  const BorderRadius.vertical(top: Radius.circular(16)),
+              placeholderIcon: Icon(
+                Icons.airplanemode_active,
+                size: 48,
+                color: AppTheme.textSecondaryColor,
               ),
-              child: aircraft.imageUrl != null
-                  ? CachedNetworkImage(
-                      imageUrl: aircraft.imageUrl!,
-                      fit: BoxFit.cover,
-                      placeholder: (context, url) => Container(
-                        color: AppTheme.borderColor,
-                        child: Center(
-                          child: CircularProgressIndicator(
+              showIndicators: true,
+            ),
+            // Aircraft details
+            Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              aircraft.name,
+                              style: AppTheme.bodyLarge.copyWith(
+                                fontWeight: FontWeight.w600,
+                                color: AppTheme.textPrimaryColor,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              aircraft.model,
+                              style: AppTheme.bodySmall.copyWith(
+                                color: AppTheme.textSecondaryColor,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppTheme.primaryColor.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(
+                          aircraft.aircraftType,
+                          style: AppTheme.caption.copyWith(
                             color: AppTheme.primaryColor,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
                       ),
-                      errorWidget: (context, url, error) => Container(
-                        color: AppTheme.borderColor,
-                        child: Icon(
-                          Icons.airplanemode_active,
-                          size: 48,
-                          color: AppTheme.textSecondaryColor,
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  // Aircraft specs
+                  Row(
+                    children: [
+                      _buildSpecItem(
+                        Icons.people,
+                        '${aircraft.capacity} pax',
+                      ),
+                      const SizedBox(width: 12),
+                      _buildSpecItem(
+                        Icons.access_time,
+                        aircraft.formattedFlightDuration,
+                      ),
+                      const SizedBox(width: 12),
+                      _buildSpecItem(
+                        Icons.location_on,
+                        aircraft.baseCity ?? 'N/A',
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  // Price section
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          aircraft.formattedPricePerHour,
+                          style: AppTheme.bodyLarge.copyWith(
+                            fontWeight: FontWeight.w700,
+                            color: AppTheme.successColor,
+                          ),
                         ),
                       ),
-                    )
-                  : Container(
-                      color: AppTheme.borderColor,
-                      child: Icon(
-                        Icons.airplanemode_active,
-                        size: 48,
-                        color: AppTheme.textSecondaryColor,
-                      ),
-                    ),
-            ),
-          ),
-          // Aircraft details
-          Padding(
-            padding: const EdgeInsets.all(12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            aircraft.name,
-                            style: AppTheme.bodyLarge.copyWith(
-                              fontWeight: FontWeight.w600,
-                              color: AppTheme.textPrimaryColor,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            aircraft.model,
-                            style: AppTheme.bodySmall.copyWith(
-                              color: AppTheme.textSecondaryColor,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppTheme.primaryColor.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Text(
-                        aircraft.aircraftType,
-                        style: AppTheme.caption.copyWith(
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
                           color: AppTheme.primaryColor,
-                          fontWeight: FontWeight.w600,
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(
+                          'Select',
+                          style: AppTheme.bodySmall.copyWith(
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white,
+                          ),
                         ),
                       ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                // Aircraft specs
-                Row(
-                  children: [
-                    _buildSpecItem(
-                      Icons.people,
-                      '${aircraft.capacity} pax',
-                    ),
-                    const SizedBox(width: 16),
-                    _buildSpecItem(
-                      Icons.access_time,
-                      aircraft.formattedFlightDuration,
-                    ),
-                    const SizedBox(width: 16),
-                    _buildSpecItem(
-                      Icons.location_on,
-                      aircraft.baseCity ?? 'N/A',
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                // Price and company
-                Row(
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            aircraft.formattedPricePerHour,
-                            style: AppTheme.bodyLarge.copyWith(
-                              fontWeight: FontWeight.w700,
-                              color: AppTheme.successColor,
-                            ),
-                          ),
-                          Text(
-                            aircraft.companyName,
-                            style: AppTheme.bodySmall.copyWith(
-                              color: AppTheme.textSecondaryColor,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    ElevatedButton(
-                      onPressed: () => _navigateToConfiguration(aircraft),
-                      style: AppTheme.primaryButtonStyle.copyWith(
-                        minimumSize:
-                            WidgetStateProperty.all(const Size(80, 36)),
-                        textStyle:
-                            WidgetStateProperty.all(AppTheme.bodySmall.copyWith(
-                          fontWeight: FontWeight.w600,
-                          color: Colors.white,
-                        )),
-                      ),
-                      child: const Text('Select'),
-                    ),
-                  ],
-                ),
-              ],
+                    ],
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

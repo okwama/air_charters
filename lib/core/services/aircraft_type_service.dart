@@ -125,7 +125,8 @@ class Aircraft {
   final String? baseCity;
   final int? companyId;
   final String companyName;
-  final String? imageUrl;
+  final String? imageUrl; // Keep for backward compatibility
+  final List<String> images; // New field for multiple images
   final String aircraftType;
   final double flightDurationHours;
 
@@ -140,11 +141,26 @@ class Aircraft {
     this.companyId,
     required this.companyName,
     this.imageUrl,
+    List<String>? images,
     required this.aircraftType,
     required this.flightDurationHours,
-  });
+  }) : images = images ?? [];
 
   factory Aircraft.fromJson(Map<String, dynamic> json) {
+    // Extract images from the API response
+    List<String> imagesList = [];
+    if (json['images'] != null && json['images'] is List) {
+      imagesList = (json['images'] as List)
+          .map((img) => img is String ? img : (img['url'] ?? img.toString()))
+          .where((url) => url.isNotEmpty)
+          .cast<String>()
+          .toList();
+    }
+    // Fallback to single imageUrl if images array is empty
+    if (imagesList.isEmpty && json['imageUrl'] != null) {
+      imagesList = [json['imageUrl']];
+    }
+
     return Aircraft(
       id: json['id'],
       name: json['name'],
@@ -156,7 +172,8 @@ class Aircraft {
       baseCity: json['baseCity'],
       companyId: json['companyId'],
       companyName: json['companyName'] ?? 'Unknown',
-      imageUrl: json['imageUrl'],
+      imageUrl: imagesList.isNotEmpty ? imagesList.first : null,
+      images: imagesList,
       aircraftType: json['aircraftType'] ?? 'unknown',
       flightDurationHours:
           double.tryParse(json['flightDurationHours']?.toString() ?? '0') ??

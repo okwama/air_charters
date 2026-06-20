@@ -180,8 +180,7 @@ class _CalendarSelectorState extends State<CalendarSelector> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
-                .map((day) => SizedBox(
-                      width: 40,
+                .map((day) => Expanded(
                       child: Text(
                         day,
                         textAlign: TextAlign.center,
@@ -216,13 +215,18 @@ class _CalendarSelectorState extends State<CalendarSelector> {
 
     // Empty cells for days before the first day of the month
     for (int i = 0; i < firstDayWeekday; i++) {
-      dayWidgets.add(const SizedBox(width: 40, height: 40));
+      dayWidgets.add(const Expanded(child: SizedBox.shrink()));
     }
 
     // Days of the month
     for (int day = 1; day <= daysInMonth; day++) {
       final date = DateTime(_currentMonth.year, _currentMonth.month, day);
-      dayWidgets.add(_buildDayWidget(date));
+      dayWidgets.add(Expanded(child: _buildDayWidget(date)));
+    }
+
+    // Fill remaining cells in the last row to maintain grid structure
+    while (dayWidgets.length % 7 != 0) {
+      dayWidgets.add(const Expanded(child: SizedBox.shrink()));
     }
 
     // Create rows of 7 days each
@@ -230,11 +234,7 @@ class _CalendarSelectorState extends State<CalendarSelector> {
     for (int i = 0; i < dayWidgets.length; i += 7) {
       rows.add(
         Row(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
-          children: dayWidgets.sublist(
-            i,
-            i + 7 > dayWidgets.length ? dayWidgets.length : i + 7,
-          ),
+          children: dayWidgets.sublist(i, i + 7),
         ),
       );
       if (i + 7 < dayWidgets.length) {
@@ -288,21 +288,23 @@ class _CalendarSelectorState extends State<CalendarSelector> {
 
     return GestureDetector(
       onTap: isDisabled ? null : () => _onDateTap(date),
-      child: Container(
-        width: 40,
-        height: 40,
-        decoration: BoxDecoration(
-          color: backgroundColor,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: borderColor, width: 1),
-        ),
-        child: Center(
-          child: Text(
-            date.day.toString(),
-            style: GoogleFonts.inter(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: textColor,
+      child: AspectRatio(
+        aspectRatio: 1,
+        child: Container(
+          margin: const EdgeInsets.all(2),
+          decoration: BoxDecoration(
+            color: backgroundColor,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: borderColor, width: 1),
+          ),
+          child: Center(
+            child: Text(
+              date.day.toString(),
+              style: GoogleFonts.inter(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: textColor,
+              ),
             ),
           ),
         ),
@@ -413,7 +415,8 @@ class _CalendarSelectorState extends State<CalendarSelector> {
         widget.onDateSelected(_selectedDate!);
       }
     }
-    Navigator.pop(context);
+    // Don't call Navigator.pop here as it's handled by the callback in the helper function
+    // Navigator.pop(context);
   }
 
   bool _isSameDay(DateTime? date1, DateTime? date2) {

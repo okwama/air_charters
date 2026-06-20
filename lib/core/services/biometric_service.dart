@@ -1,11 +1,6 @@
 import 'package:local_auth/local_auth.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'dart:convert';
-import 'dart:developer' as dev;
-import 'package:flutter/foundation.dart';
-import '../../config/env/app_config.dart';
 import '../models/auth_model.dart';
-import '../error/app_exceptions.dart';
 import 'secure_biometric_manager.dart';
 
 class BiometricService {

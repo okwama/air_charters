@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:lucide_icons/lucide_icons.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:provider/provider.dart';
 import '../../../core/providers/auth_provider.dart';
 import 'package:flutter/foundation.dart';
@@ -147,38 +147,40 @@ class TroubleshootingSection extends StatelessWidget {
                         const SizedBox(height: 12),
                         // Debug button (only show in debug mode)
                         if (kDebugMode)
-                          SizedBox(
-                            width: double.infinity,
-                            height: 48,
-                            child: OutlinedButton.icon(
-                              onPressed: () {
-                                Navigator.of(context).pushNamed('/auth-debug');
-                              },
-                              icon: Icon(
-                                LucideIcons.bug,
-                                size: 18,
-                                color: Colors.blue.shade600,
-                              ),
-                              label: Text(
-                                'Auth Debug',
-                                style: GoogleFonts.outfit(
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.blue.shade600,
-                                  fontSize: 14,
-                                ),
-                              ),
-                              style: OutlinedButton.styleFrom(
-                                side: BorderSide(
-                                  color: Colors.blue.shade200,
-                                  width: 1,
-                                ),
-                                backgroundColor: Colors.blue.shade50,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                              ),
-                            ),
-                          ),
+                          // TODO: Implement auth debug route
+                          // SizedBox(
+                          //   width: double.infinity,
+                          //   height: 48,
+                          //   child: OutlinedButton.icon(
+                          //     onPressed: () {
+                          //       Navigator.of(context).pushNamed(AppRoutes.authDebug);
+                          //     },
+                          //     icon: Icon(
+                          //       LucideIcons.bug,
+                          //       size: 18,
+                          //       color: Colors.blue.shade600,
+                          //     ),
+                          //     label: Text(
+                          //       'Auth Debug',
+                          //       style: GoogleFonts.outfit(
+                          //         fontWeight: FontWeight.w600,
+                          //         color: Colors.blue.shade600,
+                          //         fontSize: 14,
+                          //       ),
+                          //     ),
+                          //     style: OutlinedButton.styleFrom(
+                          //       side: BorderSide(
+                          //         color: Colors.blue.shade200,
+                          //         width: 1,
+                          //       ),
+                          //       backgroundColor: Colors.blue.shade50,
+                          //       shape: RoundedRectangleBorder(
+                          //         borderRadius: BorderRadius.circular(12),
+                          //       ),
+                          //     ),
+                          //   ),
+                          // ),
+                          const SizedBox.shrink(),
                       ],
                     );
                   },

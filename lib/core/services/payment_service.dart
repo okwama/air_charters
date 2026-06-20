@@ -1,5 +1,6 @@
 import 'package:air_charters/core/network/api_client.dart';
 import 'package:air_charters/config/env/app_config.dart';
+import 'package:air_charters/core/services/currency_service.dart';
 
 enum PaymentMethod {
   mpesa,
@@ -20,6 +21,23 @@ class PaymentService {
 
   PaymentService(this._apiClient);
 
+  /// Ensure amount is expressed in the target currency, converting if needed
+  Future<double> _ensureAmountInCurrency({
+    required double amount,
+    required String fromCurrency,
+    required String toCurrency,
+  }) async {
+    if (fromCurrency.toUpperCase() == toCurrency.toUpperCase()) {
+      return amount;
+    }
+    final converted = await CurrencyService.convertCurrency(
+      amount: amount,
+      from: fromCurrency.toUpperCase(),
+      to: toCurrency.toUpperCase(),
+    );
+    return converted;
+  }
+
   /// Initiate M-Pesa payment
   Future<Map<String, dynamic>> initiateMpesaPayment({
     required String bookingId,
@@ -28,13 +46,23 @@ class PaymentService {
     String? description,
   }) async {
     try {
+      // M-Pesa is KES-only. Convert from app default currency if needed.
+      final String fromCurrency = AppConfig.defaultCurrency;
+      final double kesAmount = await _ensureAmountInCurrency(
+        amount: amount,
+        fromCurrency: fromCurrency,
+        toCurrency: 'KES',
+      );
       final response = await _apiClient.post(
         AppConfig.mpesaStkPushEndpoint,
         {
           'bookingId': bookingId,
-          'amount': amount,
+          'amount': kesAmount,
           'phoneNumber': phoneNumber,
           'description': description ?? 'Experience booking payment',
+          'currency': 'KES',
+          'originalAmount': amount,
+          'originalCurrency': fromCurrency,
         },
       );
 
@@ -116,14 +144,41 @@ class PaymentService {
     Map<String, dynamic>? metadata,
   }) async {
     try {
+      // Normalize currency for gateway requirements
+      String targetCurrency = currency.toUpperCase();
+      bool requiresKes = false;
+      // Card flows go through Paystack which is KES-only in this app config
+      if (paymentMethod == PaymentMethod.card) {
+        requiresKes = true;
+      }
+      // M-Pesa is also KES-only
+      if (paymentMethod == PaymentMethod.mpesa) {
+        requiresKes = true;
+      }
+
+      if (requiresKes) {
+        targetCurrency = AppConfig.paystackCurrency.toUpperCase(); // 'KES'
+      }
+
+      final double finalAmount = await _ensureAmountInCurrency(
+        amount: amount,
+        fromCurrency: currency,
+        toCurrency: targetCurrency,
+      );
+
       final response = await _apiClient.post(
         AppConfig.paymentIntentEndpoint,
         {
-          'amount': amount,
-          'currency': currency,
+          'amount': finalAmount,
+          'currency': targetCurrency,
           'bookingId': bookingId,
           'paymentMethod': paymentMethod.name,
-          'metadata': metadata,
+          'metadata': {
+            if (metadata != null) ...metadata,
+            'originalAmount': amount,
+            'originalCurrency': currency.toUpperCase(),
+            'converted': targetCurrency != currency.toUpperCase(),
+          },
         },
       );
 

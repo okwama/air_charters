@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:lucide_icons/lucide_icons.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../core/models/direct_charter_model.dart';
 import '../../core/services/aircraft_type_service.dart';
 import 'direct_charter_booking_screen.dart';

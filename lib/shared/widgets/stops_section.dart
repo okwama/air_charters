@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:lucide_icons/lucide_icons.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../config/theme/app_theme.dart';
 import '../../core/models/location_model.dart';
-import '../../features/plan/stops_selection_screen.dart';
 
 class StopsSection extends StatelessWidget {
   final List<LocationModel> stops;
@@ -133,13 +132,12 @@ class StopsSection extends StatelessWidget {
                                 fontWeight: FontWeight.w500,
                               ),
                             ),
-                            if (stop.code != null)
-                              Text(
-                                stop.code!,
-                                style: AppTheme.caption.copyWith(
-                                  color: AppTheme.textSecondaryColor,
-                                ),
+                            Text(
+                              stop.code,
+                              style: AppTheme.caption.copyWith(
+                                color: AppTheme.textSecondaryColor,
                               ),
+                            ),
                           ],
                         ),
                       ),

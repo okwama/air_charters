@@ -5,6 +5,7 @@ import '../../core/models/charter_deal_model.dart';
 import '../widgets/shimmer_loading.dart';
 import '../widgets/loading_system.dart';
 import '../widgets/offline_fallback_widget.dart';
+import '../widgets/network_error_widget.dart';
 import 'deal_card.dart';
 import 'grouped_deal_card.dart';
 import '../utils/deal_grouping_utils.dart';
@@ -205,7 +206,12 @@ class _DealsListWidgetState extends State<DealsListWidget> {
               'DealsListWidget: Showing deals list with ${provider.deals.length} deals',
               name: 'deals_list');
         }
-        return _buildDealsList(provider);
+        // Use loading more widget if infinite scroll is enabled to show "List ends" indicator
+        if (widget.enableInfiniteScroll) {
+          return _buildDealsListWithLoadingMore(provider);
+        } else {
+          return _buildDealsList(provider);
+        }
 
       case CharterDealsState.error:
         if (kDebugMode) {
@@ -284,16 +290,54 @@ class _DealsListWidgetState extends State<DealsListWidget> {
       itemCount: groupedDeals.length + 1,
       itemBuilder: (context, index) {
         if (index == groupedDeals.length) {
-          // Loading more indicator
-          return Padding(
-            padding: const EdgeInsets.all(16),
-            child: Center(
-              child: LoadingSystem.inline(
-                size: 20,
-                color: Colors.grey.shade600,
+          // Show loading more indicator or list ends indicator
+          if (provider.isLoadingMore) {
+            return Padding(
+              padding: const EdgeInsets.all(16),
+              child: Center(
+                child: LoadingSystem.inline(
+                  size: 20,
+                  color: Colors.grey.shade600,
+                ),
               ),
-            ),
-          );
+            );
+          } else if (!provider.hasMoreData && groupedDeals.isNotEmpty) {
+            // Show "List ends" indicator
+            return Padding(
+              padding: const EdgeInsets.all(16),
+              child: Center(
+                child: Column(
+                  children: [
+                    Container(
+                      height: 1,
+                      width: 100,
+                      color: Colors.grey.shade300,
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      'You\'ve reached the end',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey.shade600,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'No more deals available',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey.shade500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          } else {
+            // No deals at all
+            return const SizedBox.shrink();
+          }
         }
 
         final dealGroup = groupedDeals[index];
@@ -407,7 +451,9 @@ class _DealsListWidgetState extends State<DealsListWidget> {
         // Show cached deals if available
         if (provider.deals.isNotEmpty) ...[
           Expanded(
-            child: _buildDealsList(provider),
+            child: widget.enableInfiniteScroll 
+                ? _buildDealsListWithLoadingMore(provider)
+                : _buildDealsList(provider),
           ),
         ] else ...[
           // No cached data available
@@ -436,71 +482,13 @@ class _DealsListWidgetState extends State<DealsListWidget> {
   }
 
   Widget _buildErrorState(CharterDealsProvider provider) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.error_outline,
-            size: 64,
-            color: Colors.red.shade400,
-          ),
-          const SizedBox(height: 16),
-          Text(
-            'Something went wrong',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
-              color: Colors.grey.shade800,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            provider.errorMessage ?? 'Failed to load deals',
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey.shade600,
-            ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 24),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              ElevatedButton(
-                onPressed: () {
-                  provider.clearError();
-                  _loadInitialDeals();
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.black,
-                  foregroundColor: Colors.white,
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-                child: const Text('Retry'),
-              ),
-              const SizedBox(width: 12),
-              OutlinedButton(
-                onPressed: () {
-                  provider.clearError();
-                },
-                style: OutlinedButton.styleFrom(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-                child: const Text('Dismiss'),
-              ),
-            ],
-          ),
-        ],
-      ),
+    // Use QuickNetworkErrorWidget for genuine errors
+    return QuickNetworkErrorWidget(
+      error: provider.errorMessage ?? 'Unable to load deals',
+      onRetry: () {
+        provider.clearError();
+        _loadInitialDeals();
+      },
     );
   }
 

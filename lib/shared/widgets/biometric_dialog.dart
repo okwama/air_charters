@@ -90,10 +90,23 @@ class _BiometricDialogState extends State<BiometricDialog>
     // Add a small delay for visual feedback
     await Future.delayed(const Duration(milliseconds: 200));
 
-    if (widget.isEnabled) {
-      widget.onDisable?.call();
-    } else {
-      widget.onEnable?.call();
+    try {
+      if (widget.isEnabled) {
+        widget.onDisable?.call();
+      } else {
+        widget.onEnable?.call();
+      }
+      
+      // Close dialog after action completes
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 

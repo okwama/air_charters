@@ -4,15 +4,21 @@ import 'dart:async';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:lottie/lottie.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:provider/provider.dart';
 import '../../config/theme/app_theme.dart';
 import '../../config/env/app_config.dart';
 import '../../core/services/aircraft_type_service.dart';
+import '../../core/providers/auth_provider.dart';
+import '../../core/services/conversion_analytics_service.dart';
+import '../../shared/widgets/auth_required_dialog.dart';
+import '../../shared/widgets/network_error_widget.dart';
 import '../cargo/cargo_screen.dart';
 import '../experiences/experiences_screen.dart';
 import '../deals/deals_screen.dart';
 import '../direct_charter/aircraft_type_selection_screen.dart';
 import '../direct_charter/aircraft_results_screen.dart';
 import '../medivac/medivac_screen.dart';
+import '../yacht/yacht_type_selection_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -26,29 +32,34 @@ class _DashboardScreenState extends State<DashboardScreen>
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
-  
+
   // Aircraft types data
   final AircraftTypeService _aircraftTypeService = AircraftTypeService();
   List<AircraftType> _aircraftTypes = [];
+  List<AircraftType> _filteredAircraftTypes = [];
   bool _isLoadingAircraftTypes = true;
-  
+
   // Search functionality
   final TextEditingController _searchController = TextEditingController();
   Timer? _searchDebounce;
   List<String> _searchSuggestions = [];
   List<String> _recentSearches = [];
-  List<String> _savedRoutes = [];
   bool _isSearching = false;
-  
+
   // Filter functionality
-  Set<String> _selectedFilters = {};
+  final Set<String> _selectedFilters = {};
   final List<String> _availableFilters = [
-    'Helicopter', 'Private Jet', 'Seaplane', 'Cargo', 'Medical'
+    'Helicopter',
+    'Private Jet',
+    'Seaplane',
+    'Cargo',
+    'Medical'
   ];
-  
+
   // Pull to refresh
-  final GlobalKey<RefreshIndicatorState> _refreshIndicatorKey = GlobalKey<RefreshIndicatorState>();
-  
+  final GlobalKey<RefreshIndicatorState> _refreshIndicatorKey =
+      GlobalKey<RefreshIndicatorState>();
+
   // Error handling
   String? _errorMessage;
   bool _hasError = false;
@@ -93,11 +104,13 @@ class _DashboardScreenState extends State<DashboardScreen>
         _hasError = false;
         _errorMessage = null;
       });
-      
+
       final aircraftTypes = await _aircraftTypeService.getAircraftTypes();
       if (mounted) {
         setState(() {
           _aircraftTypes = aircraftTypes;
+          _filteredAircraftTypes =
+              aircraftTypes; // Initialize filtered list with all types
           _isLoadingAircraftTypes = false;
         });
       }
@@ -106,7 +119,8 @@ class _DashboardScreenState extends State<DashboardScreen>
         setState(() {
           _isLoadingAircraftTypes = false;
           _hasError = true;
-          _errorMessage = 'Failed to load aircraft types. Please check your connection and try again.';
+          _errorMessage =
+              'Failed to load aircraft types. Please check your connection and try again.';
         });
       }
     }
@@ -130,7 +144,7 @@ class _DashboardScreenState extends State<DashboardScreen>
           Positioned.fill(
             child: SvgPicture.asset(
               'assets/icons/world.svg',
-                    fit: BoxFit.cover,
+              fit: BoxFit.cover,
               colorFilter: ColorFilter.mode(
                 Colors.grey.shade100.withOpacity(0.9),
                 BlendMode.srcATop,
@@ -169,21 +183,17 @@ class _DashboardScreenState extends State<DashboardScreen>
               children: [
                 // Error handling
                 if (_hasError) _buildErrorWidget(),
-                
+
                 // Universal Search Section (Top)
                 _buildUniversalSearchSection(),
                 const SizedBox(height: 12),
-                
+
                 // Services Section
                 _buildServicesSection(),
                 const SizedBox(height: 12),
-                
+
                 // Quick Aircraft Access Section
                 _buildAircraftQuickAccessSection(constraints),
-                const SizedBox(height: 12),
-                
-                // Quick Actions Section
-                _buildQuickActionsSection(),
                 const SizedBox(height: 12),
               ],
             ),
@@ -192,7 +202,6 @@ class _DashboardScreenState extends State<DashboardScreen>
       },
     );
   }
-
 
   Widget _buildServicesSection() {
     return Column(
@@ -212,36 +221,41 @@ class _DashboardScreenState extends State<DashboardScreen>
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
           crossAxisCount: 3,
-          crossAxisSpacing: 1,
+          crossAxisSpacing: 8,
           mainAxisSpacing: 8,
-          childAspectRatio: 1.2,
-            children: [
-              _buildServiceIcon(
-                imagePath: AppConfig.dealsIconPath,
-                title: 'Deals',
-                onTap: () => _navigateToDeals(),
-              ),
-              _buildServiceIcon(
-                imagePath: AppConfig.directCharterIconPath,
-                title: 'Direct Charter',
-                onTap: () => _navigateToDirectCharter(),
-              ),
-              _buildServiceIcon(
-                imagePath: AppConfig.experiencesIconPath,
-                title: 'Experiences',
-                onTap: () => _navigateToExperiences(),
-              ),
-              _buildServiceIcon(
-                imagePath: AppConfig.cargoIconPath,
-                title: 'Cargo',
-                onTap: () => _navigateToCargo(),
-              ),
-              _buildServiceIcon(
-                imagePath: AppConfig.medivacIconPath,
-                title: 'Medical',
-                onTap: () => _navigateToMedivac(),
-              ),
-            ],
+          childAspectRatio: 1.1,
+          children: [
+            _buildServiceIcon(
+              imagePath: AppConfig.dealsIconPath,
+              title: 'Deals',
+              onTap: () => _navigateToDeals(),
+            ),
+            _buildServiceIcon(
+              imagePath: AppConfig.directCharterIconPath,
+              title: 'Direct Charter',
+              onTap: () => _navigateToDirectCharter(),
+            ),
+            _buildServiceIcon(
+              imagePath: AppConfig.experiencesIconPath,
+              title: 'Experiences',
+              onTap: () => _navigateToExperiences(),
+            ),
+            _buildServiceIcon(
+              imagePath: AppConfig.cargoIconPath,
+              title: 'Cargo',
+              onTap: () => _navigateToCargo(),
+            ),
+            _buildServiceIcon(
+              imagePath: AppConfig.medivacIconPath,
+              title: 'Medical',
+              onTap: () => _navigateToMedivac(),
+            ),
+            _buildServiceIcon(
+              imagePath: AppConfig.yachtIconPath,
+              title: 'Yacht',
+              onTap: () => _navigateToYacht(),
+            ),
+          ],
         ),
       ],
     );
@@ -259,7 +273,7 @@ class _DashboardScreenState extends State<DashboardScreen>
           scale: 0.8 + (0.2 * _fadeAnimation.value),
           child: GestureDetector(
             onTap: onTap,
-                  child: Column(
+            child: Column(
               children: [
                 Opacity(
                   opacity: 0.8,
@@ -317,41 +331,58 @@ class _DashboardScreenState extends State<DashboardScreen>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Quick Aircraft Access',
-          style: AppTheme.bodyLarge.copyWith(
-            fontWeight: FontWeight.w600,
-            color: Colors.black,
-            fontSize: 16,
-          ),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'Quick Aircraft Access',
+              style: AppTheme.bodyLarge.copyWith(
+                fontWeight: FontWeight.w600,
+                color: Colors.black,
+                fontSize: 16,
+              ),
+            ),
+            if (_selectedFilters.isNotEmpty)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade100,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  '${_filteredAircraftTypes.length} of ${_aircraftTypes.length}',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.blue.shade700,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+          ],
         ),
         const SizedBox(height: 8),
-        
         if (_isLoadingAircraftTypes)
           _buildAircraftTypesLoading()
         else
-          _buildAircraftTypesHorizontalScroll(),
+          _buildAircraftTypesGrid(),
       ],
     );
   }
 
   Widget _buildAircraftTypesLoading() {
-    return SizedBox(
-      height: 105,
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        itemCount: 4,
-        itemBuilder: (context, index) {
-          return Container(
-            width: 120,
-            margin: EdgeInsets.only(
-              left: index == 0 ? 0 : 8,
-              right: index == 3 ? 0 : 0,
-            ),
-            child: _buildAircraftTypeSkeleton(),
-          );
-        },
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 3,
+        crossAxisSpacing: 8,
+        mainAxisSpacing: 8,
+        childAspectRatio: 0.85,
       ),
+      itemCount: 6,
+      itemBuilder: (context, index) {
+        return _buildAircraftTypeSkeleton();
+      },
     );
   }
 
@@ -368,24 +399,21 @@ class _DashboardScreenState extends State<DashboardScreen>
     );
   }
 
-  Widget _buildAircraftTypesHorizontalScroll() {
-    return SizedBox(
-      height: 105,
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        itemCount: _aircraftTypes.length,
-        itemBuilder: (context, index) {
-          final aircraftType = _aircraftTypes[index];
-          return Container(
-            width: 120,
-            margin: EdgeInsets.only(
-              left: index == 0 ? 0 : 8,
-              right: index == _aircraftTypes.length - 1 ? 0 : 0,
-            ),
-            child: _buildAircraftTypeCard(aircraftType),
-          );
-        },
+  Widget _buildAircraftTypesGrid() {
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 3,
+        crossAxisSpacing: 8,
+        mainAxisSpacing: 8,
+        childAspectRatio: 0.85,
       ),
+      itemCount: _filteredAircraftTypes.length,
+      itemBuilder: (context, index) {
+        final aircraftType = _filteredAircraftTypes[index];
+        return _buildAircraftTypeCard(aircraftType);
+      },
     );
   }
 
@@ -500,9 +528,12 @@ class _DashboardScreenState extends State<DashboardScreen>
           const SizedBox(height: 8),
           TextField(
             controller: _searchController,
+            style: const TextStyle(color: Colors.black),
             decoration: InputDecoration(
               hintText: 'Search aircraft type or service...',
-              prefixIcon: const Icon(Icons.search, size: 20),
+              hintStyle: TextStyle(color: Colors.grey.shade600),
+              prefixIcon:
+                  const Icon(Icons.search, size: 20, color: Colors.grey),
               suffixIcon: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -515,12 +546,36 @@ class _DashboardScreenState extends State<DashboardScreen>
                     )
                   else if (_searchController.text.isNotEmpty)
                     IconButton(
-                      icon: const Icon(Icons.clear, size: 20),
+                      icon:
+                          const Icon(Icons.clear, size: 20, color: Colors.grey),
                       onPressed: _clearSearch,
                     ),
-                  IconButton(
-                    icon: const Icon(Icons.filter_list, size: 20),
-                    onPressed: _showFilterModal,
+                  Stack(
+                    children: [
+                      IconButton(
+                        icon: Icon(
+                          Icons.filter_list,
+                          size: 20,
+                          color: _selectedFilters.isNotEmpty
+                              ? Colors.blue.shade600
+                              : Colors.grey,
+                        ),
+                        onPressed: _showFilterModal,
+                      ),
+                      if (_selectedFilters.isNotEmpty)
+                        Positioned(
+                          right: 8,
+                          top: 8,
+                          child: Container(
+                            width: 8,
+                            height: 8,
+                            decoration: BoxDecoration(
+                              color: Colors.blue.shade600,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
                 ],
               ),
@@ -532,7 +587,8 @@ class _DashboardScreenState extends State<DashboardScreen>
                 borderRadius: BorderRadius.circular(8),
                 borderSide: BorderSide(color: Colors.blue.shade600),
               ),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             ),
             onChanged: _onSearchChanged,
             onSubmitted: _onSearchSubmitted,
@@ -541,10 +597,31 @@ class _DashboardScreenState extends State<DashboardScreen>
           Wrap(
             spacing: 6,
             runSpacing: 6,
-            children: _availableFilters.map((filter) => 
-              _buildSearchChip(filter, _selectedFilters.contains(filter))
-            ).toList(),
+            children: _availableFilters
+                .map((filter) =>
+                    _buildSearchChip(filter, _selectedFilters.contains(filter)))
+                .toList(),
           ),
+          if (_selectedFilters.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton.icon(
+                onPressed: () {
+                  setState(() {
+                    _selectedFilters.clear();
+                  });
+                  _applyFilters();
+                },
+                icon: const Icon(Icons.clear, size: 16),
+                label: const Text('Clear Filters'),
+                style: TextButton.styleFrom(
+                  foregroundColor: Colors.blue.shade600,
+                  textStyle: const TextStyle(fontSize: 12),
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -569,97 +646,6 @@ class _DashboardScreenState extends State<DashboardScreen>
             fontSize: 10,
             fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
           ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildQuickActionsSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Quick Actions',
-          style: AppTheme.bodyLarge.copyWith(
-            fontWeight: FontWeight.w600,
-            color: Colors.black,
-            fontSize: 16,
-          ),
-        ),
-        const SizedBox(height: 8),
-        Row(
-          children: [
-            Expanded(
-              child: _buildQuickActionCard(
-                icon: Icons.history,
-                title: 'Recent Searches',
-                subtitle: '${_recentSearches.length} searches',
-                onTap: _showRecentSearches,
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: _buildQuickActionCard(
-                icon: Icons.bookmark,
-                title: 'Saved Routes',
-                subtitle: '${_savedRoutes.length} routes',
-                onTap: _showSavedRoutes,
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _buildQuickActionCard({
-    required IconData icon,
-    required String title,
-    required String subtitle,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(10),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: Colors.grey.shade200),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.03),
-              blurRadius: 4,
-              offset: const Offset(0, 1),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(
-              icon,
-              size: 18,
-              color: Colors.blue.shade600,
-            ),
-            const SizedBox(height: 6),
-            Text(
-              title,
-              style: AppTheme.bodySmall.copyWith(
-                fontWeight: FontWeight.w600,
-                color: Colors.black,
-                fontSize: 11,
-              ),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              subtitle,
-              style: AppTheme.bodySmall.copyWith(
-                color: Colors.grey.shade600,
-                fontSize: 9,
-              ),
-            ),
-          ],
         ),
       ),
     );
@@ -730,12 +716,11 @@ class _DashboardScreenState extends State<DashboardScreen>
   }
 
   // Enhanced functionality methods
-  
+
   Future<void> _loadSavedData() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       _recentSearches = prefs.getStringList('recent_searches') ?? [];
-      _savedRoutes = prefs.getStringList('saved_routes') ?? [];
       if (mounted) setState(() {});
     } catch (e) {
       print('Error loading saved data: $e');
@@ -789,11 +774,14 @@ class _DashboardScreenState extends State<DashboardScreen>
       _isSearching = true;
     });
 
-    // Simulate search results
-    final results = _aircraftTypes
-        .where((aircraft) => 
-          aircraft.type.toLowerCase().contains(query.toLowerCase()) ||
-          (aircraft.description?.toLowerCase().contains(query.toLowerCase()) ?? false))
+    // Search in filtered aircraft types (respects current filters)
+    final results = _filteredAircraftTypes
+        .where((aircraft) =>
+            aircraft.type.toLowerCase().contains(query.toLowerCase()) ||
+            (aircraft.description
+                    ?.toLowerCase()
+                    .contains(query.toLowerCase()) ??
+                false))
         .map((aircraft) => aircraft.type)
         .toList();
 
@@ -819,6 +807,52 @@ class _DashboardScreenState extends State<DashboardScreen>
         _selectedFilters.add(filter);
       }
     });
+
+    // Apply filters to aircraft types
+    _applyFilters();
+  }
+
+  /// Apply selected filters to aircraft types
+  void _applyFilters() {
+    if (_selectedFilters.isEmpty) {
+      // No filters selected, show all aircraft types
+      setState(() {
+        _filteredAircraftTypes = _aircraftTypes;
+      });
+    } else {
+      // Filter aircraft types based on selected filters
+      setState(() {
+        _filteredAircraftTypes = _aircraftTypes.where((aircraft) {
+          final aircraftType = aircraft.type.toLowerCase();
+
+          // Map filter names to aircraft type patterns
+          for (final filter in _selectedFilters) {
+            switch (filter.toLowerCase()) {
+              case 'helicopter':
+                if (aircraftType.contains('helicopter')) return true;
+                break;
+              case 'private jet':
+                if (aircraftType.contains('jet') ||
+                    aircraftType.contains('private')) return true;
+                break;
+              case 'seaplane':
+                if (aircraftType.contains('seaplane') ||
+                    aircraftType.contains('amphibious')) return true;
+                break;
+              case 'cargo':
+                if (aircraftType.contains('cargo') ||
+                    aircraftType.contains('freight')) return true;
+                break;
+              case 'medical':
+                if (aircraftType.contains('medical') ||
+                    aircraftType.contains('ambulance')) return true;
+                break;
+            }
+          }
+          return false;
+        }).toList();
+      });
+    }
   }
 
   Future<void> _onRefresh() async {
@@ -826,7 +860,7 @@ class _DashboardScreenState extends State<DashboardScreen>
       _hasError = false;
       _errorMessage = null;
     });
-    
+
     try {
       await _loadAircraftTypes();
       // Add a small delay to show the refresh animation
@@ -840,30 +874,9 @@ class _DashboardScreenState extends State<DashboardScreen>
   }
 
   Widget _buildErrorWidget() {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.red.shade50,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.red.shade200),
-      ),
-      child: Row(
-        children: [
-          Icon(Icons.error_outline, color: Colors.red.shade600),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              _errorMessage ?? 'An error occurred',
-              style: AppTheme.bodySmall.copyWith(color: Colors.red.shade700),
-            ),
-          ),
-          TextButton(
-            onPressed: _onRefresh,
-            child: const Text('Retry'),
-          ),
-        ],
-      ),
+    return QuickNetworkErrorWidget(
+      error: _errorMessage,
+      onRetry: _onRefresh,
     );
   }
 
@@ -904,9 +917,9 @@ class _DashboardScreenState extends State<DashboardScreen>
           Wrap(
             spacing: 8,
             runSpacing: 8,
-            children: _availableFilters.map((filter) => 
-              _buildFilterChip(filter)
-            ).toList(),
+            children: _availableFilters
+                .map((filter) => _buildFilterChip(filter))
+                .toList(),
           ),
           const SizedBox(height: 20),
           Row(
@@ -917,6 +930,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                     setState(() {
                       _selectedFilters.clear();
                     });
+                    _applyFilters(); // Apply the cleared filters
                     Navigator.pop(context);
                   },
                   child: const Text('Clear All'),
@@ -960,103 +974,20 @@ class _DashboardScreenState extends State<DashboardScreen>
     );
   }
 
-  void _showRecentSearches() {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (context) => _buildRecentSearchesModal(),
-    );
-  }
-
-  Widget _buildRecentSearchesModal() {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Recent Searches',
-            style: AppTheme.heading3.copyWith(
-              fontWeight: FontWeight.w600,
-              color: Colors.black,
-            ),
-          ),
-          const SizedBox(height: 16),
-          if (_recentSearches.isEmpty)
-            Center(
-              child: Text(
-                'No recent searches',
-                style: AppTheme.bodyMedium.copyWith(color: Colors.grey.shade600),
-              ),
-            )
-          else
-            ..._recentSearches.map((search) => ListTile(
-              leading: const Icon(Icons.history),
-              title: Text(search),
-              onTap: () {
-                _searchController.text = search;
-                _onSearchSubmitted(search);
-                Navigator.pop(context);
-              },
-            )),
-        ],
-      ),
-    );
-  }
-
-  void _showSavedRoutes() {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (context) => _buildSavedRoutesModal(),
-    );
-  }
-
-  Widget _buildSavedRoutesModal() {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Saved Routes',
-            style: AppTheme.heading3.copyWith(
-              fontWeight: FontWeight.w600,
-              color: Colors.black,
-            ),
-          ),
-          const SizedBox(height: 16),
-          if (_savedRoutes.isEmpty)
-            Center(
-              child: Text(
-                'No saved routes',
-                style: AppTheme.bodyMedium.copyWith(color: Colors.grey.shade600),
-              ),
-            )
-          else
-            ..._savedRoutes.map((route) => ListTile(
-              leading: const Icon(Icons.bookmark),
-              title: Text(route),
-              onTap: () {
-                Navigator.pop(context);
-                // Navigate to route details
-              },
-            )),
-        ],
-      ),
-    );
-  }
-
-  // Navigation methods
+  // Navigation methods with guest mode handling
   void _navigateToDeals() {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    if (authProvider.isGuest) {
+      // Track feature usage attempt
+      ConversionAnalyticsService.trackGuestFeatureUsage(
+        featureName: 'deals',
+        action: 'navigate_attempt',
+      );
+
+      QuickAuthPrompt.showForDeals(context);
+      return;
+    }
+
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -1066,6 +997,7 @@ class _DashboardScreenState extends State<DashboardScreen>
   }
 
   void _navigateToDirectCharter() {
+    // Direct charter is available to guests
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -1075,6 +1007,12 @@ class _DashboardScreenState extends State<DashboardScreen>
   }
 
   void _navigateToExperiences() {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    if (authProvider.isGuest) {
+      QuickAuthPrompt.showForExperiences(context);
+      return;
+    }
+
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -1084,6 +1022,12 @@ class _DashboardScreenState extends State<DashboardScreen>
   }
 
   void _navigateToCargo() {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    if (authProvider.isGuest) {
+      QuickAuthPrompt.showForCargo(context);
+      return;
+    }
+
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -1093,10 +1037,26 @@ class _DashboardScreenState extends State<DashboardScreen>
   }
 
   void _navigateToMedivac() {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    if (authProvider.isGuest) {
+      QuickAuthPrompt.showForMedivac(context);
+      return;
+    }
+
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => const MedivacScreen(),
+      ),
+    );
+  }
+
+  void _navigateToYacht() {
+    // Yacht booking is available to guests (similar to direct charter)
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const YachtTypeSelectionScreen(),
       ),
     );
   }

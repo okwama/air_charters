@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- OneSignal Configuration -->
+    <!-- This is optional - you can configure in code instead -->
+    
+    <!-- Notification Icons (optional) -->
+    <!-- Place your icon in drawable/ folder -->
+    <string name="onesignal_app_id" translatable="false">YOUR_ONESIGNAL_APP_ID</string>
+    
+    <!-- Notification Channels (optional - already defined in code) -->
+    <string name="onesignal_default_channel_name" translatable="false">Booking Updates</string>
+</resources>
+

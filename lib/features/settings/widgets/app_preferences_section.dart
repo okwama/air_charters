@@ -1,27 +1,23 @@
 import 'package:flutter/material.dart';
-import 'package:lucide_icons/lucide_icons.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../../config/theme/app_theme.dart';
 
 class AppPreferencesSection extends StatelessWidget {
-  final Function(BuildContext) onThemeTap;
   final Function(BuildContext) onLanguageTap;
   final Function(BuildContext) onCurrencyTap;
   final Function(BuildContext) onNotificationsTap;
   final Function(BuildContext) onPrivacyTap;
 
   // Add current values as parameters
-  final String currentTheme;
   final String currentLanguage;
   final String currentCurrency;
 
   const AppPreferencesSection({
     super.key,
-    required this.onThemeTap,
     required this.onLanguageTap,
     required this.onCurrencyTap,
     required this.onNotificationsTap,
     required this.onPrivacyTap,
-    required this.currentTheme,
     required this.currentLanguage,
     required this.currentCurrency,
   });
@@ -68,14 +64,6 @@ class AppPreferencesSection extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: 16),
-
-                // Theme Setting
-                _buildPreferenceItem(
-                  icon: LucideIcons.palette,
-                  title: 'Theme',
-                  subtitle: _getThemeDisplayName(),
-                  onTap: () => onThemeTap(context),
-                ),
 
                 // Language Setting
                 _buildPreferenceItem(
@@ -176,19 +164,6 @@ class AppPreferencesSection extends StatelessWidget {
   }
 
   // Helper methods for getting display names - now using actual values
-  String _getThemeDisplayName() {
-    switch (currentTheme) {
-      case 'light':
-        return 'Light Mode';
-      case 'dark':
-        return 'Dark Mode';
-      case 'auto':
-        return 'Auto (System)';
-      default:
-        return 'Auto (System)';
-    }
-  }
-
   String _getLanguageDisplayName() {
     switch (currentLanguage) {
       case 'en':

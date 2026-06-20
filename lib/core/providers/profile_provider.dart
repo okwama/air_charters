@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kDebugMode;
 import '../network/api_client.dart';
 import 'auth_provider.dart';
 import '../../shared/utils/session_manager.dart';
@@ -42,13 +43,17 @@ class ProfileProvider extends ChangeNotifier {
   // Industry standard: Smart fetch - only when needed
   Future<void> fetchProfileIfNeeded({bool forceRefresh = false}) async {
     if (!forceRefresh && !shouldRefreshProfile) {
-      print('🔥 PROFILE: Using cached data, skipping API call');
+      if (kDebugMode) {
+        print('🔥 PROFILE: Using cached data, skipping API call');
+      }
       return;
     }
 
     // If data is stale but exists, show it immediately and refresh in background
     if (!forceRefresh && _profile != null && isProfileStale && !_isRefreshing) {
-      print('🔥 PROFILE: Data is stale, refreshing in background');
+      if (kDebugMode) {
+        print('🔥 PROFILE: Data is stale, refreshing in background');
+      }
       _refreshInBackground();
       return;
     }
@@ -57,20 +62,26 @@ class ProfileProvider extends ChangeNotifier {
   }
 
   Future<void> fetchProfile({bool forceRefresh = false}) async {
-    print('🔥 PROFILE: fetchProfile (forceRefresh: $forceRefresh)');
+    if (kDebugMode) {
+      print('🔥 PROFILE: fetchProfile (forceRefresh: $forceRefresh)');
+    }
 
     // Use standardized authentication check
     final isAuthenticated = _authProvider?.isAuthenticated == true &&
         _authProvider?.hasValidToken == true;
 
-    print(
-        '🔥 PROFILE: AuthProvider - isAuthenticated: ${_authProvider?.isAuthenticated}');
-    print(
-        '🔥 PROFILE: AuthProvider - hasValidToken: ${_authProvider?.hasValidToken}');
-    print('🔥 PROFILE: Final isAuthenticated: $isAuthenticated');
+    if (kDebugMode) {
+      print(
+          '🔥 PROFILE: AuthProvider - isAuthenticated: ${_authProvider?.isAuthenticated}');
+      print(
+          '🔥 PROFILE: AuthProvider - hasValidToken: ${_authProvider?.hasValidToken}');
+      print('🔥 PROFILE: Final isAuthenticated: $isAuthenticated');
+    }
 
     if (!isAuthenticated) {
-      print('🔥 PROFILE: User not authenticated, skipping API call');
+      if (kDebugMode) {
+        print('🔥 PROFILE: User not authenticated, skipping API call');
+      }
       _loading = false;
       notifyListeners();
       return; // Don't make API call if not authenticated
@@ -91,9 +102,21 @@ class ProfileProvider extends ChangeNotifier {
 
       final data = await _apiClient.getUserProfile();
       print('🔥 PROFILE: API call successful');
-      _profile = data;
-      _preferences = data['preferences'];
+
+      // Extract the correct data from the new microservice response structure
+      _profile = data[
+          'user']; // Extract user object (has loyaltyPoints, walletBalance, etc.)
+      _preferences = data[
+          'preferences']; // Extract preferences object (language, currency, etc.)
+
+      // Optionally store wallet and profile settings separately if needed
+      // For now, the user object contains wallet data (loyaltyPoints, walletBalance)
+
       _lastFetch = DateTime.now(); // Record successful fetch time
+      print(
+          '🔥 PROFILE: Extracted user: ${_profile?['firstName']} ${_profile?['lastName']}');
+      print(
+          '🔥 PROFILE: Loyalty Points: ${_profile?['loyaltyPoints']}, Wallet Balance: ${_profile?['walletBalance']}');
     } catch (e) {
       print('🔥 PROFILE: API call failed: $e');
 
@@ -116,7 +139,7 @@ class ProfileProvider extends ChangeNotifier {
             // Token was refreshed successfully, retry the profile fetch
             print('🔥 PROFILE: Token refreshed, retrying profile fetch...');
             final data = await _apiClient.getUserProfile();
-            _profile = data;
+            _profile = data['user']; // Extract user object
             _preferences = data['preferences'];
             print('🔥 PROFILE: Retry successful');
           } else if (authErrorResult?.shouldRedirectToLogin == true) {
@@ -133,7 +156,7 @@ class ProfileProvider extends ChangeNotifier {
             if (_authProvider?.hasValidToken == true) {
               print('🔥 PROFILE: Fallback refresh successful, retrying...');
               final data = await _apiClient.getUserProfile();
-              _profile = data;
+              _profile = data['user']; // Extract user object
               _preferences = data['preferences'];
             } else {
               print('🔥 PROFILE: Fallback refresh failed, signing out...');

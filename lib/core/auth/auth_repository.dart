@@ -69,7 +69,8 @@ class AuthRepository {
 
   // Email/Password Signup
   Future<AuthModel> signUpWithEmail(
-      String email, String password, String firstName, String lastName, {String? phoneNumber}) async {
+      String email, String password, String firstName, String lastName,
+      {String? phoneNumber}) async {
     dev.log('=== SIGNUP METHOD CALLED ===', name: 'AuthRepository-DEBUG');
     try {
       dev.log('=== STARTING BACKEND SIGNUP PROCESS ===',
@@ -78,7 +79,8 @@ class AuthRepository {
           name: 'AuthRepository-DEBUG');
 
       // Use backend-only registration
-      return await _registerBackendOnly(email, password, firstName, lastName, phoneNumber: phoneNumber);
+      return await _registerBackendOnly(email, password, firstName, lastName,
+          phoneNumber: phoneNumber);
     } catch (e, stackTrace) {
       dev.log('Unexpected error during sign up: $e',
           name: 'AuthRepository-ERROR');
@@ -96,8 +98,50 @@ class AuthRepository {
 
   // Sign Out
   Future<void> signOut() async {
-    await _apiClient.clearAuth();
-    await _clearLocalAuthData();
+    try {
+      // Get stored auth data to retrieve refresh token
+      final authData = await _getLocalAuthData();
+
+      if (authData?.refreshToken != null) {
+        // Call backend logout endpoint to revoke refresh token
+        try {
+          await _apiClient.post('/api/auth/logout', {
+            'refreshToken': authData!.refreshToken,
+          });
+          if (kDebugMode) {
+            dev.log('AuthRepository: Backend logout successful',
+                name: 'AuthRepository');
+          }
+        } catch (e) {
+          // Don't fail logout if backend call fails
+          if (kDebugMode) {
+            dev.log('AuthRepository: Backend logout failed: $e',
+                name: 'AuthRepository-ERROR');
+          }
+        }
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        dev.log('AuthRepository: Error during logout: $e',
+            name: 'AuthRepository-ERROR');
+      }
+    } finally {
+      // Always clear local auth data regardless of backend response
+      await _apiClient.clearAuth();
+      await _clearLocalAuthData();
+    }
+  }
+
+  // Logout from all devices
+  Future<bool> logoutAllDevices() async {
+    try {
+      await _apiClient.post('/api/auth/logout/all-devices', {});
+      await _clearLocalAuthData();
+      return true;
+    } catch (e) {
+      await _clearLocalAuthData();
+      return false;
+    }
   }
 
   // Get Current User
@@ -178,14 +222,21 @@ class AuthRepository {
   // Backend-only login
   Future<AuthModel> _loginBackendOnly(String email, String password) async {
     try {
-      // Removed debug print
+      if (kDebugMode) {
+        dev.log('=== AUTH REPOSITORY: Starting login for $email ===',
+            name: 'AuthRepository-DEBUG');
+        print('🔥 AUTH REPO: Calling /api/auth/login for $email');
+      }
 
       final response = await _apiClient.post('/api/auth/login', {
         'email': email,
         'password': password,
       });
 
-      // Removed debug print
+      if (kDebugMode) {
+        dev.log('Login API response received', name: 'AuthRepository-DEBUG');
+        print('🔥 AUTH REPO: Login response received successfully');
+      }
 
       // Create auth data from backend response using fromBackendJson
       final authData = AuthModel.fromBackendJson(response);
@@ -194,25 +245,21 @@ class AuthRepository {
       await _apiClient.saveAuth(authData);
       await _saveLocalAuthData(authData);
 
-      // Update SessionManager immediately after storing token
-      try {
-        final sessionManager = SessionManager();
-        if (kDebugMode) {
-          dev.log('AuthRepository: Updating SessionManager after login',
-              name: 'auth_repository');
-        }
-        // Note: SessionManager will be re-initialized by AuthProvider
-      } catch (e) {
-        if (kDebugMode) {
-          dev.log('AuthRepository: Error updating SessionManager: $e',
-              name: 'auth_repository');
-        }
-      }
+      // Note: SessionManager will be re-initialized by AuthProvider after login
 
-      // Removed debug print
+      if (kDebugMode) {
+        dev.log('=== AUTH REPOSITORY: Login successful ===',
+            name: 'AuthRepository-DEBUG');
+        print('🔥 AUTH REPO: Login completed successfully');
+      }
       return authData;
     } catch (e) {
-      // Removed debug print
+      if (kDebugMode) {
+        dev.log('Login error: $e', name: 'AuthRepository-ERROR');
+        dev.log('Error type: ${e.runtimeType}', name: 'AuthRepository-ERROR');
+        print('🔥 AUTH REPO: Login failed with error: $e');
+      }
+
       // Re-throw the original exception to preserve the specific error message
       if (e is AuthException) {
         rethrow;
@@ -223,16 +270,26 @@ class AuthRepository {
   }
 
   // Backend-only phone login
-  Future<AuthModel> _loginBackendOnlyPhone(String phoneNumber, String password) async {
+  Future<AuthModel> _loginBackendOnlyPhone(
+      String phoneNumber, String password) async {
     try {
-      // Removed debug print
+      if (kDebugMode) {
+        dev.log(
+            '=== AUTH REPOSITORY: Starting phone login for $phoneNumber ===',
+            name: 'AuthRepository-DEBUG');
+        print('🔥 AUTH REPO: Calling /api/auth/login/phone for $phoneNumber');
+      }
 
       final response = await _apiClient.post('/api/auth/login/phone', {
         'phoneNumber': phoneNumber,
         'password': password,
       });
 
-      // Removed debug print
+      if (kDebugMode) {
+        dev.log('Phone login API response received',
+            name: 'AuthRepository-DEBUG');
+        print('🔥 AUTH REPO: Phone login response received successfully');
+      }
 
       // Create auth data from backend response using fromBackendJson
       final authData = AuthModel.fromBackendJson(response);
@@ -241,25 +298,21 @@ class AuthRepository {
       await _apiClient.saveAuth(authData);
       await _saveLocalAuthData(authData);
 
-      // Update SessionManager immediately after storing token
-      try {
-        final sessionManager = SessionManager();
-        if (kDebugMode) {
-          dev.log('AuthRepository: Updating SessionManager after phone login',
-              name: 'auth_repository');
-        }
-        // Note: SessionManager will be re-initialized by AuthProvider
-      } catch (e) {
-        if (kDebugMode) {
-          dev.log('AuthRepository: Error updating SessionManager: $e',
-              name: 'auth_repository');
-        }
-      }
+      // Note: SessionManager will be re-initialized by AuthProvider after phone login
 
-      // Removed debug print
+      if (kDebugMode) {
+        dev.log('=== AUTH REPOSITORY: Phone login successful ===',
+            name: 'AuthRepository-DEBUG');
+        print('🔥 AUTH REPO: Phone login completed successfully');
+      }
       return authData;
     } catch (e) {
-      // Removed debug print
+      if (kDebugMode) {
+        dev.log('Phone login error: $e', name: 'AuthRepository-ERROR');
+        dev.log('Error type: ${e.runtimeType}', name: 'AuthRepository-ERROR');
+        print('🔥 AUTH REPO: Phone login failed with error: $e');
+      }
+
       // Re-throw the original exception to preserve the specific error message
       if (e is AuthException) {
         rethrow;
@@ -271,7 +324,8 @@ class AuthRepository {
 
   // Register user with backend only
   Future<AuthModel> _registerBackendOnly(
-      String email, String password, String firstName, String lastName, {String? phoneNumber}) async {
+      String email, String password, String firstName, String lastName,
+      {String? phoneNumber}) async {
     try {
       // Removed debug print
 
@@ -283,17 +337,23 @@ class AuthRepository {
         'lastName': lastName,
         'authProvider': 'email', // Email/password authentication
       };
-      
+
       // Add phone number if provided
       if (phoneNumber != null && phoneNumber.isNotEmpty) {
         requestData['phoneNumber'] = phoneNumber;
         // Extract country code from phone number
         if (phoneNumber.startsWith('+')) {
-          final countryCode = phoneNumber.substring(0, phoneNumber.length - phoneNumber.substring(1).replaceAll(RegExp(r'[^\d]'), '').length);
+          final countryCode = phoneNumber.substring(
+              0,
+              phoneNumber.length -
+                  phoneNumber
+                      .substring(1)
+                      .replaceAll(RegExp(r'[^\d]'), '')
+                      .length);
           requestData['countryCode'] = countryCode;
         }
       }
-      
+
       final response = await _apiClient.post('/api/auth/register', requestData);
 
       // Removed debug print
@@ -427,9 +487,11 @@ class AuthRepository {
   }
 
   // Biometric Authentication
-  Future<AuthModel> loginWithBiometric(String biometricId, String userId, String userEmail) async {
+  Future<AuthModel> loginWithBiometric(
+      String biometricId, String userId, String userEmail) async {
     try {
-      dev.log('Starting biometric authentication for user: $userEmail', name: 'AuthRepository');
+      dev.log('Starting biometric authentication for user: $userEmail',
+          name: 'AuthRepository');
 
       final response = await _apiClient.post(AppConfig.biometricLoginEndpoint, {
         'biometricId': biometricId,
@@ -444,22 +506,13 @@ class AuthRepository {
       await _apiClient.saveAuth(authData);
       await _saveLocalAuthData(authData);
 
-      // Update SessionManager immediately after storing token
-      try {
-        final sessionManager = SessionManager();
-        if (kDebugMode) {
-          dev.log('AuthRepository: Updating SessionManager after biometric login', name: 'auth_repository');
-        }
-      } catch (e) {
-        if (kDebugMode) {
-          dev.log('AuthRepository: Error updating SessionManager: $e', name: 'auth_repository');
-        }
-      }
+      // Note: SessionManager will be re-initialized by AuthProvider after biometric login
 
       dev.log('Biometric authentication successful', name: 'AuthRepository');
       return authData;
     } catch (e) {
-      dev.log('Biometric authentication error: $e', name: 'AuthRepository-ERROR');
+      dev.log('Biometric authentication error: $e',
+          name: 'AuthRepository-ERROR');
       if (e is AuthException || e is ValidationException) {
         rethrow;
       } else {

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:lucide_icons/lucide_icons.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/models/direct_charter_model.dart';
 import '../../core/models/location_model.dart';
@@ -720,7 +720,7 @@ class _DirectCharterBookingScreenState
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      '${widget.aircraft.capacity} seats • ${widget.aircraft.companyName}',
+                      '${widget.aircraft.capacity} seats',
                       style: GoogleFonts.inter(
                         fontSize: 12,
                         color: Colors.grey[600],

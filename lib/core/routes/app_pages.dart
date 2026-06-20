@@ -10,6 +10,7 @@ import '../../features/auth/login_screen.dart';
 import '../../features/auth/signup_screen.dart';
 import '../../features/auth/verifycode.dart';
 import '../../features/auth/country_selection_screen.dart';
+import '../../features/auth/forgot_password_screen.dart';
 import '../../features/splash/landing_screen.dart';
 import '../../features/home/home_screen.dart';
 import '../../features/settings/settings.dart';
@@ -50,7 +51,6 @@ import '../../features/direct_charter/direct_charter_booking_screen.dart';
 // Settings imports
 import '../../features/settings/pages/notification_settings_page.dart';
 import '../../features/settings/pages/currency_page.dart';
-import '../../features/settings/pages/theme_page.dart';
 import '../../features/settings/pages/language_page.dart';
 import '../../features/settings/pages/contact_support_page.dart';
 import '../../features/settings/pages/faq_page.dart';
@@ -75,6 +75,7 @@ class AppPages {
         AppRoutes.signup: (context) => const SignupScreen(),
         AppRoutes.verify: (context) => const VerifyCodeScreen(),
         AppRoutes.countrySelection: (context) => const CountrySelectionScreen(),
+        AppRoutes.forgotPassword: (context) => const ForgotPasswordScreen(),
         AppRoutes.landing: (context) => const LandingScreen(),
 
         // Main feature routes
@@ -190,6 +191,7 @@ class AppPages {
               as Map<String, dynamic>;
           return ExperienceBookingPage(
             experienceId: args['experienceId'],
+            companyId: args['companyId'], // ✅ Pass companyId from route args
             title: args['title'],
             location: args['location'],
             imageUrl: args['imageUrl'],
@@ -282,14 +284,6 @@ class AppPages {
           return CurrencyPage(
             currentCurrency: args['currentCurrency'],
             onCurrencySelected: args['onCurrencySelected'],
-          );
-        },
-        AppRoutes.themeSettings: (context) {
-          final args = ModalRoute.of(context)!.settings.arguments
-              as Map<String, dynamic>;
-          return ThemePage(
-            currentTheme: args['currentTheme'],
-            onThemeSelected: args['onThemeSelected'],
           );
         },
         AppRoutes.languageSettings: (context) {

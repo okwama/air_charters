@@ -11,25 +11,40 @@ class ExperienceBookingService {
   Future<Map<String, dynamic>> createBooking(
       ExperienceBookingModel booking) async {
     try {
+      print('📤 Creating experience booking...');
+      print('   - Experience ID: ${booking.experienceId}');
+      print('   - Company ID: ${booking.companyId}');
+
       // Use the standardized bookings endpoint with experience data
       final response = await _apiClient.post('/api/bookings', {
-        'dealId': 0, // No deal for experiences
-        'experienceScheduleId':
-            booking.experienceId, // Use experienceId as experienceScheduleId
+        'bookingType': 'experience', // ✅ Required by backend
+        'experienceTemplateId': booking.experienceId, // ✅ Correct field name
+        'companyId': booking.companyId, // ✅ Required field
         'totalPrice': booking.totalPrice,
-        'onboardDining': false, // Default for experiences
+        'subtotal': booking.totalPrice, // Same as totalPrice for experiences
+        'taxType': null,
+        'taxAmount': 0,
+        'departureDateTime': booking.selectedDate.toIso8601String(),
+        'totalAdults': booking.passengers.where((p) => p.isAdult).length,
+        'totalChildren': booking.passengers.where((p) => p.isChild).length,
+        'onboardDining': false,
         'specialRequirements': booking.specialRequests,
-        'billingRegion': 'US', // Default billing region
         'passengers': booking.passengers.map((p) => p.toJson()).toList(),
       });
 
-      if (response['success']) {
+      print('✅ Booking response received');
+      print('   - Response: $response');
+
+      // Better null safety check
+      if (response != null && response['success'] == true) {
         return Map<String, dynamic>.from(response['data']);
       } else {
-        throw Exception('Failed to create booking: ${response['message']}');
+        final errorMessage = response?['message'] ?? 'Unknown error';
+        throw Exception('Failed to create booking: $errorMessage');
       }
     } catch (e) {
-      throw Exception('Network error: $e');
+      print('❌ Booking creation error: $e');
+      rethrow; // Don't wrap in generic exception to preserve specific error types
     }
   }
 

@@ -43,6 +43,7 @@ class CharterDealsProvider extends ChangeNotifier {
   Timer? _debounceTimer;
   bool _isOfflineMode = false;
   DateTime? _lastSuccessfulLoad;
+  int _callCounter = 0;
 
   // Getters
   CharterDealsState get state => _state;
@@ -90,8 +91,15 @@ class CharterDealsProvider extends ChangeNotifier {
     bool groupBy = false,
     bool forceRefresh = false,
   }) async {
+    _callCounter++;
+    final callId = _callCounter;
+    
     if (kDebugMode) {
-      dev.log('CharterDealsProvider: loadDeals method called',
+      dev.log('CharterDealsProvider: loadDeals method called (call #$callId)',
+          name: 'deals_provider');
+      dev.log('CharterDealsProvider: Current state: $_state',
+          name: 'deals_provider');
+      dev.log('CharterDealsProvider: Force refresh: $forceRefresh',
           name: 'deals_provider');
     }
 
@@ -101,6 +109,19 @@ class CharterDealsProvider extends ChangeNotifier {
     final sessionManager = SessionManager();
     final authData = await sessionManager.getStoredAuthData();
     final isAuthenticated = authData != null && !authData.isExpired;
+
+    if (kDebugMode) {
+      dev.log('CharterDealsProvider: Auth check - authData: ${authData != null}',
+          name: 'deals_provider');
+      if (authData != null) {
+        dev.log('CharterDealsProvider: Auth check - isExpired: ${authData.isExpired}',
+            name: 'deals_provider');
+        dev.log('CharterDealsProvider: Auth check - expiresAt: ${authData.expiresAt}',
+            name: 'deals_provider');
+      }
+      dev.log('CharterDealsProvider: Auth check - isAuthenticated: $isAuthenticated',
+          name: 'deals_provider');
+    }
 
     if (!isAuthenticated) {
       if (kDebugMode) {
@@ -130,7 +151,7 @@ class CharterDealsProvider extends ChangeNotifier {
 
       if (kDebugMode) {
         dev.log(
-            'CharterDealsProvider: About to call CharterDealsService.fetchCharterDeals',
+            'CharterDealsProvider: About to call CharterDealsService.fetchCharterDeals (call #$callId)',
             name: 'deals_provider');
       }
 
@@ -148,7 +169,7 @@ class CharterDealsProvider extends ChangeNotifier {
 
       if (kDebugMode) {
         dev.log(
-            'CharterDealsProvider: Service call completed, received ${deals.length} deals',
+            'CharterDealsProvider: Service call completed, received ${deals.length} deals (call #$callId)',
             name: 'deals_provider');
       }
 
@@ -192,10 +213,15 @@ class CharterDealsProvider extends ChangeNotifier {
       // Mark successful load and exit offline mode
       _lastSuccessfulLoad = DateTime.now();
       _isOfflineMode = false;
+      
+      if (kDebugMode) {
+        dev.log('CharterDealsProvider: Setting state to loaded with ${_deals.length} deals (call #$callId)',
+            name: 'deals_provider');
+      }
       _setState(CharterDealsState.loaded);
     } on AppException catch (e) {
       if (kDebugMode) {
-        dev.log('CharterDealsProvider: Error loading deals: ${e.message}',
+        dev.log('CharterDealsProvider: Error loading deals: ${e.message} (call #$callId)',
             name: 'deals_provider');
       }
 
@@ -223,16 +249,19 @@ class CharterDealsProvider extends ChangeNotifier {
       }
     } catch (e) {
       if (kDebugMode) {
-        dev.log('CharterDealsProvider: Unexpected error: $e',
+        dev.log('CharterDealsProvider: Unexpected error: $e (call #$callId)',
             name: 'deals_provider');
       }
 
       // Check if it's a timeout or network error
       if (e.toString().contains('TimeoutException') ||
-          e.toString().contains('SocketException')) {
-        _handleNetworkError('Connection timeout. Showing cached data.');
+          e.toString().contains('SocketException') ||
+          e.toString().contains('Connection') ||
+          e.toString().contains('Network')) {
+        _handleNetworkError('Connection issue. Showing cached data.');
       } else {
-        _errorMessage = 'An unexpected error occurred';
+        // For genuine errors (not network related), show offline widget
+        _errorMessage = 'Unable to load deals. Please check your connection.';
         _setState(CharterDealsState.error);
       }
     }
@@ -241,7 +270,7 @@ class CharterDealsProvider extends ChangeNotifier {
   /// Handle network errors with fallback to cached data
   void _handleNetworkError(String message) {
     if (_deals.isNotEmpty && _lastSuccessfulLoad != null) {
-      // Show cached data with offline indicator
+      // Show cached data with offline indicator and retry in background
       _isOfflineMode = true;
       _errorMessage =
           '$message (Showing cached data from ${_formatLastLoadTime()})';
@@ -252,11 +281,54 @@ class CharterDealsProvider extends ChangeNotifier {
             'CharterDealsProvider: Showing ${_deals.length} cached deals in offline mode',
             name: 'deals_provider');
       }
+
+      // Retry in background after a delay
+      _retryInBackground();
     } else {
-      // No cached data available
+      // No cached data available - show offline widget
       _errorMessage = message;
       _setState(CharterDealsState.error);
     }
+  }
+
+  /// Retry loading deals in background while showing cached data
+  void _retryInBackground() {
+    Timer(const Duration(seconds: 5), () async {
+      if (_isOfflineMode) {
+        if (kDebugMode) {
+          dev.log('CharterDealsProvider: Retrying in background',
+              name: 'deals_provider');
+        }
+        
+        try {
+          // Try to load fresh data without changing UI state
+          final deals = await CharterDealsService.fetchCharterDeals(
+            page: 1,
+            limit: _pageSize,
+          );
+
+          if (deals.isNotEmpty) {
+            // Update data and exit offline mode
+            _deals = deals;
+            _lastSuccessfulLoad = DateTime.now();
+            _isOfflineMode = false;
+            _errorMessage = null;
+            _setState(CharterDealsState.loaded);
+
+            if (kDebugMode) {
+              dev.log('CharterDealsProvider: Background retry successful',
+                  name: 'deals_provider');
+            }
+          }
+        } catch (e) {
+          // Background retry failed, keep showing cached data
+          if (kDebugMode) {
+            dev.log('CharterDealsProvider: Background retry failed: $e',
+                name: 'deals_provider');
+          }
+        }
+      }
+    });
   }
 
   /// Format last load time for display
@@ -286,6 +358,11 @@ class CharterDealsProvider extends ChangeNotifier {
   }) async {
     if (_state == CharterDealsState.loadingMore || !_hasMoreData) return;
 
+    if (kDebugMode) {
+      dev.log('CharterDealsProvider: loadMoreDeals called - current page: $_currentPage',
+          name: 'deals_provider');
+    }
+
     try {
       _setState(CharterDealsState.loadingMore);
 
@@ -302,17 +379,38 @@ class CharterDealsProvider extends ChangeNotifier {
         _deals.addAll(moreDeals);
         _currentPage++;
         _hasMoreData = moreDeals.length >= _pageSize;
+        
+        if (kDebugMode) {
+          dev.log('CharterDealsProvider: Loaded ${moreDeals.length} more deals, total: ${_deals.length}',
+              name: 'deals_provider');
+        }
       } else {
         _hasMoreData = false;
+        if (kDebugMode) {
+          dev.log('CharterDealsProvider: No more deals available, hasMoreData set to false',
+              name: 'deals_provider');
+        }
       }
 
       _setState(CharterDealsState.loaded);
     } on AppException catch (e) {
-      _errorMessage = e.message;
-      _setState(CharterDealsState.error);
+      if (kDebugMode) {
+        dev.log('CharterDealsProvider: AppException in loadMoreDeals: ${e.message}',
+            name: 'deals_provider');
+      }
+      
+      // For pagination, don't show error state - just stop loading more
+      _hasMoreData = false;
+      _setState(CharterDealsState.loaded);
     } catch (e) {
-      _errorMessage = 'An unexpected error occurred';
-      _setState(CharterDealsState.error);
+      if (kDebugMode) {
+        dev.log('CharterDealsProvider: Unexpected error in loadMoreDeals: $e',
+            name: 'deals_provider');
+      }
+      
+      // For pagination, don't show error state - just stop loading more
+      _hasMoreData = false;
+      _setState(CharterDealsState.loaded);
     }
   }
 

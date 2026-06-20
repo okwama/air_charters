@@ -5,7 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 import '../../core/models/auth_model.dart';
-import '../../core/models/user_model.dart';
+import '../../core/logging/app_logger.dart';
 import '../../config/env/app_config.dart';
 
 class SessionManager {
@@ -173,20 +173,8 @@ class SessionManager {
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        if (data['success'] == true) {
-          final user = UserModel.fromJson(data['data']['user']);
-          final newToken = data['data']['accessToken'];
-          final newRefreshToken = data['data']['refreshToken'];
-
-          return AuthModel(
-            user: user,
-            accessToken: newToken,
-            refreshToken: newRefreshToken,
-            tokenType: 'Bearer',
-            expiresIn: 86400,
-            expiresAt: DateTime.now().add(const Duration(hours: 24)),
-          );
-        }
+        // Backend returns camelCase; parse with fromBackendJson
+        return AuthModel.fromBackendJson(data);
       }
       return null;
     } catch (e) {
@@ -195,6 +183,96 @@ class SessionManager {
             name: 'session_manager');
       }
       return null;
+    }
+  }
+
+  // Single-flight refresh: ensures only one refresh runs at a time.
+  Future<AuthModel?>? _ongoingRefresh;
+  /// Optional custom refresh handler for testing.
+  Future<AuthModel?> Function(String refreshToken)? _customRefreshHandler;
+
+  /// Set a custom refresh handler for tests (allows bypassing secure storage).
+  void setRefreshHandlerForTesting(Future<AuthModel?> Function(String) handler) {
+    _customRefreshHandler = handler;
+  }
+
+  /// Refresh the token once and share the same future with concurrent callers.
+  /// Returns the refreshed AuthModel or null if refresh failed.
+  Future<AuthModel?> refreshTokenOnce() async {
+    try {
+      if (_ongoingRefresh != null) {
+        if (kDebugMode) {
+          dev.log('SessionManager: Awaiting ongoing refresh',
+              name: 'session_manager');
+        }
+        return await _ongoingRefresh;
+      }
+
+      // If a custom handler is provided (tests), call it directly
+      String? refreshToken;
+      if (_customRefreshHandler != null) {
+        // Don't require stored auth in test mode
+        refreshToken = 'TEST-OVERRIDE';
+      } else {
+        final current = await getStoredAuthData();
+        if (current == null || current.refreshToken.isEmpty) {
+          if (kDebugMode) {
+            dev.log('SessionManager: No refresh token available',
+                name: 'session_manager');
+          }
+          return null;
+        }
+        refreshToken = current.refreshToken;
+      }
+
+      // Start the single-flight refresh
+      final future = (() async {
+        if (kDebugMode) {
+          dev.log('SessionManager: Performing token refresh',
+              name: 'session_manager');
+        }
+
+        AppLogger().logAuth('Attempting token refresh', data: {'phase': 'start'});
+
+        final refreshed = _customRefreshHandler != null
+            ? await _customRefreshHandler!(refreshToken!)
+            : await _refreshToken(refreshToken!);
+
+        if (refreshed != null) {
+          // Persist refreshed auth
+          await storeAuthData(refreshed);
+          AppLogger().logAuth('Token refresh succeeded', data: {
+            'user': refreshed.user.id,
+            'expiresAt': refreshed.expiresAt.toIso8601String()
+          });
+          if (kDebugMode) {
+            dev.log('SessionManager: Token refresh succeeded',
+                name: 'session_manager');
+          }
+          return refreshed;
+        }
+
+        // Refresh failed - clear stored auth for safety
+        await clearStoredAuthData();
+        AppLogger().logAuth('Token refresh failed', level: LogLevel.warning, data: {});
+        if (kDebugMode) {
+          dev.log('SessionManager: Token refresh failed, cleared stored auth',
+              name: 'session_manager');
+        }
+        return null;
+      })();
+
+      _ongoingRefresh = future;
+      final result = await future;
+      return result;
+    } catch (e) {
+      if (kDebugMode) {
+        dev.log('SessionManager: Error in refreshTokenOnce: $e',
+            name: 'session_manager');
+      }
+      return null;
+    } finally {
+      _ongoingRefresh = null;
     }
   }
 

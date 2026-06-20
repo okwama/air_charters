@@ -5,7 +5,9 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:air_charters/shared/widgets/calendar_selector.dart';
 import 'package:air_charters/core/services/experiences_service.dart';
 import 'package:air_charters/core/network/api_client.dart';
-import 'experience_booking_page.dart';
+import 'package:air_charters/core/models/experience_booking_model.dart';
+import 'package:air_charters/config/theme/app_theme.dart';
+import 'experience_passenger_form.dart';
 
 class TourDetailPage extends StatefulWidget {
   final String imageUrl;
@@ -36,10 +38,10 @@ class TourDetailPage extends StatefulWidget {
 class _TourDetailPageState extends State<TourDetailPage> {
   DateTime? _selectedDate;
   int _passengersCount = 1;
-  bool _showCalendar = false;
 
   // Experience details with all images
   Map<String, dynamic>? _experienceDetails;
+  int? _companyId; // Store companyId from experience details
   List<String> _allImages = [];
   bool _isLoadingDetails = false;
   String? _errorMessage;
@@ -102,9 +104,17 @@ class _TourDetailPageState extends State<TourDetailPage> {
 
       setState(() {
         _experienceDetails = details;
-        // Extract all images from the response
+        // Extract companyId for booking
+        _companyId = details['companyId'] as int?;
+        // Extract all images from the response and sort by sortOrder
         final images = details['images'] as List<dynamic>? ?? [];
-        _allImages = images.map((img) => img['url'] as String).toList();
+        final sortedImages = List<Map<String, dynamic>>.from(images);
+        sortedImages.sort((a, b) {
+          final sortOrderA = a['sortOrder'] as int? ?? 0;
+          final sortOrderB = b['sortOrder'] as int? ?? 0;
+          return sortOrderA.compareTo(sortOrderB);
+        });
+        _allImages = sortedImages.map((img) => img['url'] as String).toList();
         // If no images found, keep the original image
         if (_allImages.isEmpty) {
           _allImages = [widget.imageUrl];
@@ -130,24 +140,24 @@ class _TourDetailPageState extends State<TourDetailPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: AppTheme.backgroundColor,
       body: CustomScrollView(
         slivers: [
           // App Bar (Simple)
           SliverAppBar(
             pinned: true,
-            backgroundColor: Colors.white,
+            backgroundColor: AppTheme.backgroundColor,
             leading: IconButton(
               onPressed: () => Navigator.pop(context),
               icon: Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.9),
+                  color: AppTheme.backgroundColor.withValues(alpha: 0.9),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.arrow_back_ios_rounded,
-                  color: Colors.black,
+                  color: AppTheme.textPrimaryColor,
                   size: 20,
                 ),
               ),
@@ -158,12 +168,12 @@ class _TourDetailPageState extends State<TourDetailPage> {
                 icon: Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.9),
+                    color: AppTheme.backgroundColor.withValues(alpha: 0.9),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: const Icon(
                     Icons.favorite_border_rounded,
-                    color: Colors.black,
+                    color: AppTheme.textPrimaryColor,
                     size: 20,
                   ),
                 ),
@@ -188,7 +198,8 @@ class _TourDetailPageState extends State<TourDetailPage> {
                         padding: const EdgeInsets.symmetric(
                             horizontal: 12, vertical: 6),
                         decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.9),
+                          color:
+                              AppTheme.backgroundColor.withValues(alpha: 0.9),
                           borderRadius: BorderRadius.circular(20),
                         ),
                         child: Row(
@@ -204,7 +215,7 @@ class _TourDetailPageState extends State<TourDetailPage> {
                               widget.rating!,
                               style: GoogleFonts.inter(
                                 fontWeight: FontWeight.w600,
-                                color: Colors.black,
+                                color: AppTheme.textPrimaryColor,
                                 fontSize: 14,
                               ),
                             ),
@@ -230,7 +241,7 @@ class _TourDetailPageState extends State<TourDetailPage> {
                     style: GoogleFonts.inter(
                       fontSize: 28,
                       fontWeight: FontWeight.w700,
-                      color: Colors.black,
+                      color: AppTheme.textPrimaryColor,
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -260,7 +271,7 @@ class _TourDetailPageState extends State<TourDetailPage> {
                     style: GoogleFonts.inter(
                       fontSize: 20,
                       fontWeight: FontWeight.w700,
-                      color: Colors.black,
+                      color: AppTheme.textPrimaryColor,
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -345,7 +356,7 @@ class _TourDetailPageState extends State<TourDetailPage> {
                 style: GoogleFonts.inter(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
-                  color: Colors.black,
+                  color: AppTheme.textPrimaryColor,
                 ),
               ),
             ],
@@ -366,7 +377,7 @@ class _TourDetailPageState extends State<TourDetailPage> {
                 style: GoogleFonts.inter(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
-                  color: Colors.black,
+                  color: AppTheme.textPrimaryColor,
                 ),
               ),
             ],
@@ -387,7 +398,7 @@ class _TourDetailPageState extends State<TourDetailPage> {
                 style: GoogleFonts.inter(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
-                  color: Colors.black,
+                  color: AppTheme.textPrimaryColor,
                 ),
               ),
             ],
@@ -401,7 +412,7 @@ class _TourDetailPageState extends State<TourDetailPage> {
                 style: GoogleFonts.inter(
                   fontSize: 18,
                   fontWeight: FontWeight.w700,
-                  color: Colors.black,
+                  color: AppTheme.textPrimaryColor,
                 ),
               ),
               Text(
@@ -409,7 +420,7 @@ class _TourDetailPageState extends State<TourDetailPage> {
                 style: GoogleFonts.inter(
                   fontSize: 20,
                   fontWeight: FontWeight.w700,
-                  color: Colors.black,
+                  color: AppTheme.textPrimaryColor,
                 ),
               ),
             ],
@@ -423,7 +434,7 @@ class _TourDetailPageState extends State<TourDetailPage> {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppTheme.backgroundColor,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: const Color(0xFFE8E8E8),
@@ -466,7 +477,7 @@ class _TourDetailPageState extends State<TourDetailPage> {
                       style: GoogleFonts.inter(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
-                        color: Colors.black,
+                        color: AppTheme.textPrimaryColor,
                       ),
                     ),
                     const SizedBox(height: 4),
@@ -491,7 +502,7 @@ class _TourDetailPageState extends State<TourDetailPage> {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppTheme.backgroundColor,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: const Color(0xFFE8E8E8),
@@ -511,10 +522,20 @@ class _TourDetailPageState extends State<TourDetailPage> {
           ),
           const SizedBox(height: 16),
           GestureDetector(
-            onTap: () {
-              setState(() {
-                _showCalendar = !_showCalendar;
-              });
+            onTap: () async {
+              final selectedDate = await showCalendarSelector(
+                context: context,
+                initialDate: _selectedDate,
+                firstDate: DateTime.now(),
+                lastDate: DateTime.now().add(const Duration(days: 365)),
+                title: 'Select Date',
+              );
+
+              if (selectedDate != null) {
+                setState(() {
+                  _selectedDate = selectedDate;
+                });
+              }
             },
             child: Container(
               padding: const EdgeInsets.all(16),
@@ -548,28 +569,15 @@ class _TourDetailPageState extends State<TourDetailPage> {
                       ),
                     ),
                   ),
-                  Icon(
-                    _showCalendar
-                        ? Icons.keyboard_arrow_up
-                        : Icons.keyboard_arrow_down,
-                    color: const Color(0xFF666666),
+                  const Icon(
+                    Icons.calendar_today_outlined,
+                    color: Color(0xFF666666),
                     size: 20,
                   ),
                 ],
               ),
             ),
           ),
-          if (_showCalendar) ...[
-            const SizedBox(height: 16),
-            CalendarSelector(
-              onDateSelected: (date) {
-                setState(() {
-                  _selectedDate = date;
-                  _showCalendar = false;
-                });
-              },
-            ),
-          ],
         ],
       ),
     );
@@ -579,7 +587,7 @@ class _TourDetailPageState extends State<TourDetailPage> {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppTheme.backgroundColor,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: const Color(0xFFE8E8E8),
@@ -632,7 +640,7 @@ class _TourDetailPageState extends State<TourDetailPage> {
                     style: GoogleFonts.inter(
                       fontSize: 24,
                       fontWeight: FontWeight.w700,
-                      color: Colors.black,
+                      color: AppTheme.textPrimaryColor,
                     ),
                   ),
                 ),
@@ -673,7 +681,7 @@ class _TourDetailPageState extends State<TourDetailPage> {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppTheme.backgroundColor,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: const Color(0xFFE8E8E8),
@@ -728,7 +736,7 @@ class _TourDetailPageState extends State<TourDetailPage> {
                         style: GoogleFonts.inter(
                           fontSize: 13,
                           fontWeight: FontWeight.w500,
-                          color: Colors.black,
+                          color: AppTheme.textPrimaryColor,
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -774,6 +782,21 @@ class _TourDetailPageState extends State<TourDetailPage> {
   void _navigateToBooking() {
     if (widget.experienceId == null) return;
 
+    // Validate required fields
+    if (_selectedDate == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Please select a date for your experience',
+            style: GoogleFonts.inter(fontSize: 14),
+          ),
+          backgroundColor: Colors.orange,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
     // Extract price from string (remove $ and convert to double)
     final priceString = widget.price.replaceAll(RegExp(r'[^\d.]'), '');
     final price = double.tryParse(priceString) ?? 0.0;
@@ -794,18 +817,27 @@ class _TourDetailPageState extends State<TourDetailPage> {
       durationMinutes = (days * 24 * 60).round();
     }
 
+    // Navigate directly to passenger form with booking details
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => ExperienceBookingPage(
-          experienceId: widget.experienceId!,
-          title: widget.title,
-          location: widget.location,
-          imageUrl: widget.imageUrl,
-          price: price,
-          priceUnit: 'per_person',
-          durationMinutes: durationMinutes,
-          description: widget.description,
+        builder: (context) => ExperiencePassengerForm(
+          booking: ExperienceBookingModel(
+            experienceId: widget.experienceId!,
+            companyId: _companyId, // Pass companyId from experience details
+            experienceTitle: widget.title,
+            location: widget.location,
+            imageUrl: widget.imageUrl,
+            price: price,
+            priceUnit: 'per_person',
+            durationMinutes: durationMinutes,
+            selectedDate: _selectedDate!,
+            selectedTime: '09:00 AM', // Default time - can be enhanced later
+            passengersCount: _passengersCount,
+            passengers: [], // Will be filled in the form
+            status: 'pending',
+            createdAt: DateTime.now(),
+          ),
         ),
       ),
     );
@@ -878,7 +910,7 @@ class _TourDetailPageState extends State<TourDetailPage> {
                 color: Colors.grey.shade200,
                 child: const Center(
                   child: CircularProgressIndicator(
-                    color: Colors.black,
+                    color: AppTheme.textPrimaryColor,
                     strokeWidth: 2,
                   ),
                 ),
@@ -931,7 +963,7 @@ class _TourDetailPageState extends State<TourDetailPage> {
               child: Text(
                 '${_currentImageIndex + 1}/${_allImages.length}',
                 style: GoogleFonts.inter(
-                  color: Colors.white,
+                  color: AppTheme.backgroundColor,
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
                 ),

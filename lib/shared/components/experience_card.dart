@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:air_charters/config/theme/app_theme.dart';
 
 class ExperienceCard extends StatefulWidget {
   final String imageUrl;
@@ -33,12 +34,12 @@ class _ExperienceCardState extends State<ExperienceCard> {
       child: Container(
         margin: const EdgeInsets.symmetric(vertical: 4),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: AppTheme.backgroundColor,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.grey.shade300, width: 1),
+          border: Border.all(color: AppTheme.borderColor, width: 1),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
+              color: AppTheme.textPrimaryColor.withValues(alpha: 0.05),
               blurRadius: 8,
               offset: const Offset(0, 2),
               spreadRadius: 0,
@@ -63,10 +64,10 @@ class _ExperienceCardState extends State<ExperienceCard> {
                       return Container(
                         width: double.infinity,
                         height: 140,
-                        color: Colors.grey.shade200,
+                        color: AppTheme.borderColor,
                         child: Icon(
                           Icons.image_not_supported,
-                          color: Colors.grey.shade400,
+                          color: AppTheme.textSecondaryColor,
                           size: 48,
                         ),
                       );
@@ -82,7 +83,7 @@ class _ExperienceCardState extends State<ExperienceCard> {
                       padding: const EdgeInsets.symmetric(
                           horizontal: 6, vertical: 3),
                       decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.9),
+                        color: AppTheme.backgroundColor.withValues(alpha: 0.9),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Row(
@@ -98,7 +99,7 @@ class _ExperienceCardState extends State<ExperienceCard> {
                             widget.rating!,
                             style: GoogleFonts.inter(
                               fontWeight: FontWeight.w600,
-                              color: Colors.black,
+                              color: AppTheme.textPrimaryColor,
                               fontSize: 10,
                             ),
                           ),
@@ -133,7 +134,7 @@ class _ExperienceCardState extends State<ExperienceCard> {
                           widget.title,
                           style: GoogleFonts.inter(
                             fontWeight: FontWeight.w600,
-                            color: Colors.black,
+                            color: AppTheme.textPrimaryColor,
                             fontSize: 16,
                           ),
                           maxLines: 1,
@@ -144,7 +145,7 @@ class _ExperienceCardState extends State<ExperienceCard> {
                           children: [
                             Icon(
                               Icons.location_on_outlined,
-                              color: Colors.grey.shade600,
+                              color: AppTheme.textSecondaryColor,
                               size: 14,
                             ),
                             const SizedBox(width: 4),
@@ -153,7 +154,7 @@ class _ExperienceCardState extends State<ExperienceCard> {
                                 widget.location,
                                 style: GoogleFonts.inter(
                                   fontWeight: FontWeight.w500,
-                                  color: Colors.grey.shade600,
+                                  color: AppTheme.textSecondaryColor,
                                   fontSize: 14,
                                 ),
                                 maxLines: 1,
@@ -167,7 +168,7 @@ class _ExperienceCardState extends State<ExperienceCard> {
                           children: [
                             Icon(
                               Icons.access_time_outlined,
-                              color: Colors.grey.shade600,
+                              color: AppTheme.textSecondaryColor,
                               size: 14,
                             ),
                             const SizedBox(width: 4),
@@ -175,7 +176,7 @@ class _ExperienceCardState extends State<ExperienceCard> {
                               widget.duration,
                               style: GoogleFonts.inter(
                                 fontWeight: FontWeight.w500,
-                                color: Colors.grey.shade600,
+                                color: AppTheme.textSecondaryColor,
                                 fontSize: 14,
                               ),
                               maxLines: 1,
@@ -192,14 +193,14 @@ class _ExperienceCardState extends State<ExperienceCard> {
                     padding:
                         const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      color: Colors.black,
+                      color: AppTheme.primaryColor,
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: Text(
                       widget.price,
                       style: GoogleFonts.inter(
                         fontWeight: FontWeight.w700,
-                        color: Colors.white,
+                        color: AppTheme.backgroundColor,
                         fontSize: 12,
                       ),
                       maxLines: 1,
@@ -221,7 +222,7 @@ class DashPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = Colors.grey.shade300
+      ..color = AppTheme.primaryColor
       ..strokeWidth = 1;
 
     const dashWidth = 5.0;
@@ -240,61 +241,4 @@ class DashPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(CustomPainter oldDelegate) => false;
-}
-
-// Example usage component
-class ExperienceCardExample extends StatelessWidget {
-  const ExperienceCardExample({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Experience Card Example'),
-      ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          ExperienceCard(
-            imageUrl:
-                'https://images.unsplash.com/photo-1540979388789-6cee28a1cdc9?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80',
-            title: 'Manhattan Helicopter Tour',
-            location: 'New York, USA',
-            duration: '30 minutes',
-            price: '\$299',
-            rating: '4.8',
-            onTap: () {
-              // Handle tap
-            },
-          ),
-          const SizedBox(height: 16),
-          ExperienceCard(
-            imageUrl:
-                'https://images.unsplash.com/photo-1436491865332-7a61a109cc05?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w0NTYyMDF8MHwxfHJhbmRvbXx8fHx8fHx8fDE3NTA1MDU3Nzd8&ixlib=rb-4.1.0&q=80&w=1080',
-            title: 'Grand Canyon Scenic Flight',
-            location: 'Arizona, USA',
-            duration: '45 minutes',
-            price: '\$399',
-            rating: '4.9',
-            onTap: () {
-              // Handle tap
-            },
-          ),
-          const SizedBox(height: 16),
-          ExperienceCard(
-            imageUrl:
-                'https://images.unsplash.com/photo-1556388158-158ea5ccacbd?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w0NTYyMDF8MHwxfHJhbmRvbXx8fHx8fHx8fDE3NTA1MDU3Nzd8&ixlib=rb-4.1.0&q=80&w=1080',
-            title: 'Whistler Heli Skiing',
-            location: 'British Columbia, Canada',
-            duration: '4 hours',
-            price: '\$899',
-            rating: '4.7',
-            onTap: () {
-              // Handle tap
-            },
-          ),
-        ],
-      ),
-    );
-  }
 }

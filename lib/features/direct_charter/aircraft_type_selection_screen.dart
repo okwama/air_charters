@@ -36,7 +36,12 @@ class DashedLinePainter extends CustomPainter {
 }
 
 class AircraftTypeSelectionScreen extends StatefulWidget {
-  const AircraftTypeSelectionScreen({super.key});
+  final bool showBackButton;
+
+  const AircraftTypeSelectionScreen({
+    super.key,
+    this.showBackButton = true,
+  });
 
   @override
   State<AircraftTypeSelectionScreen> createState() =>
@@ -100,10 +105,13 @@ class _AircraftTypeSelectionScreenState
         ),
         backgroundColor: AppTheme.surfaceColor,
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppTheme.textPrimaryColor),
-          onPressed: () => Navigator.pop(context),
-        ),
+        leading: widget.showBackButton
+            ? IconButton(
+                icon: const Icon(Icons.arrow_back,
+                    color: AppTheme.textPrimaryColor),
+                onPressed: () => Navigator.pop(context),
+              )
+            : null,
       ),
       body: _buildBody(),
     );
@@ -187,7 +195,10 @@ class _AircraftTypeSelectionScreenState
                   ),
                   itemCount: 6, // Show 6 skeleton cards
                   itemBuilder: (context, index) {
-                    return const SkeletonCard();
+                    return const SkeletonCard(
+                      height: 200,
+                      borderRadius: 16,
+                    );
                   },
                 );
               },
@@ -321,13 +332,14 @@ class _AircraftTypeSelectionScreenState
                               ),
                             ),
                     ),
-                    
+
                     // Ticket Header Badge
                     Positioned(
                       top: 8,
                       left: 8,
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
                           color: AppTheme.primaryColor,
                           borderRadius: BorderRadius.circular(12),
@@ -342,13 +354,14 @@ class _AircraftTypeSelectionScreenState
                         ),
                       ),
                     ),
-                    
+
                     // Aircraft Type Badge
                     Positioned(
                       top: 8,
                       right: 8,
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
                           color: Colors.white.withOpacity(0.9),
                           borderRadius: BorderRadius.circular(12),
@@ -367,7 +380,7 @@ class _AircraftTypeSelectionScreenState
                 ),
               ),
             ),
-            
+
             // Ticket Perforated Line
             Container(
               height: 1,
@@ -386,7 +399,7 @@ class _AircraftTypeSelectionScreenState
                 painter: DashedLinePainter(),
               ),
             ),
-            
+
             // Ticket Details Section
             Expanded(
               flex: 2,
@@ -414,7 +427,7 @@ class _AircraftTypeSelectionScreenState
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    
+
                     // Description
                     if (aircraftType.description != null)
                       Text(
@@ -426,7 +439,7 @@ class _AircraftTypeSelectionScreenState
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
-                    
+
                     // Select Button
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,

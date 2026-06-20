@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
-import 'package:lucide_icons/lucide_icons.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:provider/provider.dart';
 import '../../core/providers/navigation_provider.dart';
+import '../../config/theme/app_theme.dart';
 
 class BottomNav extends StatelessWidget {
   final List<CharterBottomNavItem>? customItems;
@@ -35,7 +36,7 @@ class BottomNav extends StatelessWidget {
           ),
           child: BottomNavigationBar(
             backgroundColor: Colors.white,
-            selectedItemColor: Colors.black,
+            selectedItemColor: AppTheme.primaryColor,
             unselectedItemColor: Colors.grey.shade500,
             currentIndex: currentIndex,
             onTap: (index) =>

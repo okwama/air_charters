@@ -1,7 +1,6 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../../config/env/app_config.dart';
-import '../../config/env/maps_config.dart';
 import '../../shared/utils/session_manager.dart';
 
 /// Service for interacting with Google Maps APIs through our backend
@@ -10,12 +9,13 @@ class GoogleMapsService {
   factory GoogleMapsService() => _instance;
   GoogleMapsService._internal();
 
-  /// Search for locations using Google Places API
-  Future<List<GoogleLocation>> searchLocations({
+  /// Search for locations using Google Places API with pagination support
+  Future<SearchResult> searchLocations({
     required String query,
     String? type,
     String? location,
     int? radius,
+    String? pageToken,
   }) async {
     try {
       final response = await http.post(
@@ -30,6 +30,7 @@ class GoogleMapsService {
           'type': type,
           'location': location,
           'radius': radius,
+          'pageToken': pageToken,
         }),
       );
 
@@ -37,15 +38,21 @@ class GoogleMapsService {
         final data = jsonDecode(response.body);
         if (data is List) {
           // Direct Google API response (array of locations)
-          return data
-              .map((json) =>
-                  GoogleLocation.fromJson(Map<String, dynamic>.from(json)))
-              .toList();
+          return SearchResult(
+            locations: data
+                .map((json) =>
+                    GoogleLocation.fromJson(Map<String, dynamic>.from(json)))
+                .toList(),
+            nextPageToken: null,
+          );
         } else if (data['success'] == true) {
           // Wrapped response from backend
-          return (data['data'] as List)
-              .map((json) => GoogleLocation.fromJson(json))
-              .toList();
+          return SearchResult(
+            locations: (data['data'] as List)
+                .map((json) => GoogleLocation.fromJson(json))
+                .toList(),
+            nextPageToken: data['nextPageToken'],
+          );
         } else {
           throw Exception(data['message'] ?? 'Failed to search locations');
         }
@@ -245,14 +252,15 @@ class GoogleLocation {
 
   factory GoogleLocation.fromJson(Map<String, dynamic> json) {
     return GoogleLocation(
-      placeId: json['placeId'],
-      name: json['name'],
-      formattedAddress: json['formattedAddress'],
-      latitude: json['location']['lat'],
-      longitude: json['location']['lng'],
+      placeId: json['placeId'] as String,
+      name: json['name'] as String,
+      formattedAddress: json['formattedAddress'] as String,
+      latitude: (json['location']['lat'] as num).toDouble(),
+      longitude: (json['location']['lng'] as num).toDouble(),
       types: json['types'] != null ? List<String>.from(json['types']) : null,
-      rating: json['rating']?.toDouble(),
-      userRatingsTotal: json['userRatingsTotal'],
+      rating:
+          json['rating'] != null ? (json['rating'] as num).toDouble() : null,
+      userRatingsTotal: json['userRatingsTotal'] as int?,
     );
   }
 
@@ -307,4 +315,17 @@ class DistanceResult {
       status: json['status'] ?? '',
     );
   }
+}
+
+/// Search result with pagination support
+class SearchResult {
+  final List<GoogleLocation> locations;
+  final String? nextPageToken;
+
+  SearchResult({
+    required this.locations,
+    this.nextPageToken,
+  });
+
+  bool get hasMore => nextPageToken != null;
 }

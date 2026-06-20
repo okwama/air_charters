@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:air_charters/core/models/experience_booking_model.dart';
+import 'package:air_charters/config/theme/app_theme.dart';
 
 class ExperienceBookingConfirmation extends StatelessWidget {
   final String bookingId;
@@ -16,7 +17,7 @@ class ExperienceBookingConfirmation extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: AppTheme.backgroundColor,
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
@@ -29,13 +30,13 @@ class ExperienceBookingConfirmation extends StatelessWidget {
                 width: 80,
                 height: 80,
                 decoration: BoxDecoration(
-                  color: Colors.green.shade50,
+                  color: AppTheme.successColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(40),
                 ),
                 child: Icon(
                   Icons.check_circle,
                   size: 50,
-                  color: Colors.green.shade600,
+                  color: AppTheme.successColor,
                 ),
               ),
 
@@ -47,7 +48,7 @@ class ExperienceBookingConfirmation extends StatelessWidget {
                 style: GoogleFonts.inter(
                   fontSize: 28,
                   fontWeight: FontWeight.w700,
-                  color: Colors.black,
+                  color: AppTheme.textPrimaryColor,
                 ),
                 textAlign: TextAlign.center,
               ),
@@ -59,7 +60,7 @@ class ExperienceBookingConfirmation extends StatelessWidget {
                 'Your experience booking has been successfully confirmed. You will receive a confirmation email shortly.',
                 style: GoogleFonts.inter(
                   fontSize: 16,
-                  color: Colors.grey.shade600,
+                  color: AppTheme.textSecondaryColor,
                 ),
                 textAlign: TextAlign.center,
               ),
@@ -94,9 +95,9 @@ class ExperienceBookingConfirmation extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.grey.shade50,
+        color: AppTheme.surfaceColor,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(color: AppTheme.borderColor),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -123,9 +124,9 @@ class ExperienceBookingConfirmation extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.grey.shade50,
+        color: AppTheme.surfaceColor,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(color: AppTheme.borderColor),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -150,14 +151,16 @@ class ExperienceBookingConfirmation extends StatelessWidget {
                   placeholder: (context, url) => Container(
                     width: 60,
                     height: 60,
-                    color: Colors.grey.shade300,
-                    child: const Icon(Icons.image, color: Colors.grey),
+                    color: AppTheme.borderColor,
+                    child:
+                        Icon(Icons.image, color: AppTheme.textSecondaryColor),
                   ),
                   errorWidget: (context, url, error) => Container(
                     width: 60,
                     height: 60,
-                    color: Colors.grey.shade300,
-                    child: const Icon(Icons.error, color: Colors.grey),
+                    color: AppTheme.borderColor,
+                    child:
+                        Icon(Icons.error, color: AppTheme.textSecondaryColor),
                   ),
                 ),
               ),
@@ -178,7 +181,7 @@ class ExperienceBookingConfirmation extends StatelessWidget {
                       booking.location,
                       style: GoogleFonts.inter(
                         fontSize: 14,
-                        color: Colors.grey.shade600,
+                        color: AppTheme.textSecondaryColor,
                       ),
                     ),
                     const SizedBox(height: 4),
@@ -186,7 +189,7 @@ class ExperienceBookingConfirmation extends StatelessWidget {
                       booking.formattedDuration,
                       style: GoogleFonts.inter(
                         fontSize: 14,
-                        color: Colors.grey.shade600,
+                        color: AppTheme.textSecondaryColor,
                       ),
                     ),
                   ],
@@ -203,9 +206,9 @@ class ExperienceBookingConfirmation extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.grey.shade50,
+        color: AppTheme.surfaceColor,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(color: AppTheme.borderColor),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -225,9 +228,9 @@ class ExperienceBookingConfirmation extends StatelessWidget {
               margin: const EdgeInsets.only(bottom: 12),
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: AppTheme.backgroundColor,
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.grey.shade200),
+                border: Border.all(color: AppTheme.borderColor),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -248,21 +251,45 @@ class ExperienceBookingConfirmation extends StatelessWidget {
                       fontWeight: FontWeight.w500,
                     ),
                   ),
-                  const SizedBox(height: 2),
-                  Text(
-                    passenger.email,
-                    style: GoogleFonts.inter(
-                      fontSize: 14,
-                      color: Colors.grey.shade600,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    passenger.phone,
-                    style: GoogleFonts.inter(
-                      fontSize: 14,
-                      color: Colors.grey.shade600,
-                    ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      Icon(
+                        passenger.passengerType == PassengerType.adult
+                            ? Icons.person
+                            : Icons.child_care,
+                        size: 14,
+                        color: AppTheme.textSecondaryColor,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        passenger.passengerType == PassengerType.adult
+                            ? 'Adult'
+                            : 'Child',
+                        style: GoogleFonts.inter(
+                          fontSize: 14,
+                          color: AppTheme.textSecondaryColor,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Icon(
+                        passenger.residencyStatus == ResidencyStatus.resident
+                            ? Icons.home
+                            : Icons.flight,
+                        size: 14,
+                        color: AppTheme.textSecondaryColor,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        passenger.residencyStatus == ResidencyStatus.resident
+                            ? 'Resident'
+                            : 'Foreigner',
+                        style: GoogleFonts.inter(
+                          fontSize: 14,
+                          color: AppTheme.textSecondaryColor,
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -309,8 +336,8 @@ class ExperienceBookingConfirmation extends StatelessWidget {
               Navigator.of(context).popUntil((route) => route.isFirst);
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.black,
-              foregroundColor: Colors.white,
+              backgroundColor: AppTheme.textPrimaryColor,
+              foregroundColor: AppTheme.backgroundColor,
               padding: const EdgeInsets.symmetric(vertical: 16),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
@@ -334,8 +361,8 @@ class ExperienceBookingConfirmation extends StatelessWidget {
               _shareBookingDetails(context);
             },
             style: OutlinedButton.styleFrom(
-              foregroundColor: Colors.black,
-              side: const BorderSide(color: Colors.black),
+              foregroundColor: AppTheme.textPrimaryColor,
+              side: BorderSide(color: AppTheme.textPrimaryColor),
               padding: const EdgeInsets.symmetric(vertical: 16),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
@@ -372,7 +399,7 @@ Thank you for choosing our experience!
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('Booking details copied to clipboard'),
-        backgroundColor: Colors.black,
+        backgroundColor: AppTheme.textPrimaryColor,
       ),
     );
   }

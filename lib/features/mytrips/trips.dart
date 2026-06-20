@@ -4,12 +4,14 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import '../booking/payment/in_app_checkout_screen.dart';
 import '../../core/models/user_trip_model.dart';
-import '../../core/models/booking_model.dart';
+import '../../core/models/booking_model.dart' as booking_model;
 import '../../core/providers/trips_provider.dart';
 import '../../core/providers/navigation_provider.dart';
 import '../../shared/widgets/app_spinner.dart';
 import '../../core/providers/auth_provider.dart';
 import 'ticket_page.dart';
+import 'pages/trip_details_page.dart';
+import '../../config/env/app_config.dart';
 
 class TripsPage extends StatefulWidget {
   final int initialTabIndex;
@@ -21,9 +23,9 @@ class TripsPage extends StatefulWidget {
 }
 
 class _TripsPageState extends State<TripsPage>
-with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  final GlobalKey<RefreshIndicatorState> _refreshIndicatorKey = 
+  final GlobalKey<RefreshIndicatorState> _refreshIndicatorKey =
       GlobalKey<RefreshIndicatorState>();
 
   @override
@@ -50,19 +52,86 @@ with SingleTickerProviderStateMixin {
   @override
   void didUpdateWidget(TripsPage oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // Refresh trips when navigating to this page with different initial tab
-    if (oldWidget.initialTabIndex != widget.initialTabIndex) {
-      _refreshTrips();
-    }
+    // Auto-refresh when navigating to trips tab (Uber-style)
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final trips = context.read<TripsProvider>();
+
+      // Only refresh if data is stale (> 30s old)
+      if (trips.isDataStale) {
+        debugPrint('TripsPage: Data stale, auto-refreshing...');
+        trips.fetchUserTrips();
+      } else {
+        debugPrint('TripsPage: Data fresh, using cache');
+      }
+    });
   }
 
   Future<void> _refreshTrips() async {
     print('=== TRIPS PAGE: REFRESHING DATA ===');
-    final auth = context.read<AuthProvider>();
-    final trips = context.read<TripsProvider>();
-    trips.setAuthProvider(auth);
-    await trips.fetchUserTrips();
-    print('=== TRIPS PAGE: REFRESH COMPLETED ===');
+    try {
+      final auth = context.read<AuthProvider>();
+      final trips = context.read<TripsProvider>();
+      trips.setAuthProvider(auth);
+      await trips.fetchUserTrips();
+      print('=== TRIPS PAGE: REFRESH COMPLETED ===');
+
+      // Show success feedback
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.check_circle, color: Colors.white, size: 20),
+                const SizedBox(width: 8),
+                Text(
+                  trips.trips.isEmpty
+                      ? 'No trips found'
+                      : 'Refreshed ${trips.trips.length} trips',
+                  style: const TextStyle(color: Colors.white),
+                ),
+              ],
+            ),
+            backgroundColor: trips.trips.isEmpty ? Colors.orange : Colors.green,
+            duration: const Duration(seconds: 2),
+            behavior: SnackBarBehavior.floating,
+            margin: const EdgeInsets.all(16),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      print('=== TRIPS PAGE: REFRESH FAILED: $e ===');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.error, color: Colors.white, size: 20),
+                const SizedBox(width: 8),
+                const Text(
+                  'Failed to refresh trips',
+                  style: TextStyle(color: Colors.white),
+                ),
+              ],
+            ),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+            behavior: SnackBarBehavior.floating,
+            margin: const EdgeInsets.all(16),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+            action: SnackBarAction(
+              label: 'Retry',
+              textColor: Colors.white,
+              onPressed: _refreshTrips,
+            ),
+          ),
+        );
+      }
+    }
   }
 
   @override
@@ -101,7 +170,7 @@ with SingleTickerProviderStateMixin {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Title Section with Back Button
+                // Title Section with Back Button and Refresh
                 Padding(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
@@ -125,6 +194,22 @@ with SingleTickerProviderStateMixin {
                           fontWeight: FontWeight.w800,
                           color: Colors.black,
                         ),
+                      ),
+                      const Spacer(),
+                      Consumer<TripsProvider>(
+                        builder: (context, tripsProvider, child) {
+                          return IconButton(
+                            onPressed:
+                                tripsProvider.isLoading ? null : _refreshTrips,
+                            icon: Icon(
+                              Icons.refresh_rounded,
+                              color: tripsProvider.isLoading
+                                  ? Colors.grey
+                                  : Colors.black,
+                              size: 24,
+                            ),
+                          );
+                        },
                       ),
                     ],
                   ),
@@ -159,10 +244,24 @@ with SingleTickerProviderStateMixin {
                         child: TabBarView(
                           controller: _tabController,
                           children: [
-                            _buildPendingTrips(tripsProvider.pendingTrips),
-                            _buildUpcomingTrips(tripsProvider.upcomingTrips),
-                            _buildCompletedTrips(tripsProvider.completedTrips),
-                            _buildCancelledTrips(tripsProvider.cancelledTrips),
+                            _buildRefreshableTabContent(
+                              _buildPendingTrips(tripsProvider.pendingTrips),
+                              tripsProvider.pendingTrips.isEmpty,
+                            ),
+                            _buildRefreshableTabContent(
+                              _buildUpcomingTrips(tripsProvider.upcomingTrips),
+                              tripsProvider.upcomingTrips.isEmpty,
+                            ),
+                            _buildRefreshableTabContent(
+                              _buildCompletedTrips(
+                                  tripsProvider.completedTrips),
+                              tripsProvider.completedTrips.isEmpty,
+                            ),
+                            _buildRefreshableTabContent(
+                              _buildCancelledTrips(
+                                  tripsProvider.cancelledTrips),
+                              tripsProvider.cancelledTrips.isEmpty,
+                            ),
                           ],
                         ),
                       );
@@ -214,18 +313,16 @@ with SingleTickerProviderStateMixin {
     );
   }
 
+  Widget _buildRefreshableTabContent(Widget content, bool isEmpty) {
+    return content;
+  }
+
   Widget _buildPendingTrips(List<UserTripModel> pendingTrips) {
     if (pendingTrips.isEmpty) {
-      return SingleChildScrollView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        child: Container(
-          height: MediaQuery.of(context).size.height * 0.6,
-          child: _buildEmptyState(
-            'No pending bookings',
-            'Any pending bookings will appear here',
-            true,
-          ),
-        ),
+      return _buildEmptyState(
+        'No pending bookings',
+        'Any pending bookings will appear here',
+        true,
       );
     }
 
@@ -242,16 +339,10 @@ with SingleTickerProviderStateMixin {
 
   Widget _buildUpcomingTrips(List<UserTripModel> upcomingTrips) {
     if (upcomingTrips.isEmpty) {
-      return SingleChildScrollView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        child: Container(
-          height: MediaQuery.of(context).size.height * 0.6,
-          child: _buildEmptyState(
-            'No upcoming trips',
-            'Any upcoming trips will appear here',
-            true,
-          ),
-        ),
+      return _buildEmptyState(
+        'No upcoming trips',
+        'Any upcoming trips will appear here',
+        true,
       );
     }
 
@@ -267,16 +358,10 @@ with SingleTickerProviderStateMixin {
 
   Widget _buildCompletedTrips(List<UserTripModel> completedTrips) {
     if (completedTrips.isEmpty) {
-      return SingleChildScrollView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        child: Container(
-          height: MediaQuery.of(context).size.height * 0.6,
-          child: _buildEmptyState(
-            'No completed trips',
-            'Your completed trips will appear here',
-            false,
-          ),
-        ),
+      return _buildEmptyState(
+        'No completed trips',
+        'Your completed trips will appear here',
+        false,
       );
     }
 
@@ -292,16 +377,10 @@ with SingleTickerProviderStateMixin {
 
   Widget _buildCancelledTrips(List<UserTripModel> cancelledTrips) {
     if (cancelledTrips.isEmpty) {
-      return SingleChildScrollView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        child: Container(
-          height: MediaQuery.of(context).size.height * 0.6,
-          child: _buildEmptyState(
-            'No cancelled trips',
-            'Your cancelled trips will appear here',
-            false,
-          ),
-        ),
+      return _buildEmptyState(
+        'No cancelled trips',
+        'Your cancelled trips will appear here',
+        false,
       );
     }
 
@@ -377,89 +456,114 @@ with SingleTickerProviderStateMixin {
   }
 
   Widget _buildEmptyState(String title, String subtitle, bool showButton) {
-    return ListView(
-      padding: const EdgeInsets.all(40),
-      children: [
-        SizedBox(
-          height: MediaQuery.of(context).size.height * 0.3,
-        ),
-        // Calendar Icon
-        Container(
-          width: 80,
-          height: 80,
-          decoration: BoxDecoration(
-            color: const Color(0xFFF8F9FA),
-            borderRadius: BorderRadius.circular(40),
-          ),
-          child: const Icon(
-            Icons.calendar_today_rounded,
-            size: 40,
-            color: Color(0xFF666666),
-          ),
-        ),
+    return Center(
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(40),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            // Calendar Icon
+            Container(
+              width: 80,
+              height: 80,
+              decoration: BoxDecoration(
+                color: const Color(0xFFF8F9FA),
+                borderRadius: BorderRadius.circular(40),
+              ),
+              child: const Icon(
+                Icons.calendar_today_rounded,
+                size: 40,
+                color: Color(0xFF666666),
+              ),
+            ),
 
-        const SizedBox(height: 24),
+            const SizedBox(height: 24),
 
-        // No trips text
-        Text(
-          title,
-          style: GoogleFonts.inter(
-            fontSize: 20,
-            fontWeight: FontWeight.w600,
-            color: Colors.black,
-          ),
-          textAlign: TextAlign.center,
-        ),
+            // No trips text
+            Text(
+              title,
+              style: GoogleFonts.inter(
+                fontSize: 20,
+                fontWeight: FontWeight.w600,
+                color: Colors.black,
+              ),
+              textAlign: TextAlign.center,
+            ),
 
-        const SizedBox(height: 8),
+            const SizedBox(height: 8),
 
-        // Hint text
-        Text(
-          subtitle,
-          style: GoogleFonts.inter(
-            fontSize: 14,
-            color: const Color(0xFF666666),
-          ),
-          textAlign: TextAlign.center,
-        ),
+            // Hint text
+            Text(
+              subtitle,
+              style: GoogleFonts.inter(
+                fontSize: 14,
+                color: const Color(0xFF666666),
+              ),
+              textAlign: TextAlign.center,
+            ),
 
-        if (showButton) ...[
-          const SizedBox(height: 32),
+            if (showButton) ...[
+              const SizedBox(height: 32),
 
-          // Book a flight button
-          Center(
-            child: SizedBox(
-              width: 140,
-              height: 40,
-              child: ElevatedButton(
-                onPressed: _navigateToBooking,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.black,
-                  foregroundColor: Colors.white,
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(20),
+              // Book a flight button
+              SizedBox(
+                width: 140,
+                height: 40,
+                child: ElevatedButton(
+                  onPressed: _navigateToBooking,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.black,
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20),
+                    ),
                   ),
-                ),
-                child: Text(
-                  'Book a flight',
-                  style: GoogleFonts.inter(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
+                  child: Text(
+                    'Book a flight',
+                    style: GoogleFonts.inter(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
               ),
-            ),
-          ),
-        ],
-        SizedBox(
-          height: MediaQuery.of(context).size.height * 0.3,
+            ],
+          ],
         ),
-      ],
+      ),
     );
   }
 
+  // Router method: decides which card to render based on booking type
   Widget _buildTripCard(UserTripModel trip,
+      {required bool isUpcoming, bool isPending = false}) {
+    final booking = trip.booking;
+
+    // Route to appropriate card based on booking type
+    if (booking != null) {
+      switch (booking.bookingType) {
+        case booking_model.BookingType.experience:
+          return _buildExperienceCard(trip,
+              isUpcoming: isUpcoming, isPending: isPending);
+        case booking_model.BookingType.yacht:
+          return _buildYachtCard(trip,
+              isUpcoming: isUpcoming, isPending: isPending);
+        case booking_model.BookingType.direct:
+        case booking_model.BookingType.deal:
+          return _buildCharterCard(trip,
+              isUpcoming: isUpcoming, isPending: isPending);
+      }
+    }
+
+    // Fallback for bookings without booking data
+    return _buildCharterCard(trip,
+        isUpcoming: isUpcoming, isPending: isPending);
+  }
+
+  // Charter/Deal booking card
+  Widget _buildCharterCard(UserTripModel trip,
       {required bool isUpcoming, bool isPending = false}) {
     final booking = trip.booking;
 
@@ -662,13 +766,25 @@ with SingleTickerProviderStateMixin {
                   ],
                 ),
                 const Spacer(),
-                // Price
+                // Price (show "Awaiting Quote" for pending inquiries with $0 price)
                 Text(
-                  '\$${booking.totalPrice.toStringAsFixed(2)}',
+                  (booking.bookingStatus ==
+                              booking_model.BookingStatus.pending &&
+                          booking.totalPrice == 0)
+                      ? 'Awaiting Quote'
+                      : '\$${booking.totalPrice.toStringAsFixed(2)}',
                   style: GoogleFonts.inter(
-                    fontSize: 16,
+                    fontSize: (booking.bookingStatus ==
+                                booking_model.BookingStatus.pending &&
+                            booking.totalPrice == 0)
+                        ? 13
+                        : 16,
                     fontWeight: FontWeight.w700,
-                    color: Colors.black,
+                    color: (booking.bookingStatus ==
+                                booking_model.BookingStatus.pending &&
+                            booking.totalPrice == 0)
+                        ? const Color(0xFFFF9800) // Orange for pending
+                        : Colors.black,
                   ),
                 ),
               ],
@@ -684,7 +800,8 @@ with SingleTickerProviderStateMixin {
               // Pending tab: show Proceed to Pay when priced (totalPrice > 0) and payment pending
               if (isPending && booking != null)
                 if (booking.totalPrice > 0 &&
-                    booking.paymentStatus == PaymentStatus.pending)
+                    booking.paymentStatus ==
+                        booking_model.PaymentStatus.pending)
                   Container(
                     margin: const EdgeInsets.only(right: 8),
                     child: ElevatedButton(
@@ -710,7 +827,9 @@ with SingleTickerProviderStateMixin {
                   ),
               if (isUpcoming && booking != null) ...[
                 // Pay Now button for pending payments
-                if (booking.paymentStatus == PaymentStatus.pending)
+                if (trip.status == UserTripStatus.pending &&
+                    booking.paymentStatus ==
+                        booking_model.PaymentStatus.pending)
                   Container(
                     margin: const EdgeInsets.only(right: 8),
                     child: ElevatedButton(
@@ -755,7 +874,7 @@ with SingleTickerProviderStateMixin {
               ],
               // View Ticket button for confirmed + paid bookings (in Upcoming/Completed)
               if (!isPending && booking != null)
-                if (booking.paymentStatus == PaymentStatus.paid)
+                if (booking.paymentStatus == booking_model.PaymentStatus.paid)
                   TextButton(
                     onPressed: () {
                       Navigator.of(context).push(
@@ -781,7 +900,658 @@ with SingleTickerProviderStateMixin {
                   ),
               // View Details button
               TextButton(
-                onPressed: () => _showTripDetails(trip),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => TripDetailsPage(trip: trip),
+                    ),
+                  );
+                },
+                style: TextButton.styleFrom(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  minimumSize: Size.zero,
+                ),
+                child: Text(
+                  'Details',
+                  style: GoogleFonts.inter(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black,
+                    decoration: TextDecoration.underline,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Experience booking card
+  Widget _buildExperienceCard(UserTripModel trip,
+      {required bool isUpcoming, bool isPending = false}) {
+    final booking = trip.booking;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: const Color(0xFFE5E5E5),
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 4,
+            offset: const Offset(0, 1),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header: Experience Title, Reference, and Status Badges
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Title and Reference
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Experience Title
+                    Text(
+                      booking?.experienceTitle ?? 'Experience',
+                      style: GoogleFonts.inter(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.black,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
+                    ),
+                    const SizedBox(height: 4),
+                    // Reference Number
+                    if (booking?.referenceNumber != null)
+                      Text(
+                        'Ref: ${booking!.referenceNumber}',
+                        style: GoogleFonts.inter(
+                          fontSize: 12,
+                          color: const Color(0xFF666666),
+                          fontWeight: FontWeight.w500,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: 1,
+                      ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              // Status Badges
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  _buildStatusChip(trip.status),
+                  if (booking != null) ...[
+                    const SizedBox(height: 4),
+                    _buildPaymentStatusChip(booking),
+                  ],
+                ],
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 12),
+
+          // Experience Details
+          if (booking != null) ...[
+            Row(
+              children: [
+                // Location
+                Expanded(
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.location_on_rounded,
+                        size: 14,
+                        color: Color(0xFF666666),
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          booking.experienceLocation ?? 'N/A',
+                          style: GoogleFonts.inter(
+                            fontSize: 13,
+                            color: const Color(0xFF666666),
+                            fontWeight: FontWeight.w500,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 16),
+                // Date
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.calendar_today_rounded,
+                      size: 14,
+                      color: Color(0xFF666666),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      _formatDate(booking.departureDate ?? DateTime.now()),
+                      style: GoogleFonts.inter(
+                        fontSize: 13,
+                        color: const Color(0xFF666666),
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(width: 16),
+                // Time
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.access_time_rounded,
+                      size: 14,
+                      color: Color(0xFF666666),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      booking.departureTime ?? 'N/A',
+                      style: GoogleFonts.inter(
+                        fontSize: 13,
+                        color: const Color(0xFF666666),
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 8),
+
+            // Passengers and Price Row
+            Row(
+              children: [
+                // Passengers
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.person_rounded,
+                      size: 14,
+                      color: Color(0xFF666666),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      '${booking.passengers.length} passenger${booking.passengers.length > 1 ? 's' : ''}',
+                      style: GoogleFonts.inter(
+                        fontSize: 13,
+                        color: const Color(0xFF666666),
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+                const Spacer(),
+                // Price
+                Text(
+                  '\$${booking.totalPrice.toStringAsFixed(2)}',
+                  style: GoogleFonts.inter(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.black,
+                  ),
+                ),
+              ],
+            ),
+          ],
+
+          const SizedBox(height: 12),
+
+          // Action Buttons (same as charter)
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              if (isPending && booking != null)
+                if (booking.totalPrice > 0 &&
+                    booking.paymentStatus ==
+                        booking_model.PaymentStatus.pending)
+                  Container(
+                    margin: const EdgeInsets.only(right: 8),
+                    child: ElevatedButton(
+                      onPressed: () => _payForBooking(booking),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green,
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 6),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      child: Text(
+                        'Proceed to Pay',
+                        style: GoogleFonts.inter(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+              if (isUpcoming && booking != null) ...[
+                if (trip.status == UserTripStatus.pending &&
+                    booking.paymentStatus ==
+                        booking_model.PaymentStatus.pending)
+                  Container(
+                    margin: const EdgeInsets.only(right: 8),
+                    child: ElevatedButton(
+                      onPressed: () => _payForBooking(booking),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green,
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 6),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      child: Text(
+                        'Pay Now',
+                        style: GoogleFonts.inter(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+                TextButton(
+                  onPressed: () => _cancelTrip(trip),
+                  style: TextButton.styleFrom(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    minimumSize: Size.zero,
+                  ),
+                  child: Text(
+                    'Cancel',
+                    style: GoogleFonts.inter(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.red,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+              ],
+              if (!isPending && booking != null)
+                if (booking.paymentStatus == booking_model.PaymentStatus.paid)
+                  TextButton(
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (context) => TicketPage(booking: booking),
+                        ),
+                      );
+                    },
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
+                      minimumSize: Size.zero,
+                    ),
+                    child: Text(
+                      'View Ticket',
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.black,
+                        decoration: TextDecoration.underline,
+                      ),
+                    ),
+                  ),
+              TextButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => TripDetailsPage(trip: trip),
+                    ),
+                  );
+                },
+                style: TextButton.styleFrom(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  minimumSize: Size.zero,
+                ),
+                child: Text(
+                  'Details',
+                  style: GoogleFonts.inter(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black,
+                    decoration: TextDecoration.underline,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Yacht booking card
+  Widget _buildYachtCard(UserTripModel trip,
+      {required bool isUpcoming, bool isPending = false}) {
+    final booking = trip.booking;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: const Color(0xFFE5E5E5),
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 4,
+            offset: const Offset(0, 1),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header: Yacht Title, Reference, and Status Badges
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Title and Reference
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Yacht Title
+                    Text(
+                      booking?.departure ?? 'Yacht Charter',
+                      style: GoogleFonts.inter(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.black,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
+                    ),
+                    const SizedBox(height: 4),
+                    // Reference Number
+                    if (booking?.referenceNumber != null)
+                      Text(
+                        'Ref: ${booking!.referenceNumber}',
+                        style: GoogleFonts.inter(
+                          fontSize: 12,
+                          color: const Color(0xFF666666),
+                          fontWeight: FontWeight.w500,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: 1,
+                      ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              // Status Badges
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  _buildStatusChip(trip.status),
+                  if (booking != null) ...[
+                    const SizedBox(height: 4),
+                    _buildPaymentStatusChip(booking),
+                  ],
+                ],
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 12),
+
+          // Yacht Details
+          if (booking != null) ...[
+            Row(
+              children: [
+                // Yacht icon
+                Expanded(
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.directions_boat_rounded,
+                        size: 14,
+                        color: Color(0xFF666666),
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          booking.aircraftName ?? 'Yacht',
+                          style: GoogleFonts.inter(
+                            fontSize: 13,
+                            color: const Color(0xFF666666),
+                            fontWeight: FontWeight.w500,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 16),
+                // Date
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.calendar_today_rounded,
+                      size: 14,
+                      color: Color(0xFF666666),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      _formatDate(booking.departureDate ?? DateTime.now()),
+                      style: GoogleFonts.inter(
+                        fontSize: 13,
+                        color: const Color(0xFF666666),
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(width: 16),
+                // Time
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.access_time_rounded,
+                      size: 14,
+                      color: Color(0xFF666666),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      booking.departureTime ?? 'N/A',
+                      style: GoogleFonts.inter(
+                        fontSize: 13,
+                        color: const Color(0xFF666666),
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 8),
+
+            // Passengers and Price Row
+            Row(
+              children: [
+                // Passengers
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.person_rounded,
+                      size: 14,
+                      color: Color(0xFF666666),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      '${booking.passengers.length} passenger${booking.passengers.length > 1 ? 's' : ''}',
+                      style: GoogleFonts.inter(
+                        fontSize: 13,
+                        color: const Color(0xFF666666),
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+                const Spacer(),
+                // Price
+                Text(
+                  '\$${booking.totalPrice.toStringAsFixed(2)}',
+                  style: GoogleFonts.inter(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.black,
+                  ),
+                ),
+              ],
+            ),
+          ],
+
+          const SizedBox(height: 12),
+
+          // Action Buttons (same as others)
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              if (isPending && booking != null)
+                if (booking.totalPrice > 0 &&
+                    booking.paymentStatus ==
+                        booking_model.PaymentStatus.pending)
+                  Container(
+                    margin: const EdgeInsets.only(right: 8),
+                    child: ElevatedButton(
+                      onPressed: () => _payForBooking(booking),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green,
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 6),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      child: Text(
+                        'Proceed to Pay',
+                        style: GoogleFonts.inter(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+              if (isUpcoming && booking != null) ...[
+                if (trip.status == UserTripStatus.pending &&
+                    booking.paymentStatus ==
+                        booking_model.PaymentStatus.pending)
+                  Container(
+                    margin: const EdgeInsets.only(right: 8),
+                    child: ElevatedButton(
+                      onPressed: () => _payForBooking(booking),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green,
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 6),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      child: Text(
+                        'Pay Now',
+                        style: GoogleFonts.inter(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+                TextButton(
+                  onPressed: () => _cancelTrip(trip),
+                  style: TextButton.styleFrom(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    minimumSize: Size.zero,
+                  ),
+                  child: Text(
+                    'Cancel',
+                    style: GoogleFonts.inter(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.red,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+              ],
+              if (!isPending && booking != null)
+                if (booking.paymentStatus == booking_model.PaymentStatus.paid)
+                  TextButton(
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (context) => TicketPage(booking: booking),
+                        ),
+                      );
+                    },
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
+                      minimumSize: Size.zero,
+                    ),
+                    child: Text(
+                      'View Ticket',
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.black,
+                        decoration: TextDecoration.underline,
+                      ),
+                    ),
+                  ),
+              TextButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => TripDetailsPage(trip: trip),
+                    ),
+                  );
+                },
                 style: TextButton.styleFrom(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -872,32 +1642,32 @@ with SingleTickerProviderStateMixin {
     );
   }
 
-  Widget _buildPaymentStatusChip(BookingModel booking) {
+  Widget _buildPaymentStatusChip(booking_model.BookingModel booking) {
     Color backgroundColor;
     Color textColor;
     String text;
     IconData icon;
 
     switch (booking.paymentStatus) {
-      case PaymentStatus.paid:
+      case booking_model.PaymentStatus.paid:
         backgroundColor = const Color(0xFFE8F5E8);
         textColor = const Color(0xFF2E7D32);
         text = 'Paid';
         icon = Icons.check_circle;
         break;
-      case PaymentStatus.pending:
+      case booking_model.PaymentStatus.pending:
         backgroundColor = const Color(0xFFFFF3E0);
         textColor = const Color(0xFFE65100);
         text = 'Pending';
         icon = Icons.schedule;
         break;
-      case PaymentStatus.failed:
+      case booking_model.PaymentStatus.failed:
         backgroundColor = const Color(0xFFFFEBEE);
         textColor = const Color(0xFFD32F2F);
         text = 'Failed';
         icon = Icons.error;
         break;
-      case PaymentStatus.refunded:
+      case booking_model.PaymentStatus.refunded:
         backgroundColor = const Color(0xFFE3F2FD);
         textColor = const Color(0xFF1976D2);
         text = 'Refunded';
@@ -940,7 +1710,7 @@ with SingleTickerProviderStateMixin {
     );
   }
 
-  void _payForBooking(BookingModel booking) {
+  void _payForBooking(booking_model.BookingModel booking) {
     // Get user information for Paystack payment
     final authProvider = context.read<AuthProvider>();
     final user = authProvider.currentUser;
@@ -991,7 +1761,7 @@ with SingleTickerProviderStateMixin {
         builder: (context) => InAppCheckoutScreen(
           bookingId: booking.id ?? '',
           amount: booking.totalPrice,
-          currency: 'USD',
+          currency: AppConfig.paystackCurrency.toUpperCase(),
           email: user.email ?? '',
           companyId:
               finalCompanyId, // Dynamic companyId from booking with fallback
@@ -999,10 +1769,24 @@ with SingleTickerProviderStateMixin {
               'card', // Default to card, can be made configurable
         ),
       ),
-    ).then((result) {
-      // Refresh trips after payment
-      if (result == true) {
-        context.read<TripsProvider>().fetchUserTrips();
+    ).then((result) async {
+      // Handle action results from payment screen
+      if (result is Map && result['action'] == 'view_ticket') {
+        await context.read<TripsProvider>().fetchUserTrips();
+        if (!mounted) return;
+        // Push ticket page (don't replace - allows back navigation)
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => TicketPage(booking: booking),
+          ),
+        );
+      } else if (result is Map && result['action'] == 'done') {
+        await context.read<TripsProvider>().fetchUserTrips();
+        // Payment screen already closed, stay on trips
+      } else if (result == true) {
+        // Fallback for old success=true response
+        await context.read<TripsProvider>().fetchUserTrips();
       }
     });
   }
@@ -1141,8 +1925,7 @@ with SingleTickerProviderStateMixin {
                       'Route',
                       '${booking.departure ?? 'N/A'} → ${booking.destination ?? 'N/A'}'
                     ),
-                    if (_hasStops(booking))
-                      ('Stops', _formatStops(booking)),
+                    if (_hasStops(booking)) ('Stops', _formatStops(booking)),
                     (
                       'Date',
                       _formatDate(booking.departureDate ?? DateTime.now())
@@ -1172,14 +1955,21 @@ with SingleTickerProviderStateMixin {
 
                   // Pricing details
                   _buildDetailSection('Pricing', [
-                    (
-                      'Base Price',
-                      '\$${(booking.basePrice ?? 0).toStringAsFixed(2)}'
-                    ),
-                    (
-                      'Total Price',
-                      '\$${booking.totalPrice.toStringAsFixed(2)}'
-                    ),
+                    if (booking.bookingStatus ==
+                            booking_model.BookingStatus.pending &&
+                        booking.totalPrice == 0) ...[
+                      ('Status', 'Awaiting Quote'),
+                      ('Note', 'The company will send you a quote shortly'),
+                    ] else ...[
+                      (
+                        'Base Price',
+                        '\$${(booking.basePrice ?? 0).toStringAsFixed(2)}'
+                      ),
+                      (
+                        'Total Price',
+                        '\$${booking.totalPrice.toStringAsFixed(2)}'
+                      ),
+                    ],
                   ]),
 
                   // Special requirements
@@ -1372,51 +2162,52 @@ with SingleTickerProviderStateMixin {
   }
 
   /// Check if booking has stops data
-  bool _hasStops(BookingModel booking) {
+  bool _hasStops(booking_model.BookingModel booking) {
     return booking.stops.isNotEmpty;
   }
 
   /// Format stops for display
-  String _formatStops(BookingModel booking) {
+  String _formatStops(booking_model.BookingModel booking) {
     if (booking.stops.isEmpty) {
       return 'No stops';
     }
-    
+
     if (booking.stops.length == 1) {
       return '1 stop: ${booking.stops.first.stopName}';
     }
-    
+
     // For multiple stops, show count and first few names
-    final stopNames = booking.stops.take(2).map((stop) => stop.stopName).join(', ');
+    final stopNames =
+        booking.stops.take(2).map((stop) => stop.stopName).join(', ');
     if (booking.stops.length == 2) {
       return '2 stops: $stopNames';
     }
-    
+
     return '${booking.stops.length} stops: $stopNames...';
   }
 
-  String _getBookingStatusDisplay(BookingStatus status) {
+  String _getBookingStatusDisplay(booking_model.BookingStatus status) {
     switch (status) {
-      case BookingStatus.confirmed:
+      case booking_model.BookingStatus.confirmed:
         return '✅ Confirmed';
-      case BookingStatus.pending:
+      case booking_model.BookingStatus.pending:
         return '⏳ Pending';
-      case BookingStatus.cancelled:
+      case booking_model.BookingStatus.cancelled:
         return '❌ Cancelled';
-      case BookingStatus.completed:
+      case booking_model.BookingStatus.completed:
         return '✅ Completed';
     }
   }
 
-  String _getPaymentStatusDisplay(PaymentStatus status) {
+  String _getPaymentStatusDisplay(booking_model.PaymentStatus status) {
     switch (status) {
-      case PaymentStatus.paid:
+      case booking_model.PaymentStatus.paid:
         return '✅ Paid';
-      case PaymentStatus.pending:
+      case booking_model.PaymentStatus.pending:
         return '⏳ Pending Payment';
-      case PaymentStatus.failed:
+      case booking_model.PaymentStatus.failed:
         return '❌ Payment Failed';
-      case PaymentStatus.refunded:
+      case booking_model.PaymentStatus.refunded:
         return '🔄 Refunded';
     }
   }

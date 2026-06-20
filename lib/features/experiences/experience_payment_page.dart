@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
 import 'package:air_charters/core/models/experience_booking_model.dart';
 import 'package:air_charters/core/services/payment_service.dart';
 import 'package:air_charters/core/network/api_client.dart';
 import 'package:air_charters/core/services/experience_booking_service.dart';
 import 'package:air_charters/features/booking/payment/in_app_checkout_screen.dart';
+import 'package:air_charters/config/env/app_config.dart';
+import 'package:air_charters/core/providers/auth_provider.dart';
 import 'experience_booking_confirmation.dart';
 
 class ExperiencePaymentPage extends StatefulWidget {
@@ -20,7 +23,6 @@ class ExperiencePaymentPage extends StatefulWidget {
 }
 
 class _ExperiencePaymentPageState extends State<ExperiencePaymentPage> {
-  late PaymentService _paymentService;
   late ExperienceBookingService _bookingService;
 
   PaymentMethod _selectedPaymentMethod = PaymentMethod.mpesa;
@@ -33,7 +35,6 @@ class _ExperiencePaymentPageState extends State<ExperiencePaymentPage> {
   @override
   void initState() {
     super.initState();
-    _paymentService = PaymentService(ApiClient());
     _bookingService = ExperienceBookingService(ApiClient());
   }
 
@@ -58,23 +59,46 @@ class _ExperiencePaymentPageState extends State<ExperiencePaymentPage> {
     });
 
     try {
-      String? paymentIntentId;
+      print('🔵 EXPERIENCE PAYMENT: Starting payment process...');
+      print('🔵 Booking Details:');
+      print('   - Experience ID: ${widget.booking.experienceId}');
+      print('   - Company ID: ${widget.booking.companyId}');
+      print('   - Amount: ${widget.booking.totalPrice}');
+      print('   - Passengers: ${widget.booking.passengers.length}');
 
       // Create the booking first
       final bookingResult = await _bookingService.createBooking(widget.booking);
+      print('🔵 Booking created successfully!');
 
-      if (bookingResult['bookingId'] != null) {
+      // Backend returns 'id', not 'bookingId'
+      final bookingId = bookingResult['id'] ?? bookingResult['bookingId'];
+      print('   - Booking ID: $bookingId');
+      print('   - Response: $bookingResult');
+
+      if (bookingId != null) {
+        // Get user email from AuthProvider
+        final authProvider = context.read<AuthProvider>();
+        final user = authProvider.currentUser;
+        final userEmail = user?.email ?? 'customer@example.com';
+
+        print('🔵 User details:');
+        print('   - Email: $userEmail');
+        print('   - User ID: ${user?.id}');
+
+        print('🔵 Navigating to InAppCheckoutScreen...');
+
         // Navigate to Paystack payment screen
         if (mounted) {
           final result = await Navigator.push(
             context,
             MaterialPageRoute(
               builder: (context) => InAppCheckoutScreen(
-                bookingId: bookingResult['bookingId'].toString(),
+                bookingId: bookingId.toString(),
                 amount: widget.booking.totalPrice,
-                currency: 'USD',
-                email: 'customer@example.com', // Default email for experiences
-                companyId: 1, // Default company ID for experiences
+                currency: AppConfig.paystackCurrency.toUpperCase(), // Use KES
+                email: userEmail, // Use real user email
+                companyId:
+                    widget.booking.companyId ?? 1, // Use actual company ID
                 preferredPaymentMethod:
                     _selectedPaymentMethod == PaymentMethod.mpesa
                         ? 'mpesa'
@@ -83,175 +107,84 @@ class _ExperiencePaymentPageState extends State<ExperiencePaymentPage> {
             ),
           );
 
+          print('🔵 Payment screen returned with result: $result');
+          print('   - Result type: ${result.runtimeType}');
+
           // Handle payment result
-          if (result == true) {
+          // InAppCheckoutScreen returns a Map like {'action': 'done'} or {'action': 'view_ticket'}
+          // or false if payment failed
+          final bool paymentSuccessful = result != null &&
+              result != false &&
+              (result is Map &&
+                  (result['action'] == 'done' ||
+                      result['action'] == 'view_ticket'));
+
+          if (paymentSuccessful) {
+            print('✅ Payment successful! Navigating to confirmation...');
             // Payment successful, navigate to confirmation
             if (mounted) {
               Navigator.pushReplacement(
                 context,
                 MaterialPageRoute(
                   builder: (context) => ExperienceBookingConfirmation(
-                    bookingId: bookingResult['bookingId'],
+                    bookingId: bookingId,
                     booking: widget.booking,
                   ),
                 ),
               );
             }
+          } else {
+            print('⚠️ Payment not completed. Result: $result');
+            setState(() {
+              _isProcessing = false;
+              _errorMessage = result == false
+                  ? 'Payment was cancelled or failed. Please try again.'
+                  : 'Payment was not completed. Please try again.';
+            });
           }
         }
       } else {
         throw Exception('Failed to create booking');
       }
     } catch (e) {
-      setState(() {
-        _errorMessage = e.toString();
-        _isProcessing = false;
-      });
-    }
-  }
+      print('❌ EXPERIENCE PAYMENT ERROR: $e');
 
-  void _showMpesaInstructions(Map<String, dynamic> mpesaResult) {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
-        title: Column(
-          children: [
-            Icon(
-              Icons.phone_android,
-              size: 48,
-              color: Colors.green.shade600,
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'M-Pesa Payment',
-              style: GoogleFonts.inter(
-                fontSize: 20,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              'Please check your phone and follow these steps:',
-              style: GoogleFonts.inter(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(height: 16),
-            _buildInstructionStep(1, 'Open M-Pesa app'),
-            _buildInstructionStep(2, 'Enter your M-Pesa PIN'),
-            _buildInstructionStep(3, 'Confirm the payment'),
-            const SizedBox(height: 16),
-            Text(
-              'Amount: \$${widget.booking.totalPrice.toStringAsFixed(2)}',
-              style: GoogleFonts.inter(
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
-                color: Colors.green.shade600,
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              _checkPaymentStatus(mpesaResult['paymentIntentId']);
-            },
-            child: Text(
-              'I\'ve Completed Payment',
-              style: GoogleFonts.inter(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: Colors.green.shade600,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildInstructionStep(int step, String instruction) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        children: [
-          Container(
-            width: 24,
-            height: 24,
-            decoration: BoxDecoration(
-              color: Colors.green.shade600,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Center(
-              child: Text(
-                '$step',
-                style: GoogleFonts.inter(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.white,
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              instruction,
-              style: GoogleFonts.inter(
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _checkPaymentStatus(String paymentIntentId) async {
-    try {
-      final status = await _paymentService.checkPaymentStatus(paymentIntentId);
-
-      if (status['status'] == 'completed') {
-        // Payment successful, create booking
-        final bookingResult =
-            await _bookingService.createBooking(widget.booking);
-
-        if (mounted) {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(
-              builder: (context) => ExperienceBookingConfirmation(
-                bookingId: bookingResult['bookingId'],
-                booking: widget.booking,
-              ),
-            ),
-          );
-        }
-      } else {
-        // Payment failed or pending
-        setState(() {
-          _errorMessage = 'Payment ${status['status']}. Please try again.';
-          _isProcessing = false;
-        });
+      // Check if it's an authentication error
+      String errorMessage = e.toString();
+      if (errorMessage.contains('401') ||
+          errorMessage.contains('Authentication') ||
+          errorMessage.contains('Unauthorized')) {
+        errorMessage = 'Your session has expired. Please log in again.';
+        // Optionally: Navigate to login screen
+        // Navigator.pushReplacementNamed(context, '/login');
+      } else if (errorMessage.contains('Network error')) {
+        errorMessage =
+            'Network error. Please check your connection and try again.';
       }
-    } catch (e) {
+
       setState(() {
-        _errorMessage = 'Failed to verify payment: $e';
+        _errorMessage = errorMessage;
         _isProcessing = false;
       });
     }
   }
+
+  // These methods are kept for potential future M-Pesa direct integration
+  // Currently using Paystack WebView flow which handles M-Pesa internally
+
+  // void _showMpesaInstructions(Map<String, dynamic> mpesaResult) {
+  //   showDialog(
+  //     context: context,
+  //     barrierDismissible: false,
+  //     builder: (context) => AlertDialog(
+  //       // ... M-Pesa instructions dialog
+  //     ),
+  //   );
+  // }
+
+  // Future<void> _checkPaymentStatus(String paymentIntentId) async {
+  //   // ... Payment status checking logic
+  // }
 
   @override
   Widget build(BuildContext context) {

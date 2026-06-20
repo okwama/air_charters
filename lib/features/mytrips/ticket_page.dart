@@ -123,7 +123,7 @@ class _TicketPageState extends State<TicketPage> with TickerProviderStateMixin {
   }
 
   Widget _simpleDashedDivider() {
-    return Container(
+    return SizedBox(
       height: 20,
       child: Row(
         children: [

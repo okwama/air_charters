@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:lucide_icons/lucide_icons.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../config/theme/app_theme.dart';
 
 class TripTypeSelector extends StatelessWidget {
@@ -15,7 +15,7 @@ class TripTypeSelector extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: AppTheme.surfaceColor,
         borderRadius: BorderRadius.circular(12),
@@ -31,7 +31,7 @@ class TripTypeSelector extends StatelessWidget {
               color: AppTheme.textPrimaryColor,
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
           Row(
             children: [
               Expanded(
@@ -42,7 +42,7 @@ class TripTypeSelector extends StatelessWidget {
                   LucideIcons.arrowRight,
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 8),
               Expanded(
                 child: _buildTripTypeOption(
                   'Round Trip',
@@ -64,7 +64,7 @@ class TripTypeSelector extends StatelessWidget {
     return GestureDetector(
       onTap: () => onChanged(value),
       child: Container(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
         decoration: BoxDecoration(
           color: isSelected
               ? AppTheme.primaryColor.withValues(alpha: 0.1)
@@ -78,29 +78,31 @@ class TripTypeSelector extends StatelessWidget {
           ),
         ),
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
             Icon(
               icon,
               color: isSelected
                   ? AppTheme.primaryColor
                   : AppTheme.textSecondaryColor,
-              size: 24,
+              size: 20,
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 6),
             Text(
               title,
-              style: AppTheme.bodyMedium.copyWith(
+              style: AppTheme.bodySmall.copyWith(
                 fontWeight: FontWeight.w600,
                 color: isSelected
                     ? AppTheme.primaryColor
                     : AppTheme.textPrimaryColor,
               ),
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: 2),
             Text(
               subtitle,
               style: AppTheme.caption.copyWith(
                 color: AppTheme.textSecondaryColor,
+                fontSize: 10,
               ),
             ),
           ],

@@ -31,7 +31,9 @@ class SavedCardModel {
       cardholderName: json['cardholderName']?.toString() ?? '',
       billingZip: json['billingZip']?.toString(),
       cardType: json['cardType']?.toString() ?? 'unknown',
-      isDefault: json['isDefault'] as bool? ?? false,
+      isDefault: json['isDefault'] is bool
+          ? json['isDefault'] as bool
+          : (json['isDefault'] == 1 || json['isDefault'] == true),
     );
   }
 

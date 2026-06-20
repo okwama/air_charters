@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import '../../config/theme/app_theme.dart';
 import '../../core/providers/settings_provider.dart';
-import '../../core/providers/theme_provider.dart';
 import '../../core/providers/auth_provider.dart';
 
 // Import modular widgets
@@ -15,21 +15,20 @@ import 'widgets/legal_section.dart';
 
 // Import enhanced dialogs
 import '../../shared/widgets/biometric_dialog.dart';
-import '../../debug/biometric_diagnostic.dart';
 
 // Import pages
+import 'pages/enable_biometric_page.dart';
 import 'pages/app_version_page.dart';
 import 'pages/faq_page.dart';
 import 'pages/contact_support_page.dart';
-import 'pages/theme_page.dart';
 import 'pages/language_page.dart';
 import 'pages/currency_page.dart';
 import 'pages/notification_settings_page.dart';
 import 'pages/terms_of_service_page.dart';
 import 'pages/privacy_policy_page.dart';
 import 'pages/cookie_policy_page.dart';
+import 'pages/delete_account_page.dart';
 import 'pages/data_processing_page.dart';
-import 'pages/open_source_licenses_page.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -87,12 +86,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
                           // App Preferences Section
                           AppPreferencesSection(
-                            onThemeTap: _showThemeDialog,
                             onLanguageTap: _showLanguageDialog,
                             onCurrencyTap: _showCurrencyDialog,
                             onNotificationsTap: _showNotificationsDialog,
                             onPrivacyTap: _showPrivacyDialog,
-                            currentTheme: settingsProvider.currentTheme,
                             currentLanguage: settingsProvider.currentLanguage,
                             currentCurrency: settingsProvider.currentCurrency,
                           ),
@@ -105,7 +102,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             onBiometricTap: _showBiometricDialog,
                             onExportDataTap: _exportUserData,
                             onDeleteAccountTap: _showDeleteAccountDialog,
-                            onBiometricDiagnosticTap: _showBiometricDiagnostic,
+                            onLogoutAllDevicesTap: _logoutAllDevices,
                           ),
 
                           const SizedBox(height: 24),
@@ -116,7 +113,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             onPrivacyPolicyTap: _showPrivacyPolicy,
                             onCookiePolicyTap: _showCookiePolicy,
                             onDataProcessingTap: _showDataProcessing,
-                            onLicensesTap: _showOpenSourceLicenses,
                           ),
 
                           const SizedBox(height: 24),
@@ -146,36 +142,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   // Dialog methods (now using provider)
-  void _showThemeDialog(BuildContext context) {
-    final settingsProvider =
-        Provider.of<SettingsProvider>(context, listen: false);
-    final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
-
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => ThemePage(
-          currentTheme: settingsProvider.currentTheme,
-          onThemeSelected: (theme) async {
-            await settingsProvider.updateTheme(theme);
-            await themeProvider.setThemeMode(theme);
-            if (context.mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(
-                    'Theme changed to ${theme == 'auto' ? 'Auto (System)' : theme == 'light' ? 'Light Mode' : 'Dark Mode'}',
-                    style: AppTheme.bodyMedium.copyWith(color: Colors.white),
-                  ),
-                  backgroundColor: AppTheme.successColor,
-                ),
-              );
-            }
-          },
-        ),
-      ),
-    );
-  }
-
   void _showLanguageDialog(BuildContext context) {
     final settingsProvider =
         Provider.of<SettingsProvider>(context, listen: false);
@@ -191,7 +157,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 SnackBar(
                   content: Text(
                     'Language changed to ${_getLanguageName(language)}',
-                    style: AppTheme.bodyMedium.copyWith(color: Colors.white),
+                    style: AppTheme.bodyMedium
+                        .copyWith(color: AppTheme.backgroundColor),
                   ),
                   backgroundColor: AppTheme.successColor,
                 ),
@@ -218,7 +185,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 SnackBar(
                   content: Text(
                     'Currency changed to ${_getCurrencyName(currency)}',
-                    style: AppTheme.bodyMedium.copyWith(color: Colors.white),
+                    style: AppTheme.bodyMedium
+                        .copyWith(color: AppTheme.backgroundColor),
                   ),
                   backgroundColor: AppTheme.successColor,
                 ),
@@ -307,7 +275,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   SnackBar(
                     content: Text(
                       'Profile visibility ${value ? 'enabled' : 'disabled'}',
-                      style: AppTheme.bodyMedium.copyWith(color: Colors.white),
+                      style: AppTheme.bodyMedium
+                          .copyWith(color: AppTheme.backgroundColor),
                     ),
                     backgroundColor: AppTheme.primaryColor,
                   ),
@@ -325,7 +294,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   SnackBar(
                     content: Text(
                       'Analytics ${value ? 'enabled' : 'disabled'}',
-                      style: AppTheme.bodyMedium.copyWith(color: Colors.white),
+                      style: AppTheme.bodyMedium
+                          .copyWith(color: AppTheme.backgroundColor),
                     ),
                     backgroundColor: AppTheme.primaryColor,
                   ),
@@ -414,7 +384,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 SnackBar(
                   content: Text(
                     'Password changed successfully',
-                    style: AppTheme.bodyMedium.copyWith(color: Colors.white),
+                    style: AppTheme.bodyMedium
+                        .copyWith(color: AppTheme.backgroundColor),
                   ),
                   backgroundColor: AppTheme.successColor,
                 ),
@@ -434,7 +405,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   void _showBiometricDialog(BuildContext context) async {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    
+
     // Check if biometric is available
     final bool isAvailable = await authProvider.isBiometricAvailable();
     if (!isAvailable) {
@@ -444,79 +415,138 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
     // Check if biometric is already enabled
     final bool isEnabled = await authProvider.isBiometricEnabled();
-    final List<dynamic> availableTypes = await authProvider.getAvailableBiometrics();
-    final String biometricName = authProvider.getBiometricTypeName(availableTypes);
+    final List<dynamic> availableTypes =
+        await authProvider.getAvailableBiometrics();
+    final String biometricName =
+        authProvider.getBiometricTypeName(availableTypes);
     final String biometricIcon = authProvider.getBiometricIcon(availableTypes);
 
-    showBiometricDialog(
-      context: context,
-      isEnabled: isEnabled,
-      biometricName: biometricName,
-      biometricIcon: biometricIcon,
-      onEnable: () async {
-        try {
-          await authProvider.enableBiometric();
-          if (context.mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(
-                  '$biometricName authentication enabled successfully!',
-                  style: AppTheme.bodyMedium.copyWith(color: Colors.white),
-                ),
-                backgroundColor: AppTheme.successColor,
-              ),
-            );
-          }
-        } catch (e) {
-          if (context.mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(
-                  e.toString(),
-                  style: AppTheme.bodyMedium.copyWith(color: Colors.white),
-                ),
-                backgroundColor: AppTheme.errorColor,
-              ),
-            );
-          }
-        }
-      },
-      onDisable: () async {
-        try {
-          await authProvider.disableBiometric();
-          if (context.mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(
-                  '$biometricName authentication disabled',
-                  style: AppTheme.bodyMedium.copyWith(color: Colors.white),
-                ),
-                backgroundColor: AppTheme.successColor,
-              ),
-            );
-          }
-        } catch (e) {
-          if (context.mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(
-                  e.toString(),
-                  style: AppTheme.bodyMedium.copyWith(color: Colors.white),
-                ),
-                backgroundColor: AppTheme.errorColor,
-              ),
-            );
-          }
-        }
-      },
-      onCancel: () {
-        Navigator.pop(context);
-      },
+    // ✅ Navigate to modal page (Uber/Airbnb style)
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => EnableBiometricPage(
+          biometricName: biometricName,
+          biometricIcon: biometricIcon,
+          isCurrentlyEnabled: isEnabled,
+        ),
+      ),
     );
   }
 
-  void _showBiometricDiagnostic(BuildContext context) {
-    BiometricDiagnostic.showDiagnosticDialog(context);
+  // ✅ INDUSTRY STANDARD: Verify identity before enabling biometric (like Uber/Airbnb)
+  Future<void> _enableBiometricWithVerification(
+      BuildContext context, String biometricName) async {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+
+    // Step 1: Show password confirmation dialog
+    final password = await showDialog<String>(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        final passwordController = TextEditingController();
+        return AlertDialog(
+          backgroundColor: AppTheme.backgroundColor,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Text('Confirm Your Identity'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'For security, please enter your password to enable $biometricName',
+                style: AppTheme.bodySmall
+                    .copyWith(color: AppTheme.textSecondaryColor),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: passwordController,
+                obscureText: true,
+                decoration: InputDecoration(
+                  labelText: 'Password',
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8)),
+                  prefixIcon: const Icon(Icons.lock_outline),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: Text('Cancel',
+                  style: AppTheme.bodyMedium
+                      .copyWith(color: AppTheme.textSecondaryColor)),
+            ),
+            ElevatedButton(
+              onPressed: () =>
+                  Navigator.of(dialogContext).pop(passwordController.text),
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.primaryColor),
+              child:
+                  const Text('Verify', style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (password == null || password.isEmpty || !context.mounted) return;
+
+    // Step 2: Show loading
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => Center(
+        child: Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: AppTheme.backgroundColor,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const CircularProgressIndicator(),
+              const SizedBox(height: 16),
+              Text('Setting up $biometricName...', style: AppTheme.bodyMedium),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    try {
+      // Step 3: Validate password with backend (security check)
+      // For now, just enable biometric - add backend password validation later
+      await authProvider.enableBiometric();
+
+      if (context.mounted) {
+        Navigator.of(context).pop(); // Close loading
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              '$biometricName enabled! You can now login with $biometricName',
+              style: const TextStyle(color: Colors.white),
+            ),
+            backgroundColor: AppTheme.successColor,
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        Navigator.of(context).pop(); // Close loading
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to enable biometric: $e',
+                style: const TextStyle(color: Colors.white)),
+            backgroundColor: AppTheme.errorColor,
+          ),
+        );
+      }
+    }
   }
 
   void _showBiometricNotAvailableDialog(BuildContext context) {
@@ -537,7 +567,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           children: [
             Text(
               'Biometric authentication is not available on this device.',
-          style: AppTheme.bodyMedium,
+              style: AppTheme.bodyMedium,
             ),
             const SizedBox(height: 16),
             Container(
@@ -549,12 +579,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
               child: Row(
                 children: [
-                  Icon(Icons.warning_outlined, color: Colors.orange.shade600, size: 20),
+                  Icon(Icons.warning_outlined,
+                      color: Colors.orange.shade600, size: 20),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
                       'Make sure your device supports fingerprint or face recognition',
-                      style: AppTheme.bodySmall.copyWith(color: Colors.orange.shade700),
+                      style: AppTheme.bodySmall
+                          .copyWith(color: Colors.orange.shade700),
                     ),
                   ),
                 ],
@@ -569,7 +601,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
               foregroundColor: AppTheme.primaryColor,
             ),
             child: Text('OK',
-                style: AppTheme.bodyMedium.copyWith(fontWeight: FontWeight.w600)),
+                style:
+                    AppTheme.bodyMedium.copyWith(fontWeight: FontWeight.w600)),
           ),
         ],
       ),
@@ -582,7 +615,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       SnackBar(
         content: Text(
           'Data export feature coming soon',
-          style: AppTheme.bodyMedium.copyWith(color: Colors.white),
+          style: AppTheme.bodyMedium.copyWith(color: AppTheme.backgroundColor),
         ),
         backgroundColor: AppTheme.primaryColor,
       ),
@@ -590,75 +623,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   void _showDeleteAccountDialog(BuildContext context) {
-    final passwordController = TextEditingController();
-    final confirmationController = TextEditingController();
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: AppTheme.backgroundColor,
-        title: Text('Delete Account', style: AppTheme.heading3),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              'This action cannot be undone. All your data will be permanently deleted.',
-              style: AppTheme.bodyMedium.copyWith(color: AppTheme.errorColor),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: passwordController,
-              obscureText: true,
-              style: AppTheme.bodyMedium,
-              decoration: AppTheme.inputDecoration.copyWith(
-                labelText: 'Enter your password',
-                labelStyle: AppTheme.bodyMedium
-                    .copyWith(color: AppTheme.textSecondaryColor),
-              ),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: confirmationController,
-              style: AppTheme.bodyMedium,
-              decoration: AppTheme.inputDecoration.copyWith(
-                labelText: 'Type "DELETE" to confirm',
-                labelStyle: AppTheme.bodyMedium
-                    .copyWith(color: AppTheme.textSecondaryColor),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            style: TextButton.styleFrom(
-              foregroundColor: AppTheme.textSecondaryColor,
-            ),
-            child: Text('Cancel',
-                style:
-                    AppTheme.bodyMedium.copyWith(fontWeight: FontWeight.w600)),
-          ),
-          TextButton(
-            onPressed: () async {
-              // TODO: Implement account deletion
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(
-                    'Account deletion feature coming soon',
-                    style: AppTheme.bodyMedium.copyWith(color: Colors.white),
-                  ),
-                  backgroundColor: AppTheme.primaryColor,
-                ),
-              );
-            },
-            style: TextButton.styleFrom(foregroundColor: AppTheme.errorColor),
-            child: Text('Delete Account',
-                style:
-                    AppTheme.bodyMedium.copyWith(fontWeight: FontWeight.w600)),
-          ),
-        ],
-      ),
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const DeleteAccountPage()),
     );
   }
 
@@ -674,6 +641,123 @@ class _SettingsScreenState extends State<SettingsScreen> {
       context,
       MaterialPageRoute(builder: (context) => const ContactSupportPage()),
     );
+  }
+
+  void _logoutAllDevices(BuildContext context) async {
+    // Show confirmation dialog
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          backgroundColor: AppTheme.backgroundColor,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: Row(
+            children: [
+              Icon(
+                LucideIcons.alertTriangle,
+                color: Colors.orange.shade600,
+                size: 24,
+              ),
+              const SizedBox(width: 8),
+              const Expanded(
+                child: Text(
+                  'Logout from All Devices?',
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+          content: const Text(
+            'This will sign you out from all devices where you\'re currently logged in. You\'ll need to log in again on those devices.\n\nYou will remain logged in on this device unless you also choose to logout.',
+            style: TextStyle(fontSize: 14),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: Text(
+                'Cancel',
+                style: AppTheme.bodyMedium.copyWith(
+                  color: AppTheme.textSecondaryColor,
+                ),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.orange.shade600,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              child: const Text(
+                'Logout All',
+                style: TextStyle(color: Colors.white),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed != true || !context.mounted) return;
+
+    // Show loading indicator
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext dialogContext) {
+        return const Center(
+          child: CircularProgressIndicator(),
+        );
+      },
+    );
+
+    try {
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+
+      // Call logout all devices from AuthRepository
+      await authProvider.logoutAllDevices();
+
+      if (context.mounted) {
+        Navigator.of(context).pop(); // Close loading dialog
+
+        // Show success message
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text(
+              'Successfully logged out from all other devices',
+              style: TextStyle(color: Colors.white),
+            ),
+            backgroundColor: AppTheme.successColor,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        Navigator.of(context).pop(); // Close loading dialog
+
+        // Show error message
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Failed to logout from all devices: ${e.toString()}',
+              style: const TextStyle(color: Colors.white),
+            ),
+            backgroundColor: AppTheme.errorColor,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+        );
+      }
+    }
   }
 
   void _showAppTutorial(BuildContext context) {
@@ -759,13 +843,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     Navigator.push(
       context,
       MaterialPageRoute(builder: (context) => const DataProcessingPage()),
-    );
-  }
-
-  void _showOpenSourceLicenses(BuildContext context) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => const OpenSourceLicensesPage()),
     );
   }
 }

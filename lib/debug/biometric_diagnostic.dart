@@ -4,7 +4,6 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:provider/provider.dart';
 import '../core/providers/auth_provider.dart';
 import '../config/env/app_config.dart';
-import 'dart:developer' as dev;
 
 /// Biometric Diagnostic Tool
 /// Helps diagnose why biometric authentication cannot be enabled

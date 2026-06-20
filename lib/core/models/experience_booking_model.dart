@@ -1,5 +1,6 @@
 class ExperienceBookingModel {
   final int experienceId;
+  final int? companyId;
   final String experienceTitle;
   final String location;
   final String imageUrl;
@@ -16,6 +17,7 @@ class ExperienceBookingModel {
 
   ExperienceBookingModel({
     required this.experienceId,
+    this.companyId,
     required this.experienceTitle,
     required this.location,
     required this.imageUrl,
@@ -81,6 +83,7 @@ class ExperienceBookingModel {
 
   ExperienceBookingModel copyWith({
     int? experienceId,
+    int? companyId,
     String? experienceTitle,
     String? location,
     String? imageUrl,
@@ -97,6 +100,7 @@ class ExperienceBookingModel {
   }) {
     return ExperienceBookingModel(
       experienceId: experienceId ?? this.experienceId,
+      companyId: companyId ?? this.companyId,
       experienceTitle: experienceTitle ?? this.experienceTitle,
       location: location ?? this.location,
       imageUrl: imageUrl ?? this.imageUrl,
@@ -114,70 +118,90 @@ class ExperienceBookingModel {
   }
 }
 
+enum PassengerType { adult, child }
+
+enum ResidencyStatus { resident, foreigner }
+
+// Matches charter_passengers table structure
 class ExperiencePassenger {
   final String firstName;
   final String lastName;
-  final String email;
-  final String phone;
-  final String? passportNumber;
-  final DateTime? dateOfBirth;
-  final String? specialRequirements;
+  final PassengerType passengerType;
+  final ResidencyStatus residencyStatus;
+  final String? phoneNumber; // Optional contact number (not in DB table)
+  final String? idPassportNumber; // Matches id_passport_number field
 
   ExperiencePassenger({
     required this.firstName,
     required this.lastName,
-    required this.email,
-    required this.phone,
-    this.passportNumber,
-    this.dateOfBirth,
-    this.specialRequirements,
+    this.passengerType = PassengerType.adult,
+    this.residencyStatus = ResidencyStatus.resident,
+    this.phoneNumber,
+    this.idPassportNumber,
   });
 
   String get fullName => '$firstName $lastName';
+  bool get isAdult => passengerType == PassengerType.adult;
+  bool get isChild => passengerType == PassengerType.child;
+  bool get isResident => residencyStatus == ResidencyStatus.resident;
+  bool get isForeigner => residencyStatus == ResidencyStatus.foreigner;
+
+  // Derived fields for charter_passengers table
+  int get age => passengerType == PassengerType.adult ? 30 : 10; // Default ages
+  String get nationality =>
+      residencyStatus == ResidencyStatus.resident ? 'Kenyan' : 'Foreign';
 
   Map<String, dynamic> toJson() {
     return {
       'firstName': firstName,
       'lastName': lastName,
-      'email': email,
-      'phone': phone,
-      'passportNumber': passportNumber,
-      'dateOfBirth': dateOfBirth?.toIso8601String(),
-      'specialRequirements': specialRequirements,
+      'age': age,
+      'nationality': nationality,
+      'idPassportNumber': idPassportNumber,
+      'isUser': false, // Set to true for booking user
     };
   }
 
   factory ExperiencePassenger.fromJson(Map<String, dynamic> json) {
+    // Determine passenger type from age
+    PassengerType type = PassengerType.adult;
+    if (json['age'] != null && json['age'] < 18) {
+      type = PassengerType.child;
+    }
+
+    // Determine residency from nationality
+    ResidencyStatus residency = ResidencyStatus.resident;
+    if (json['nationality'] != null &&
+        json['nationality'] != 'Kenyan' &&
+        json['nationality'] != 'Kenya') {
+      residency = ResidencyStatus.foreigner;
+    }
+
     return ExperiencePassenger(
-      firstName: json['firstName'],
-      lastName: json['lastName'],
-      email: json['email'],
-      phone: json['phone'],
-      passportNumber: json['passportNumber'],
-      dateOfBirth: json['dateOfBirth'] != null
-          ? DateTime.parse(json['dateOfBirth'])
-          : null,
-      specialRequirements: json['specialRequirements'],
+      firstName: json['firstName'] ?? '',
+      lastName: json['lastName'] ?? '',
+      passengerType: type,
+      residencyStatus: residency,
+      phoneNumber: json['phoneNumber'],
+      idPassportNumber: json['idPassportNumber'],
     );
   }
 
   ExperiencePassenger copyWith({
     String? firstName,
     String? lastName,
-    String? email,
-    String? phone,
-    String? passportNumber,
-    DateTime? dateOfBirth,
-    String? specialRequirements,
+    PassengerType? passengerType,
+    ResidencyStatus? residencyStatus,
+    String? phoneNumber,
+    String? idPassportNumber,
   }) {
     return ExperiencePassenger(
       firstName: firstName ?? this.firstName,
       lastName: lastName ?? this.lastName,
-      email: email ?? this.email,
-      phone: phone ?? this.phone,
-      passportNumber: passportNumber ?? this.passportNumber,
-      dateOfBirth: dateOfBirth ?? this.dateOfBirth,
-      specialRequirements: specialRequirements ?? this.specialRequirements,
+      passengerType: passengerType ?? this.passengerType,
+      residencyStatus: residencyStatus ?? this.residencyStatus,
+      phoneNumber: phoneNumber ?? this.phoneNumber,
+      idPassportNumber: idPassportNumber ?? this.idPassportNumber,
     );
   }
 }

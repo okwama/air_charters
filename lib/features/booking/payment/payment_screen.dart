@@ -7,6 +7,7 @@ import '../../../core/providers/auth_provider.dart';
 import '../../../core/models/saved_card_model.dart';
 import '../../../shared/widgets/custom_button.dart';
 import '../../../shared/widgets/loading_system.dart';
+import '../../../shared/widgets/network_error_widget.dart';
 
 class PaymentScreen extends StatefulWidget {
   final String bookingId;
@@ -585,57 +586,13 @@ class _PaymentScreenState extends State<PaymentScreen> {
 
                           // Error Message
                           if (_errorMessage != null)
-                            Container(
-                              padding: const EdgeInsets.all(16),
-                              decoration: BoxDecoration(
-                                color: Colors.red[50],
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(color: Colors.red[200]!),
-                              ),
-                              child: Row(
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.all(8),
-                                    decoration: BoxDecoration(
-                                      color: Colors.red[100],
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                    child: Icon(
-                                      Icons.error_outline,
-                                      color: Colors.red[600],
-                                      size: 20,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          'Payment Error',
-                                          style: TextStyle(
-                                            color: Colors.red[700],
-                                            fontSize: 14,
-                                            fontWeight: FontWeight.w600,
-                                            fontFamily: 'Inter',
-                                          ),
-                                        ),
-                                        const SizedBox(height: 4),
-                                        Text(
-                                          _errorMessage!,
-                                          style: TextStyle(
-                                            color: Colors.red[600],
-                                            fontSize: 14,
-                                            fontFamily: 'Inter',
-                                            height: 1.3,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ),
+                            QuickNetworkErrorWidget(
+                              error: _errorMessage,
+                              onRetry: () {
+                                setState(() {
+                                  _errorMessage = null;
+                                });
+                              },
                             ),
 
                           const SizedBox(height: 24),
