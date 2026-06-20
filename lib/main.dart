@@ -13,6 +13,7 @@ import 'core/services/notification_service.dart';
 import 'core/services/onesignal_service.dart';
 import 'core/services/cache_service.dart';
 import 'core/network/dio_client.dart';
+import 'core/telemetry/telemetry.dart';
 import 'config/env/app_config.dart';
 
 // Theme
@@ -46,6 +47,13 @@ void main() async {
 
   // 🚀 Initialize Dio client with caching
   try {
+    // Initialize telemetry (Sentry) early so errors during init are captured
+    try {
+      await Telemetry().init();
+      debugPrint('✅ Telemetry initialized');
+    } catch (e) {
+      debugPrint('⚠️ Telemetry init failed: $e');
+    }
     await DioClient().initialize();
     debugPrint('✅ Dio client initialized with SWR caching');
   } catch (e) {

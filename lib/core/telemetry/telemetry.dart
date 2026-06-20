@@ -24,7 +24,6 @@ class Telemetry {
         options.environment = AppConfig.isDevelopment ? 'development' : 'production';
         options.tracesSampleRate = 0.1;
       },
-      appRunner: () {},
     );
 
     _initialized = true;

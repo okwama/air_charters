@@ -45,8 +45,8 @@ class AppConfig {
   static const bool enablePushNotifications = true;
 
   // Sentry configuration
-  static const bool enableSentry = false; // Set to true in production to enable Sentry
-  static const String sentryDsn = ''; // Provide Sentry DSN in production
+  static const bool enableSentry = true; // Set to true in production to enable Sentry
+  static const String sentryDsn = 'https://a5375a6cc4c803c59099cd837ba7295f@o4511597224919040.ingest.de.sentry.io/4511597247791184'; // Provide Sentry DSN in production
   // OneSignal Configuration
   // Get your App ID from: https://app.onesignal.com
   static const String oneSignalAppId = '1939cf7f-9b99-4737-abb6-a40739f2f9df';
